@@ -1,0 +1,346 @@
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode');
+const path = require('path');
+const fs = require('fs');
+const config = require('../config/env');
+const ledger = require('./ledger');
+const matcher = require('./birthdayMatcher');
+
+let client = null;
+let clientStatus = 'INITIALIZING'; // INITIALIZING, QR_READY, AUTHENTICATED, READY, DISCONNECTED, ERROR
+let latestQrCode = null;
+let latestQrDataUrl = null;
+let clientInfo = null;
+let isDispatching = false;
+
+// Ensure auth directory exists
+const authDataPath = path.join(config.ROOT_DIR, '.wwebjs_auth');
+if (!fs.existsSync(authDataPath)) {
+  fs.mkdirSync(authDataPath, { recursive: true });
+}
+
+/**
+ * Auto-detects local Chrome or Edge executable on Windows if available.
+ */
+function getSystemChromePath() {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH && fs.existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+
+  const standardPaths = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe')
+  ];
+
+  for (const p of standardPaths) {
+    if (p && fs.existsSync(p)) {
+      return p;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Returns random delay in milliseconds between min and max.
+ */
+function getRandomDelay(min = config.MIN_DISPATCH_DELAY_MS, max = config.MAX_DISPATCH_DELAY_MS) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * Sleep helper.
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Initializes the WhatsApp Web client with LocalAuth.
+ */
+function initializeWhatsAppClient() {
+  if (client) {
+    return client;
+  }
+
+  console.log('[WhatsApp] Initializing WhatsApp Client with LocalAuth...');
+  clientStatus = 'INITIALIZING';
+
+  try {
+    const chromePath = getSystemChromePath();
+    if (chromePath) {
+      console.log(`[WhatsApp] Using detected system browser: ${chromePath}`);
+    }
+
+    client = new Client({
+      authStrategy: new LocalAuth({
+        clientId: config.WHATSAPP_CLIENT_ID,
+        dataPath: authDataPath
+      }),
+      puppeteer: {
+        headless: true,
+        executablePath: chromePath,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu',
+          '--disable-extensions'
+        ]
+      }
+    });
+
+    client.on('qr', async (qr) => {
+      console.log('[WhatsApp] QR code received. Scan with your phone.');
+      latestQrCode = qr;
+      clientStatus = 'QR_READY';
+      try {
+        latestQrDataUrl = await qrcode.toDataURL(qr);
+      } catch (err) {
+        console.error('[WhatsApp] Failed to generate QR data URL:', err.message);
+      }
+    });
+
+    client.on('authenticated', () => {
+      console.log('[WhatsApp] Client authenticated successfully.');
+      clientStatus = 'AUTHENTICATED';
+      latestQrCode = null;
+      latestQrDataUrl = null;
+    });
+
+    client.on('auth_failure', (msg) => {
+      console.error('[WhatsApp] Authentication failure:', msg);
+      clientStatus = 'AUTH_FAILURE';
+    });
+
+    client.on('ready', () => {
+      console.log('[WhatsApp] Client is ready to send messages!');
+      clientStatus = 'READY';
+      latestQrCode = null;
+      latestQrDataUrl = null;
+      clientInfo = client.info || { wid: { user: 'Connected' } };
+    });
+
+    client.on('disconnected', (reason) => {
+      console.warn('[WhatsApp] Client disconnected:', reason);
+      clientStatus = 'DISCONNECTED';
+      clientInfo = null;
+      // Reset client for possible re-initialization
+      client = null;
+    });
+
+    client.initialize().catch((err) => {
+      console.error('[WhatsApp] Client initialization failed:', err.message);
+      clientStatus = 'ERROR';
+    });
+
+  } catch (err) {
+    console.error('[WhatsApp] Failed to instantiate WhatsApp client:', err.message);
+    clientStatus = 'ERROR';
+  }
+
+  return client;
+}
+
+/**
+ * Gets the current status of the WhatsApp client.
+ */
+function getStatus() {
+  const hasLocalSession = fs.existsSync(path.join(authDataPath, `session-${config.WHATSAPP_CLIENT_ID}`));
+  return {
+    status: clientStatus,
+    isReady: clientStatus === 'READY',
+    hasSession: hasLocalSession,
+    qrDataUrl: latestQrDataUrl,
+    user: clientInfo ? { phone: clientInfo.wid?.user, pushname: clientInfo.pushname } : null,
+    isDispatching
+  };
+}
+
+/**
+ * Generates desktop URI protocol and web links for manual/fallback dispatch.
+ */
+function generateFallbackLinks(phone, text) {
+  const sanitized = phone.replace(/\D/g, '');
+  const encodedText = encodeURIComponent(text);
+  return {
+    desktopUri: `whatsapp://send?phone=${sanitized}&text=${encodedText}`,
+    webUrl: `https://web.whatsapp.com/send?phone=${sanitized}&text=${encodedText}`
+  };
+}
+
+/**
+ * Dispatches a message to a single student via whatsapp-web.js.
+ */
+async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE) {
+  const today = matcher.getCurrentDateInTimezone();
+  const phone = student.phone;
+  const message = matcher.formatMessage(template, student);
+
+  if (!phone || !student.isPhoneValid) {
+    throw new Error(`Invalid phone number for student ${student.name}: ${student.phoneRaw}`);
+  }
+
+  // Deduplication check
+  if (ledger.hasBeenSentThisYear(phone, today.year)) {
+    console.log(`[WhatsApp] Skip: Wish already sent to ${student.name} (${phone}) for ${today.year}`);
+    return {
+      success: true,
+      skipped: true,
+      reason: 'ALREADY_SENT_THIS_YEAR',
+      student
+    };
+  }
+
+  if (clientStatus !== 'READY' || !client) {
+    // Return fallback info if client is not ready
+    const fallback = generateFallbackLinks(phone, message);
+    throw new Error(`WhatsApp client not ready (Status: ${clientStatus}). Use desktop link: ${fallback.desktopUri}`);
+  }
+
+  const chatId = `${phone}@c.us`;
+  console.log(`[WhatsApp] Sending message to ${student.name} (${chatId})...`);
+
+  try {
+    const sentMsg = await client.sendMessage(chatId, message);
+
+    // Record in ledger immediately upon dispatch confirmation
+    ledger.recordSent({
+      phone,
+      name: student.name,
+      year: today.year,
+      date: today.dateString,
+      message,
+      method: 'whatsapp-web.js'
+    });
+
+    return {
+      success: true,
+      skipped: false,
+      messageId: sentMsg.id?._serialized,
+      student,
+      message
+    };
+  } catch (err) {
+    console.error(`[WhatsApp] Failed to send message to ${student.name} (${phone}):`, err.message);
+    throw err;
+  }
+}
+
+/**
+ * Dispatches birthday wishes to a list of students with anti-ban pacing.
+ */
+async function dispatchBatch(students, template = config.DEFAULT_TEMPLATE, onProgress = null) {
+  if (isDispatching) {
+    throw new Error('A batch dispatch is already in progress.');
+  }
+
+  isDispatching = true;
+  const results = {
+    total: students.length,
+    successful: 0,
+    skipped: 0,
+    failed: 0,
+    details: []
+  };
+
+  try {
+    for (let i = 0; i < students.length; i++) {
+      const student = students[i];
+      try {
+        if (onProgress) {
+          onProgress({ index: i + 1, total: students.length, student, state: 'SENDING' });
+        }
+
+        const res = await sendWishToStudent(student, template);
+
+        if (res.skipped) {
+          results.skipped++;
+          results.details.push({ student: student.name, phone: student.phone, status: 'SKIPPED' });
+        } else {
+          results.successful++;
+          results.details.push({ student: student.name, phone: student.phone, status: 'SENT' });
+        }
+
+        if (onProgress) {
+          onProgress({ index: i + 1, total: students.length, student, state: 'SUCCESS' });
+        }
+
+        // Anti-ban jitter delay if there are more students to send
+        if (i < students.length - 1 && !res.skipped) {
+          const delay = getRandomDelay();
+          console.log(`[WhatsApp] Anti-ban pacing: Waiting ${Math.round(delay / 1000)}s before next message...`);
+          if (onProgress) {
+            onProgress({ index: i + 1, total: students.length, state: 'WAITING', delayMs: delay });
+          }
+          await sleep(delay);
+        }
+
+      } catch (err) {
+        results.failed++;
+        results.details.push({
+          student: student.name,
+          phone: student.phone,
+          status: 'FAILED',
+          error: err.message
+        });
+
+        if (onProgress) {
+          onProgress({ index: i + 1, total: students.length, student, state: 'FAILED', error: err.message });
+        }
+      }
+    }
+  } finally {
+    isDispatching = false;
+  }
+
+  return results;
+}
+
+/**
+ * Resets the local WhatsApp session to allow re-pairing with a new phone.
+ */
+async function resetSession() {
+  console.log('[WhatsApp] Resetting WhatsApp session...');
+  try {
+    if (client) {
+      try {
+        await client.destroy();
+      } catch (e) {}
+      client = null;
+    }
+    clientStatus = 'DISCONNECTED';
+    clientInfo = null;
+    latestQrCode = null;
+    latestQrDataUrl = null;
+
+    // Clean up local auth folder
+    const sessionDir = path.join(authDataPath, `session-${config.WHATSAPP_CLIENT_ID}`);
+    if (fs.existsSync(sessionDir)) {
+      fs.rmSync(sessionDir, { recursive: true, force: true });
+      console.log('[WhatsApp] Removed old session files from disk.');
+    }
+
+    // Re-initialize fresh client
+    initializeWhatsAppClient();
+    return { success: true, message: 'Session reset. New QR code generating...' };
+  } catch (err) {
+    console.error('[WhatsApp] Error resetting session:', err.message);
+    throw err;
+  }
+}
+
+module.exports = {
+  initializeWhatsAppClient,
+  getStatus,
+  sendWishToStudent,
+  dispatchBatch,
+  generateFallbackLinks,
+  resetSession
+};

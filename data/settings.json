@@ -1,0 +1,13 @@
+{
+  "template": "Dear {name}, on behalf of Sussex, we wish you a very Happy Birthday! 🎂🎉 May this special day bring you immense joy, happiness, and great success ahead!",
+  "autoSendOnBoot": true,
+  "autoSendDelaySeconds": 10,
+  "minDispatchDelayMs": 5000,
+  "maxDispatchDelayMs": 12000,
+  "spreadsheetUrl": "https://docs.google.com/spreadsheets/d/1m8lS4iC8Co3kW2eC5RlAvDJjatEvvVNiKaYY4ScYTx4/edit?gid=350995715#gid=350995715",
+  "spreadsheetId": "1m8lS4iC8Co3kW2eC5RlAvDJjatEvvVNiKaYY4ScYTx4",
+  "sheetGid": "350995715",
+  "sheetName": "INQUIRY DETAILS 2026/27",
+  "credentialsConfigured": false,
+  "updatedAt": "2026-11-09T06:31:00.000Z"
+}

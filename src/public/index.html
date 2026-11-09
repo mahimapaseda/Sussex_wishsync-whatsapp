@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SheetPulse - Birthday Wisher</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              900: '#14532d',
+            },
+            sussex: {
+              primary: '#0f172a',
+              accent: '#3b82f6',
+              purple: '#8b5cf6'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-animation {
+      animation: pulse-ring 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- Main Container -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Top Navigation & Status Bar -->
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between pb-6 mb-6 border-b border-slate-800 gap-4">
+      <div class="flex items-center space-x-4">
+        <div class="h-12 w-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <i class="fa-solid fa-cake-candles text-2xl text-slate-950"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-2xl font-bold tracking-tight text-white">SheetPulse</h1>
+            <span class="px-2 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">Sussex Auto-Wisher</span>
+          </div>
+          <p class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+            <i class="fa-regular fa-calendar text-slate-500"></i>
+            <span id="headerDateDisplay">Loading date...</span>
+            <span class="text-slate-600">•</span>
+            <span class="text-slate-500">Asia/Colombo</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Live Connection Pills -->
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Google Sheets Pill -->
+        <div id="sheetsStatusPill" class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+          <span class="text-slate-300 font-medium">Google Sheets:</span>
+          <span id="sheetsStatusText" class="text-amber-400 font-semibold">Connecting...</span>
+        </div>
+
+        <!-- WhatsApp Session Pill -->
+        <button id="whatsappStatusBtn" class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs hover:border-slate-600 transition">
+          <span id="waStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+          <span class="text-slate-300 font-medium">WhatsApp:</span>
+          <span id="waStatusText" class="text-amber-400 font-semibold">Initializing...</span>
+        </button>
+
+        <!-- Template Editor Button -->
+        <button id="openTemplateModalBtn" class="p-2 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition" title="Edit Wish Message Template">
+          <i class="fa-solid fa-pen-to-square"></i>
+        </button>
+
+        <!-- Application Settings Button -->
+        <button id="openSettingsModalBtn" class="flex items-center gap-1.5 px-3 py-1.5 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition text-xs font-medium" title="Configure Google Sheets & Settings">
+          <i class="fa-solid fa-gear text-slate-400"></i>
+          <span>Settings</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Auto-Send Countdown Banner (Shown on Boot if active) -->
+    <div id="countdownBanner" class="hidden mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-950/70 to-slate-900 border border-emerald-500/40 shadow-xl shadow-emerald-950/30">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center space-x-3.5">
+          <div class="h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg border border-emerald-500/30" id="countdownSecondsBadge">
+            10s
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-emerald-300 flex items-center gap-2">
+              <i class="fa-solid fa-paper-plane text-emerald-400 animate-bounce"></i>
+              Automatic Boot Dispatch in Progress
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Preparing to send personalized WhatsApp wishes to <span id="countdownTargetCount" class="font-bold text-white">0</span> student(s).
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-3 w-full sm:w-auto">
+          <button id="cancelCountdownBtn" class="flex-1 sm:flex-none px-4 py-2 text-xs font-semibold text-red-400 hover:text-white hover:bg-red-500/20 border border-red-500/30 rounded-xl transition">
+            <i class="fa-solid fa-ban mr-1.5"></i> Cancel Auto-Send
+          </button>
+          <button id="dispatchNowBtn" class="flex-1 sm:flex-none px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-600/20 transition">
+            <i class="fa-solid fa-bolt mr-1.5"></i> Send Immediately
+          </button>
+        </div>
+      </div>
+      <!-- Countdown Progress Bar -->
+      <div class="w-full bg-slate-800 rounded-full h-1.5 mt-3 overflow-hidden">
+        <div id="countdownProgressBar" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-1000" style="width: 100%"></div>
+      </div>
+    </div>
+
+    <!-- Metrics Strip -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <!-- Card 1: Today's Birthdays -->
+      <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 backdrop-blur-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-1">
+          <span class="text-xs font-medium uppercase tracking-wider">Today's Birthdays</span>
+          <i class="fa-solid fa-cake-candles text-emerald-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-white" id="statTodayCount">0</div>
+        <p class="text-[11px] text-slate-500 mt-1">Celebrating today</p>
+      </div>
+
+      <!-- Card 2: Pending Dispatch -->
+      <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 backdrop-blur-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-1">
+          <span class="text-xs font-medium uppercase tracking-wider">Pending Wishes</span>
+          <i class="fa-solid fa-clock text-amber-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-amber-400" id="statPendingCount">0</div>
+        <p class="text-[11px] text-slate-500 mt-1">Waiting to be sent</p>
+      </div>
+
+      <!-- Card 3: Already Delivered -->
+      <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 backdrop-blur-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-1">
+          <span class="text-xs font-medium uppercase tracking-wider">Delivered Today</span>
+          <i class="fa-solid fa-circle-check text-blue-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-blue-400" id="statSentCount">0</div>
+        <p class="text-[11px] text-slate-500 mt-1">Already sent this year</p>
+      </div>
+
+      <!-- Card 4: Upcoming 7 Days -->
+      <div class="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 backdrop-blur-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-1">
+          <span class="text-xs font-medium uppercase tracking-wider">Upcoming (7 Days)</span>
+          <i class="fa-solid fa-calendar-week text-purple-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-purple-400" id="statUpcomingCount">0</div>
+        <p class="text-[11px] text-slate-500 mt-1">Next week birthdays</p>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="space-y-6">
+
+      <!-- Today's Birthdays Section -->
+      <div class="rounded-2xl bg-slate-800/40 border border-slate-700/50 overflow-hidden shadow-xl backdrop-blur-sm">
+        <div class="px-6 py-4 bg-slate-800/60 border-b border-slate-700/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="flex items-center space-x-2.5">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-gift text-brand-500"></i>
+              Students Celebrating Today
+            </h2>
+            <span id="todayBadgeCount" class="px-2 py-0.5 text-xs font-bold bg-slate-700 text-slate-300 rounded-full">0</span>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex items-center space-x-2.5">
+            <button id="refreshDataBtn" class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-700/60 hover:bg-slate-700 rounded-xl transition flex items-center gap-1.5">
+              <i class="fa-solid fa-arrows-rotate"></i> Sync Data
+            </button>
+            <button id="sendAllBtn" class="px-3.5 py-1.5 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-md shadow-brand-600/20 transition flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+              <i class="fa-solid fa-paper-plane"></i> Send All Wishes Now
+            </button>
+          </div>
+        </div>
+
+        <!-- Student Birthday List -->
+        <div id="todayBirthdaysList" class="divide-y divide-slate-800">
+          <div class="p-8 text-center text-slate-500">
+            <i class="fa-solid fa-spinner fa-spin text-2xl text-slate-400 mb-2"></i>
+            <p class="text-sm">Fetching and calculating birthdays...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upcoming Birthdays Card (Next 7 Days) -->
+      <div class="rounded-2xl bg-slate-800/40 border border-slate-700/50 overflow-hidden shadow-xl backdrop-blur-sm">
+        <div class="px-6 py-4 bg-slate-800/60 border-b border-slate-700/50 flex items-center justify-between">
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-regular fa-calendar-check text-purple-400"></i>
+            Upcoming Birthdays (Next 7 Days)
+          </h2>
+          <span id="upcomingBadgeCount" class="px-2 py-0.5 text-xs font-bold bg-purple-500/10 text-purple-300 border border-purple-500/20 rounded-full">0</span>
+        </div>
+        <div id="upcomingBirthdaysList" class="divide-y divide-slate-800">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+
+      <!-- Sent History Drawer / Log -->
+      <div class="rounded-2xl bg-slate-800/40 border border-slate-700/50 overflow-hidden shadow-xl backdrop-blur-sm">
+        <div class="px-6 py-4 bg-slate-800/60 border-b border-slate-700/50 flex items-center justify-between">
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-blue-400"></i>
+            Local Delivery Ledger (`sent_log.json`)
+          </h2>
+          <div class="flex items-center space-x-3">
+            <a href="/api/ledger/export" class="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition" title="Export sent wishes history as CSV file">
+              <i class="fa-solid fa-file-arrow-down"></i> Export CSV
+            </a>
+            <button id="toggleLedgerBtn" class="text-xs text-slate-400 hover:text-white transition">Show Details</button>
+          </div>
+        </div>
+        <div id="ledgerContainer" class="p-4 hidden">
+          <div id="ledgerList" class="space-y-2 text-xs text-slate-300 max-h-60 overflow-y-auto font-mono">
+            <!-- Filled dynamically -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-8 pt-4 border-t border-slate-800 text-center text-xs text-slate-500">
+      SheetPulse Birthday Wisher • Sussex Education Group • Runs automatically on Windows Boot
+    </footer>
+
+  </div>
+
+  <!-- Settings Modal (Google Sheets Link, Credentials, Automation) -->
+  <div id="settingsModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <button id="closeSettingsModalBtn" class="absolute top-5 right-5 text-slate-400 hover:text-white text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <!-- Modal Header -->
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-800">
+        <div class="h-10 w-10 rounded-2xl bg-brand-500/10 text-brand-400 flex items-center justify-center border border-brand-500/20">
+          <i class="fa-solid fa-gear text-lg"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white">System Settings</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Link your Google Sheet, configure Service Account credentials, and tune automation settings.</p>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+
+        <!-- 1. Google Sheets Link Section -->
+        <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3.5">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-table text-emerald-400"></i>
+              Google Sheets Link & Sheet Tab
+            </h4>
+            <span id="settingsSheetStatusBadge" class="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20">Checking...</span>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 mb-1">
+              Google Sheet URL or Spreadsheet ID:
+            </label>
+            <div class="relative">
+              <input 
+                type="text" 
+                id="settingSpreadsheetUrl" 
+                placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs.../edit"
+                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
+              >
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">
+              You can paste the entire browser URL of your Google Sheet. SheetPulse will automatically extract the ID.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 mb-1">
+                Sheet Tab Name:
+              </label>
+              <input 
+                type="text" 
+                id="settingSheetName" 
+                placeholder="INQUIRY DETAILS 2026/27"
+                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              >
+              <p class="text-[10px] text-slate-500 mt-1">The exact name of the tab at the bottom of your sheet.</p>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 mb-1">
+                Extracted Spreadsheet ID:
+              </label>
+              <input 
+                type="text" 
+                id="settingExtractedId" 
+                readonly
+                placeholder="Auto-extracted from URL"
+                class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-xs text-emerald-400 font-mono"
+              >
+              <p class="text-[10px] text-slate-500 mt-1">Automatically computed from the link above.</p>
+            </div>
+          </div>
+
+          <!-- Service Account Credentials Area -->
+          <div class="pt-2 border-t border-slate-800/80">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-key text-amber-400"></i>
+                Service Account Credentials (JSON):
+              </label>
+              <span id="credsStatusLabel" class="text-[11px] text-slate-400">Checking...</span>
+            </div>
+            <textarea 
+              id="settingCredentialsJson" 
+              rows="3" 
+              placeholder="Paste content of credentials.json here (or leave blank if credentials.json is already in root folder)..."
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
+            ></textarea>
+            <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 text-[11px] text-slate-400 mt-2 space-y-1">
+              <p class="text-white font-medium flex items-center gap-1">
+                <i class="fa-solid fa-circle-info text-blue-400"></i> How to link Google Sheets:
+              </p>
+              <p>1. Open your Google Sheet in browser $\rightarrow$ click <strong>Share</strong>.</p>
+              <p>2. Add your service account email as <strong>Viewer</strong>: <span id="displayServiceEmail" class="text-emerald-400 font-mono select-all">service-account-email</span></p>
+            </div>
+          </div>
+
+          <!-- Test Connection Button -->
+          <div class="flex items-center justify-between pt-2">
+            <button id="testSheetConnBtn" type="button" class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-white transition flex items-center gap-1.5">
+              <i class="fa-solid fa-plug text-emerald-400"></i> Test Connection Live
+            </button>
+            <span id="testConnResultMsg" class="text-xs text-slate-400"></span>
+          </div>
+        </div>
+
+        <!-- 2. Windows Boot & Automation Options -->
+        <div class="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">
+          <h4 class="text-xs font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-robot text-blue-400"></i>
+            Startup & Anti-Ban Automation
+          </h4>
+
+          <div class="flex items-center justify-between py-1">
+            <div>
+              <p class="text-xs font-semibold text-slate-200">Auto-Send on Boot Countdown</p>
+              <p class="text-[11px] text-slate-500">Starts a visual 10-second countdown when Windows turns on before dispatching.</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="settingAutoSendOnBoot" class="sr-only peer">
+              <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 mb-1">
+                Countdown Delay (seconds):
+              </label>
+              <input 
+                type="number" 
+                id="settingCountdownSeconds" 
+                min="3" 
+                max="60" 
+                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+              >
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 mb-1">
+                Anti-Ban Random Delay Range:
+              </label>
+              <div class="flex items-center space-x-2">
+                <input type="number" id="settingMinDelay" min="2" max="30" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white" placeholder="Min (5s)">
+                <span class="text-slate-500 text-xs">to</span>
+                <input type="number" id="settingMaxDelay" min="3" max="60" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white" placeholder="Max (12s)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="mt-6 pt-4 border-t border-slate-800 flex justify-end space-x-3">
+        <button id="cancelSettingsBtn" class="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl">
+          Cancel
+        </button>
+        <button id="saveSettingsBtn" class="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-floppy-disk"></i> Save & Apply Settings
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- QR Code Modal (for WhatsApp Web pairing) -->
+  <div id="qrModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+      <button id="closeQrModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="text-center mb-4">
+        <div class="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-3 border border-emerald-500/20">
+          <i class="fa-brands fa-whatsapp text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-white">Link Personal WhatsApp</h3>
+        <p class="text-xs text-slate-400 mt-1">Scan this QR code with WhatsApp on your phone to authorize hands-free desktop dispatching.</p>
+      </div>
+
+      <div class="bg-white p-4 rounded-2xl flex items-center justify-center mx-auto w-64 h-64 mb-4 shadow-inner">
+        <img id="qrImageElement" src="" alt="WhatsApp QR Code" class="w-full h-full object-contain">
+        <div id="qrPlaceholder" class="text-slate-400 text-center text-xs">
+          <i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-emerald-600"></i>
+          <p>Generating session QR code...</p>
+        </div>
+      </div>
+
+      <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 text-xs text-slate-300 space-y-1 mb-4">
+        <p class="font-semibold text-white">Instructions:</p>
+        <ol class="list-decimal list-inside space-y-0.5 text-slate-400">
+          <li>Open WhatsApp on your phone</li>
+          <li>Tap <strong class="text-slate-200">Settings</strong> or <strong class="text-slate-200">Menu</strong> &gt; <strong class="text-slate-200">Linked Devices</strong></li>
+          <li>Tap <strong class="text-slate-200">Link a Device</strong> and point your camera at the screen</li>
+        </ol>
+      </div>
+
+      <div class="flex justify-between items-center pt-2 border-t border-slate-800 text-xs">
+        <button id="resetSessionBtn" class="text-red-400 hover:text-red-300 flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-arrow-rotate-left"></i> Reset / Re-generate QR
+        </button>
+        <button id="doneQrModalBtn" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template Editor Modal -->
+  <div id="templateModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative">
+      <button id="closeTemplateModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="mb-4">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-envelope-open-text text-brand-500"></i>
+          Birthday Message Template
+        </h3>
+        <p class="text-xs text-slate-400 mt-1">Personalize the automated WhatsApp wish. Use the placeholder chips below.</p>
+      </div>
+
+      <!-- Variable chips -->
+      <div class="flex flex-wrap gap-2 mb-3">
+        <button type="button" class="insert-tag-btn px-2.5 py-1 text-xs rounded-lg bg-slate-800 border border-slate-700 text-emerald-400 hover:bg-slate-700 transition" data-tag="{name}">+ {name}</button>
+        <button type="button" class="insert-tag-btn px-2.5 py-1 text-xs rounded-lg bg-slate-800 border border-slate-700 text-emerald-400 hover:bg-slate-700 transition" data-tag="{first_name}">+ {first_name}</button>
+        <button type="button" class="insert-tag-btn px-2.5 py-1 text-xs rounded-lg bg-slate-800 border border-slate-700 text-emerald-400 hover:bg-slate-700 transition" data-tag="{branch}">+ {branch}</button>
+        <button type="button" class="insert-tag-btn px-2.5 py-1 text-xs rounded-lg bg-slate-800 border border-slate-700 text-emerald-400 hover:bg-slate-700 transition" data-tag="{age}">+ {age}</button>
+      </div>
+
+      <textarea id="templateTextarea" rows="4" class="w-full bg-slate-950 border border-slate-700 rounded-2xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-sans"></textarea>
+
+      <!-- Live Preview -->
+      <div class="mt-4 p-3 rounded-2xl bg-slate-950/60 border border-slate-800">
+        <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Live Sample Preview:</p>
+        <p id="templatePreviewText" class="text-xs text-emerald-300 italic"></p>
+      </div>
+
+      <div class="mt-6 flex justify-end space-x-3">
+        <button id="cancelTemplateBtn" class="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl">Cancel</button>
+        <button id="saveTemplateBtn" class="px-5 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-lg shadow-brand-600/20 transition">Save Template</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 space-y-2 z-50"></div>
+
+  <!-- Application Logic -->
+  <script src="/app.js"></script>
+</body>
+</html>
+
