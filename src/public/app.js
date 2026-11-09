@@ -13,6 +13,8 @@ let currentStatus = {
   config: {}
 };
 
+let currentBranches = [];
+let selectedBranchFilter = 'ALL';
 let currentTemplate = '';
 let countdownInterval = null;
 let countdownRemaining = 10;
@@ -48,7 +50,25 @@ const toggleLedgerBtn = document.getElementById('toggleLedgerBtn');
 const ledgerContainer = document.getElementById('ledgerContainer');
 const ledgerList = document.getElementById('ledgerList');
 
-// Settings Modal Elements
+// Branch Management Modal Elements
+const branchesModal = document.getElementById('branchesModal');
+const openBranchesModalBtn = document.getElementById('openBranchesModalBtn');
+const closeBranchesModalBtn = document.getElementById('closeBranchesModalBtn');
+const closeBranchesFooterBtn = document.getElementById('closeBranchesFooterBtn');
+const addNewBranchBtn = document.getElementById('addNewBranchBtn');
+const branchFormDrawer = document.getElementById('branchFormDrawer');
+const branchFormTitle = document.getElementById('branchFormTitle');
+const cancelBranchFormBtn = document.getElementById('cancelBranchFormBtn');
+const saveBranchBtn = document.getElementById('saveBranchBtn');
+const editBranchId = document.getElementById('editBranchId');
+const branchInputName = document.getElementById('branchInputName');
+const branchInputTab = document.getElementById('branchInputTab');
+const branchInputUrl = document.getElementById('branchInputUrl');
+const branchInputTemplate = document.getElementById('branchInputTemplate');
+const branchesListContainer = document.getElementById('branchesListContainer');
+const navBranchCountBadge = document.getElementById('navBranchCountBadge');
+const branchFilterPills = document.getElementById('branchFilterPills');
+const filterAllCount = document.getElementById('filterAllCount');
 const settingsModal = document.getElementById('settingsModal');
 const openSettingsModalBtn = document.getElementById('openSettingsModalBtn');
 const closeSettingsModalBtn = document.getElementById('closeSettingsModalBtn');
@@ -125,11 +145,18 @@ function showToast(message, type = 'info') {
 // Fetch Full Application State
 async function fetchAllState() {
   try {
-    const [statusRes, birthdaysRes, templateRes] = await Promise.all([
+    const [statusRes, birthdaysRes, templateRes, branchesRes] = await Promise.all([
       fetch('/api/status').then(r => r.json()),
       fetch('/api/birthdays').then(r => r.json()),
-      fetch('/api/template').then(r => r.json())
+      fetch('/api/template').then(r => r.json()),
+      fetch('/api/branches').then(r => r.json())
     ]);
+
+    if (branchesRes.success && Array.isArray(branchesRes.branches)) {
+      currentBranches = branchesRes.branches;
+      navBranchCountBadge.textContent = currentBranches.length;
+      updateBranchFilterPills();
+    }
 
     updateStatusUI(statusRes);
     updateBirthdaysUI(birthdaysRes);
@@ -196,31 +223,88 @@ function updateStatusUI(data) {
   }
 }
 
+// Update Branch Filter Pills on Dashboard
+function updateBranchFilterPills() {
+  if (!branchFilterPills) return;
+
+  const totalToday = currentData.today ? currentData.today.length : 0;
+  if (filterAllCount) filterAllCount.textContent = totalToday;
+
+  const branchPillsHtml = [
+    `<button type="button" class="branch-filter-btn px-3 py-1 rounded-lg text-xs font-semibold ${selectedBranchFilter === 'ALL' ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}" data-branch="ALL">All Branches (${totalToday})</button>`
+  ];
+
+  currentBranches.forEach(b => {
+    // Count today's birthdays for this branch
+    const branchCount = (currentData.today || []).filter(s => 
+      (s.branch && s.branch.toLowerCase() === b.name.toLowerCase()) || (s.branchId === b.id)
+    ).length;
+
+    const isActive = selectedBranchFilter === b.id || selectedBranchFilter === b.name;
+    const btnClass = isActive ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-800 text-slate-300 hover:bg-slate-700';
+
+    branchPillsHtml.push(`
+      <button type="button" class="branch-filter-btn px-3 py-1 rounded-lg text-xs font-semibold ${btnClass} flex items-center gap-1.5" data-branch="${b.id}">
+        <span class="w-1.5 h-1.5 rounded-full ${b.enabled ? 'bg-emerald-400' : 'bg-slate-500'}"></span>
+        <span>${b.name}</span>
+        <span class="px-1.5 py-0.2 bg-black/20 rounded-md text-[10px] font-bold">${branchCount}</span>
+      </button>
+    `);
+  });
+
+  branchFilterPills.innerHTML = branchPillsHtml.join('');
+
+  // Wire click events
+  document.querySelectorAll('.branch-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedBranchFilter = btn.getAttribute('data-branch');
+      updateBranchFilterPills();
+      updateBirthdaysUI(currentData);
+    });
+  });
+}
+
 // Update Today's and Upcoming Birthdays List
 function updateBirthdaysUI(data) {
   currentData = data;
 
-  statTodayCount.textContent = data.stats?.totalStudentsCelebratedToday || data.today.length;
-  statPendingCount.textContent = data.stats?.pendingTodayCount || 0;
-  statSentCount.textContent = data.stats?.sentTodayCount || 0;
-  statUpcomingCount.textContent = data.stats?.upcomingCount || 0;
+  // Filter students based on selected branch filter
+  let displayToday = data.today || [];
+  let displayUpcoming = data.upcoming || [];
 
-  todayBadgeCount.textContent = data.today.length;
-  upcomingBadgeCount.textContent = data.upcoming.length;
+  if (selectedBranchFilter !== 'ALL') {
+    displayToday = displayToday.filter(s => 
+      s.branchId === selectedBranchFilter || (s.branch && s.branch.toLowerCase() === selectedBranchFilter.toLowerCase())
+    );
+    displayUpcoming = displayUpcoming.filter(s => 
+      s.branchId === selectedBranchFilter || (s.branch && s.branch.toLowerCase() === selectedBranchFilter.toLowerCase())
+    );
+  }
 
-  sendAllBtn.disabled = data.stats?.pendingTodayCount === 0 || isDispatching;
+  const pendingCount = displayToday.filter(s => s.status === 'PENDING_TODAY').length;
+  const sentCount = displayToday.filter(s => s.status === 'SENT_TODAY').length;
+
+  statTodayCount.textContent = displayToday.length;
+  statPendingCount.textContent = pendingCount;
+  statSentCount.textContent = sentCount;
+  statUpcomingCount.textContent = displayUpcoming.length;
+
+  todayBadgeCount.textContent = displayToday.length;
+  upcomingBadgeCount.textContent = displayUpcoming.length;
+
+  sendAllBtn.disabled = pendingCount === 0 || isDispatching;
 
   // Render Today's List
-  if (data.today.length === 0) {
+  if (displayToday.length === 0) {
     todayBirthdaysList.innerHTML = `
       <div class="p-8 text-center text-slate-500">
         <i class="fa-solid fa-mug-hot text-2xl text-slate-600 mb-2"></i>
-        <p class="text-sm font-medium">No student birthdays found for today.</p>
+        <p class="text-sm font-medium">No student birthdays found for today ${selectedBranchFilter !== 'ALL' ? 'in this branch' : ''}.</p>
         <p class="text-xs text-slate-600 mt-1">Check the upcoming list below for birthdays happening this week.</p>
       </div>
     `;
   } else {
-    todayBirthdaysList.innerHTML = data.today.map(student => {
+    todayBirthdaysList.innerHTML = displayToday.map(student => {
       const isSent = student.status === 'SENT_TODAY';
       const branchBadge = student.branch.toLowerCase().includes('head') 
         ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' 
@@ -460,6 +544,292 @@ function extractSpreadsheetIdFromUrl(url) {
   if (!url) return '';
   const match = String(url).trim().match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   return match && match[1] ? match[1] : String(url).trim();
+}
+
+// ==========================================
+// Multi-Branch Management Panel Logic
+// ==========================================
+
+async function loadBranchesManager() {
+  branchesListContainer.innerHTML = `
+    <div class="p-8 text-center text-slate-500 text-xs">
+      <i class="fa-solid fa-spinner fa-spin text-xl mb-2 text-blue-400"></i>
+      <p>Loading configured branch sheets...</p>
+    </div>
+  `;
+
+  try {
+    const res = await fetch('/api/branches').then(r => r.json());
+    if (res.success && Array.isArray(res.branches)) {
+      currentBranches = res.branches;
+      navBranchCountBadge.textContent = currentBranches.length;
+      renderBranchesList(currentBranches);
+      updateBranchFilterPills();
+    }
+  } catch (err) {
+    branchesListContainer.innerHTML = `<div class="p-4 text-center text-red-400 text-xs">Error loading branches: ${err.message}</div>`;
+  }
+}
+
+function renderBranchesList(branches) {
+  if (branches.length === 0) {
+    branchesListContainer.innerHTML = `
+      <div class="p-8 rounded-2xl bg-slate-950/60 border border-slate-800 text-center text-slate-400 text-xs space-y-2">
+        <i class="fa-solid fa-network-wired text-3xl text-slate-600 mb-1"></i>
+        <p class="font-bold text-white text-sm">No Branch Sheets Added Yet</p>
+        <p class="text-slate-500 max-w-md mx-auto">Add each of your Sussex branches (Ambalangoda, Galle, etc.) with their respective Google Sheet links.</p>
+        <button id="emptyAddBranchBtn" type="button" class="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold shadow-md transition">
+          + Add Your First Branch Sheet
+        </button>
+      </div>
+    `;
+    const btn = document.getElementById('emptyAddBranchBtn');
+    if (btn) btn.addEventListener('click', openAddBranchForm);
+    return;
+  }
+
+  branchesListContainer.innerHTML = branches.map(b => {
+    const isEnabled = b.enabled !== false;
+    const shortUrl = b.spreadsheetUrl ? (b.spreadsheetUrl.length > 50 ? b.spreadsheetUrl.substring(0, 47) + '...' : b.spreadsheetUrl) : b.spreadsheetId;
+
+    return `
+      <div class="p-4 rounded-2xl bg-slate-950/70 border ${isEnabled ? 'border-slate-800 hover:border-blue-500/40' : 'border-slate-800/40 opacity-60'} transition flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-start space-x-3.5">
+          <div class="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/20 shrink-0 mt-0.5">
+            <i class="fa-solid fa-building-columns"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h4 class="text-sm font-bold text-white">${b.name}</h4>
+              <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md ${isEnabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400'}">
+                ${isEnabled ? 'Active' : 'Disabled'}
+              </span>
+            </div>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
+              <span><i class="fa-solid fa-table text-slate-500 mr-1 text-[11px]"></i>Tab: <strong class="text-slate-300">${b.sheetName}</strong></span>
+              <span>•</span>
+              <a href="${b.spreadsheetUrl || '#'}" target="_blank" class="text-blue-400 hover:underline flex items-center gap-1 font-mono text-[11px]" title="${b.spreadsheetUrl}">
+                <i class="fa-solid fa-link text-[10px]"></i> ${shortUrl}
+              </a>
+            </div>
+            ${b.customTemplate ? `<p class="text-[11px] text-purple-300 italic mt-1">Custom template: "${b.customTemplate.substring(0, 45)}..."</p>` : ''}
+          </div>
+        </div>
+
+        <!-- Branch Actions -->
+        <div class="flex items-center space-x-2.5 self-end md:self-center shrink-0">
+          <!-- Toggle Enabled Switch -->
+          <button 
+            type="button" 
+            class="toggle-branch-btn px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${isEnabled ? 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700' : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'}"
+            data-id="${b.id}"
+            data-enabled="${isEnabled}"
+          >
+            ${isEnabled ? 'Disable' : 'Enable'}
+          </button>
+
+          <!-- Test Connection Button -->
+          <button 
+            type="button" 
+            class="test-branch-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5"
+            data-id="${b.id}"
+          >
+            <i class="fa-solid fa-plug text-blue-400 text-[11px]"></i> Test
+          </button>
+
+          <!-- Edit Button -->
+          <button 
+            type="button" 
+            class="edit-branch-btn p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition text-xs"
+            data-id="${b.id}"
+            title="Edit Branch Settings"
+          >
+            <i class="fa-solid fa-pen"></i>
+          </button>
+
+          <!-- Delete Button -->
+          <button 
+            type="button" 
+            class="delete-branch-btn p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition text-xs"
+            data-id="${b.id}"
+            data-name="${b.name}"
+            title="Delete Branch"
+          >
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Wire Branch Card Event Listeners
+  document.querySelectorAll('.toggle-branch-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      const curEnabled = btn.getAttribute('data-enabled') === 'true';
+      await toggleBranchEnabled(id, !curEnabled);
+    });
+  });
+
+  document.querySelectorAll('.test-branch-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      await testSingleBranchConnection(id, btn);
+    });
+  });
+
+  document.querySelectorAll('.edit-branch-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const branch = currentBranches.find(b => b.id === id);
+      if (branch) openEditBranchForm(branch);
+    });
+  });
+
+  document.querySelectorAll('.delete-branch-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      const name = btn.getAttribute('data-name');
+      if (confirm(`Are you sure you want to remove "${name}" branch sheet?`)) {
+        await deleteBranchById(id);
+      }
+    });
+  });
+}
+
+function openAddBranchForm() {
+  editBranchId.value = '';
+  branchInputName.value = '';
+  branchInputTab.value = 'INQUIRY DETAILS 202627';
+  branchInputUrl.value = '';
+  branchInputTemplate.value = '';
+  branchFormTitle.innerHTML = '<i class="fa-solid fa-plus-circle"></i> Add New Branch Sheet';
+  branchFormDrawer.classList.remove('hidden');
+  branchInputName.focus();
+}
+
+function openEditBranchForm(branch) {
+  editBranchId.value = branch.id;
+  branchInputName.value = branch.name || '';
+  branchInputTab.value = branch.sheetName || 'INQUIRY DETAILS 202627';
+  branchInputUrl.value = branch.spreadsheetUrl || branch.spreadsheetId || '';
+  branchInputTemplate.value = branch.customTemplate || '';
+  branchFormTitle.innerHTML = `<i class="fa-solid fa-pen"></i> Edit Branch: ${branch.name}`;
+  branchFormDrawer.classList.remove('hidden');
+}
+
+function closeBranchForm() {
+  branchFormDrawer.classList.add('hidden');
+}
+
+async function saveBranchRecord() {
+  const name = branchInputName.value.trim();
+  const url = branchInputUrl.value.trim();
+  const tab = branchInputTab.value.trim() || 'INQUIRY DETAILS 202627';
+  const tpl = branchInputTemplate.value.trim();
+  const branchId = editBranchId.value;
+
+  if (!name) {
+    showToast('Branch name is required', 'warning');
+    return;
+  }
+  if (!url) {
+    showToast('Google Sheet URL or Spreadsheet ID is required', 'warning');
+    return;
+  }
+
+  saveBranchBtn.disabled = true;
+  saveBranchBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+  try {
+    let res;
+    if (branchId) {
+      // Update
+      res = await fetch(`/api/branches/${branchId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, spreadsheetUrl: url, sheetName: tab, customTemplate: tpl })
+      }).then(r => r.json());
+    } else {
+      // Add
+      res = await fetch('/api/branches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, spreadsheetUrl: url, sheetName: tab, customTemplate: tpl })
+      }).then(r => r.json());
+    }
+
+    if (res.success) {
+      showToast(`Branch "${name}" saved successfully!`, 'success');
+      closeBranchForm();
+      await loadBranchesManager();
+      fetchAllState();
+    } else {
+      showToast(res.error || 'Failed to save branch', 'error');
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    saveBranchBtn.disabled = false;
+    saveBranchBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Branch';
+  }
+}
+
+async function toggleBranchEnabled(id, enabled) {
+  try {
+    const res = await fetch(`/api/branches/${id}/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled })
+    }).then(r => r.json());
+
+    if (res.success) {
+      showToast(`Branch ${enabled ? 'enabled' : 'disabled'}`, 'info');
+      await loadBranchesManager();
+      fetchAllState();
+    }
+  } catch (err) {
+    showToast('Failed to update branch status', 'error');
+  }
+}
+
+async function testSingleBranchConnection(id, btnElement) {
+  btnElement.disabled = true;
+  btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Testing...';
+
+  try {
+    const res = await fetch(`/api/branches/${id}/test`).then(r => r.json());
+    if (res.success) {
+      showToast(`✓ Connected! Synced ${res.count} student rows.`, 'success');
+      btnElement.className = 'test-branch-btn px-3 py-1.5 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition flex items-center gap-1.5';
+      btnElement.innerHTML = `<i class="fa-solid fa-check"></i> ${res.count} rows`;
+    } else {
+      showToast(res.error || 'Branch connection failed', 'error');
+      btnElement.className = 'test-branch-btn px-3 py-1.5 rounded-xl bg-red-600/20 text-red-400 border border-red-500/30 text-xs font-semibold transition flex items-center gap-1.5';
+      btnElement.innerHTML = `<i class="fa-solid fa-xmark"></i> Failed`;
+    }
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    setTimeout(() => {
+      btnElement.disabled = false;
+      btnElement.className = 'test-branch-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5';
+      btnElement.innerHTML = '<i class="fa-solid fa-plug text-blue-400 text-[11px]"></i> Test';
+    }, 4000);
+  }
+}
+
+async function deleteBranchById(id) {
+  try {
+    const res = await fetch(`/api/branches/${id}`, { method: 'DELETE' }).then(r => r.json());
+    if (res.success) {
+      showToast('Branch removed successfully', 'info');
+      await loadBranchesManager();
+      fetchAllState();
+    }
+  } catch (err) {
+    showToast('Failed to delete branch', 'error');
+  }
 }
 
 // Load Settings into Settings Modal
@@ -702,6 +1072,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Toggle Ledger
   toggleLedgerBtn.addEventListener('click', toggleLedger);
+
+  // Branch Modal Triggers
+  if (openBranchesModalBtn) {
+    openBranchesModalBtn.addEventListener('click', () => {
+      loadBranchesManager();
+      branchesModal.classList.remove('hidden');
+    });
+  }
+  if (closeBranchesModalBtn) {
+    closeBranchesModalBtn.addEventListener('click', () => branchesModal.classList.add('hidden'));
+  }
+  if (closeBranchesFooterBtn) {
+    closeBranchesFooterBtn.addEventListener('click', () => branchesModal.classList.add('hidden'));
+  }
+  if (addNewBranchBtn) {
+    addNewBranchBtn.addEventListener('click', openAddBranchForm);
+  }
+  if (cancelBranchFormBtn) {
+    cancelBranchFormBtn.addEventListener('click', closeBranchForm);
+  }
+  if (saveBranchBtn) {
+    saveBranchBtn.addEventListener('click', saveBranchRecord);
+  }
 
   // Settings Modal Triggers
   openSettingsModalBtn.addEventListener('click', () => {

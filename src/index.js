@@ -50,9 +50,13 @@ app.get('/api/birthdays', async (req, res) => {
     res.json({
       success: true,
       source: sheetData.source,
-      sheetName: sheetData.sheetName,
+      sheetName: sheetData.sheetName || 'Multiple Branches',
       status: sheetData.status,
       warning: sheetData.warning || null,
+      authType: sheetData.authType || null,
+      totalBranches: sheetData.totalBranches || 0,
+      connectedBranches: sheetData.connectedBranches || 0,
+      branchesReport: sheetData.branchesReport || [],
       todayInfo: processed.todayInfo,
       stats: {
         ...processed.stats,
@@ -110,6 +114,58 @@ app.post('/api/settings', (req, res) => {
     res.json({ success: true, settings: updated });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// 4-Branch. Multi-Branch Sheets Management CRUD Endpoints
+app.get('/api/branches', (req, res) => {
+  const branches = settings.getBranches();
+  res.json({ success: true, branches });
+});
+
+app.post('/api/branches', (req, res) => {
+  try {
+    const newBranch = settings.addBranch(req.body);
+    res.json({ success: true, branch: newBranch });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.put('/api/branches/:id', (req, res) => {
+  try {
+    const updated = settings.updateBranch(req.params.id, req.body);
+    res.json({ success: true, branch: updated });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/branches/:id', (req, res) => {
+  try {
+    const result = settings.deleteBranch(req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/branches/:id/toggle', (req, res) => {
+  try {
+    const { enabled } = req.body;
+    const updated = settings.toggleBranch(req.params.id, enabled);
+    res.json({ success: true, branch: updated });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/branches/:id/test', async (req, res) => {
+  try {
+    const result = await googleSheets.testGoogleSheetsConnection(req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -223,7 +279,7 @@ app.post('/api/auth/google/signout', (req, res) => {
 // 5. Send Wish to Single Student API
 app.post('/api/send', async (req, res) => {
   try {
-    const { studentId, phone, name, branch, age, template } = req.body;
+    const { studentId, phone, name, branch, age, template, branchCustomTemplate } = req.body;
     if (!phone) {
       return res.status(400).json({ success: false, error: 'Phone number is required.' });
     }
@@ -238,7 +294,8 @@ app.post('/api/send', async (req, res) => {
     };
 
     const userSettings = settings.loadSettings();
-    const wishTemplate = template || userSettings.template;
+    // Prioritize: explicitly passed template > branch custom template > global template
+    const wishTemplate = template || branchCustomTemplate || userSettings.template;
     const sendResult = await whatsappClient.sendWishToStudent(student, wishTemplate);
     res.json(sendResult);
   } catch (err) {
@@ -253,16 +310,24 @@ app.post('/api/send', async (req, res) => {
 // 6. Send Batch Wishes to All Pending Students API
 app.post('/api/send-batch', async (req, res) => {
   try {
-    const { template } = req.body;
+    const { template, branchFilter } = req.body;
     const sheetData = await googleSheets.fetchStudentsFromSheet();
     const processed = birthdayMatcher.processStudentRecords(sheetData.students);
 
-    const pendingStudents = processed.today.filter(s => s.status === 'PENDING_TODAY');
+    let pendingStudents = processed.today.filter(s => s.status === 'PENDING_TODAY');
+
+    // Filter by branch if user selected a branch
+    if (branchFilter && branchFilter !== 'ALL') {
+      pendingStudents = pendingStudents.filter(s => 
+        (s.branch && s.branch.toLowerCase() === branchFilter.toLowerCase()) || 
+        (s.branchId === branchFilter)
+      );
+    }
 
     if (pendingStudents.length === 0) {
       return res.json({
         success: true,
-        message: 'No pending birthday wishes to send today.',
+        message: 'No pending birthday wishes to send today for selected branch.',
         total: 0,
         successful: 0,
         skipped: 0,

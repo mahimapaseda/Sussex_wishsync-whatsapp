@@ -43,7 +43,7 @@ function identifyColumnsFromRows(rows) {
     row.forEach((col, idx) => {
       const norm = normalizeHeader(col);
 
-      if (curNameIdx === -1 && (norm.includes('nameofstudent') || norm === 'studentname' || norm === 'name' || norm.includes('fullname'))) {
+      if (curNameIdx === -1 && (norm.includes('nameofstudent') || norm === 'studentname' || norm === 'name' || norm.includes('fullname') || norm.includes('applicant'))) {
         curNameIdx = idx;
       }
       if (curPhoneIdx === -1 && (norm.includes('contactno') || norm.includes('whatsapp') || norm.includes('phone') || norm.includes('mobile') || norm.includes('tel'))) {
@@ -96,223 +96,270 @@ function identifyColumnsFromRows(rows) {
 }
 
 /**
- * Helper to parse CSV text into student objects.
+ * Returns an active Google Sheets API client (OAuth2 user session if signed in, or Service Account credentials.json).
  */
-function parseCsvContent(rawCsv, sourceLabel) {
-  const lines = rawCsv.split(/\r?\n/).filter(line => line.trim().length > 0);
-  if (lines.length <= 1) return [];
-
-  const rows = lines.map(l => l.split(',').map(c => c.trim().replace(/^["']|["']$/g, '')));
-  const mapping = identifyColumnsFromRows(rows);
-
-  const students = [];
-  for (let i = mapping.headerRowIdx + 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || !row.length) continue;
-
-    let name = mapping.nameIdx !== -1 ? (row[mapping.nameIdx] || '') : (row[0] || '');
-    let phone = mapping.phoneIdx !== -1 ? (row[mapping.phoneIdx] || '') : (row[2] || '');
-    let branch = mapping.branchIdx !== -1 ? (row[mapping.branchIdx] || 'College') : 'College';
-
-    let dob = '';
-    if (mapping.dayIdx !== -1 && mapping.monthIdx !== -1 && row[mapping.dayIdx] && row[mapping.monthIdx]) {
-      const d = String(row[mapping.dayIdx]).trim();
-      const m = String(row[mapping.monthIdx]).trim();
-      const y = mapping.yearIdx !== -1 && row[mapping.yearIdx] ? String(row[mapping.yearIdx]).trim() : '2020';
-      dob = `${d}/${m}/${y}`;
-    } else if (mapping.dobIdx !== -1) {
-      dob = row[mapping.dobIdx] || '';
-    }
-
-    if (phone.includes('/')) {
-      phone = phone.split('/')[0].trim();
-    }
-
-    if (name || phone || dob) {
-      students.push({
-        id: `${sourceLabel}_row_${i + 1}`,
-        name: name || `Inquirer (${phone || 'Student'})`,
-        dob,
-        phone,
-        branch: branch || 'College'
-      });
-    }
-  }
-
-  return students;
-}
-
-/**
- * Reads and parses fallback sample CSV data.
- */
-function loadFallbackCsv() {
-  if (!fs.existsSync(config.SAMPLE_CSV_PATH)) {
-    throw new Error(`Fallback sample CSV file not found at ${config.SAMPLE_CSV_PATH}`);
-  }
-  const rawCsv = fs.readFileSync(config.SAMPLE_CSV_PATH, 'utf8');
-  return parseCsvContent(rawCsv, 'sample');
-}
-
-/**
- * Fetches student records from Google Sheets, falling back to local CSV if credentials are not yet supplied.
- */
-async function fetchStudentsFromSheet() {
-  const currentSettings = settings.loadSettings();
+function getSheetsClient() {
   const credsPath = config.GOOGLE_CREDENTIALS_PATH;
   const hasCreds = fs.existsSync(credsPath);
-  const spreadsheetId = currentSettings.spreadsheetId || config.SPREADSHEET_ID;
-  const requestedSheet = currentSettings.sheetName || config.SHEET_NAME || 'INQUIRY DETAILS 2026/27';
-  const hasSpreadsheetId = Boolean(spreadsheetId && spreadsheetId !== 'your_google_spreadsheet_id_here');
 
   // Check 1: Google OAuth2 (Sign In with Google)
   const oauthSheets = googleAuth.getAuthenticatedSheetsClient();
   const oauthStatus = googleAuth.getAuthStatus();
 
-  let sheetsClient = null;
-  let authType = null;
-
   if (oauthSheets && oauthStatus.signedIn) {
-    sheetsClient = oauthSheets;
-    authType = `OAuth2 (${oauthStatus.userEmail})`;
-    console.log(`[GoogleSheets] Authenticating via User Google Account: ${oauthStatus.userEmail}`);
-  } else if (hasCreds && hasSpreadsheetId) {
-    // Check 2: Service Account (credentials.json)
+    return {
+      client: oauthSheets,
+      authType: `OAuth2 (${oauthStatus.userEmail})`
+    };
+  }
+
+  // Check 2: Service Account (credentials.json)
+  if (hasCreds) {
     try {
-      console.log(`[GoogleSheets] Authenticating with service account: ${credsPath}`);
       const auth = new google.auth.GoogleAuth({
         keyFile: credsPath,
         scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
       });
-      sheetsClient = google.sheets({ version: 'v4', auth });
-      authType = 'Service Account';
+      return {
+        client: google.sheets({ version: 'v4', auth }),
+        authType: 'Service Account'
+      };
     } catch (e) {
-      console.warn('[GoogleSheets] Service account init failed:', e.message);
+      console.warn('[GoogleSheets] Service account init error:', e.message);
     }
   }
 
-  // If we have an authenticated Google Sheets client (either OAuth or Service Account)
-  if (sheetsClient && hasSpreadsheetId) {
-    try {
-      const sheets = sheetsClient;
+  return null;
+}
 
-      // 1. Fetch metadata to resolve exact sheet tab title dynamically (handles slashes/spaces)
-      const meta = await sheets.spreadsheets.get({ spreadsheetId });
-      const normRequested = normalizeHeader(requestedSheet);
+/**
+ * Fetches and parses student records from a single branch sheet.
+ */
+async function fetchBranchStudents(branch, sheetsClientWrapper) {
+  const spreadsheetId = branch.spreadsheetId;
+  const requestedSheet = branch.sheetName || 'INQUIRY DETAILS 2026/27';
 
-      let matchedSheet = meta.data.sheets.find(s => {
-        const normTitle = normalizeHeader(s.properties.title);
-        return normTitle === normRequested;
-      });
+  if (!spreadsheetId) {
+    return {
+      branchId: branch.id,
+      branchName: branch.name,
+      status: 'NOT_CONFIGURED',
+      students: [],
+      error: 'Spreadsheet ID is missing.'
+    };
+  }
 
-      // If exact match not found, find first sheet containing inquiry or default to first tab
-      if (!matchedSheet) {
-        matchedSheet = meta.data.sheets.find(s => normalizeHeader(s.properties.title).includes('inquiry')) || meta.data.sheets[0];
-      }
+  const { client: sheets, authType } = sheetsClientWrapper;
 
-      const exactTitle = matchedSheet.properties.title;
-      console.log(`[GoogleSheets] Resolved Sheet Tab Title: "${exactTitle}" (Requested: "${requestedSheet}") via ${authType}`);
+  try {
+    // 1. Fetch metadata to resolve exact sheet tab title dynamically (handles slashes/spaces)
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const normRequested = normalizeHeader(requestedSheet);
 
-      // 2. Fetch all values using properly quoted sheet range: `'<Title>'!A1:Z`
-      const range = `'${exactTitle}'!A1:Z`;
-      const response = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range
-      });
+    let matchedSheet = meta.data.sheets.find(s => {
+      const normTitle = normalizeHeader(s.properties.title);
+      return normTitle === normRequested;
+    });
 
-      const rows = response.data.values;
-      if (!rows || rows.length === 0) {
-        return {
-          source: 'GOOGLE_SHEETS',
-          sheetName: exactTitle,
-          status: 'CONNECTED_EMPTY',
-          students: [],
-          authType,
-          message: `Sheet tab "${exactTitle}" connected successfully via ${authType}, but no rows were found.`
-        };
-      }
+    if (!matchedSheet) {
+      matchedSheet = meta.data.sheets.find(s => normalizeHeader(s.properties.title).includes('inquiry')) || meta.data.sheets[0];
+    }
 
-      // 3. Smart multi-row header mapping
-      const mapping = identifyColumnsFromRows(rows);
-      const dataRows = rows.slice(mapping.headerRowIdx + 1);
+    const exactTitle = matchedSheet.properties.title;
 
-      const students = [];
-      dataRows.forEach((row, index) => {
-        if (!row || !row.length) return;
+    // 2. Fetch values using properly quoted sheet range: `'<Title>'!A1:Z`
+    const range = `'${exactTitle}'!A1:Z`;
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range
+    });
 
-        let name = mapping.nameIdx !== -1 ? (row[mapping.nameIdx] || '').trim() : '';
-        let phone = mapping.phoneIdx !== -1 ? (row[mapping.phoneIdx] || '').trim() : '';
-        let branch = mapping.branchIdx !== -1 ? (row[mapping.branchIdx] || 'College').trim() : 'College';
-
-        // Check split Date/Month/Year vs single DOB column
-        let dob = '';
-        if (mapping.dayIdx !== -1 && mapping.monthIdx !== -1 && row[mapping.dayIdx] && row[mapping.monthIdx]) {
-          const d = String(row[mapping.dayIdx]).trim();
-          const m = String(row[mapping.monthIdx]).trim();
-          const y = mapping.yearIdx !== -1 && row[mapping.yearIdx] ? String(row[mapping.yearIdx]).trim() : '2020';
-          dob = `${d}/${m}/${y}`;
-        } else if (mapping.dobIdx !== -1 && row[mapping.dobIdx]) {
-          dob = String(row[mapping.dobIdx]).trim();
-        }
-
-        // Clean phone numbers containing slashes or secondary contact
-        if (phone.includes('/')) {
-          phone = phone.split('/')[0].trim();
-        }
-
-        if (name || phone || dob) {
-          students.push({
-            id: `sheet_row_${mapping.headerRowIdx + index + 2}`,
-            name: name || `Inquirer (${phone || 'Student'})`,
-            dob,
-            phone,
-            branch: branch || 'College'
-          });
-        }
-      });
-
-      console.log(`[GoogleSheets] Successfully synced ${students.length} students from Google Sheet "${exactTitle}" (${authType}).`);
+    const rows = response.data.values || [];
+    if (rows.length === 0) {
       return {
-        source: 'GOOGLE_SHEETS',
-        sheetName: exactTitle,
-        status: 'CONNECTED',
-        authType,
-        students,
-        message: `Synced ${students.length} students from Google Sheets tab "${exactTitle}" (${authType}).`
-      };
-    } catch (err) {
-      console.error(`[GoogleSheets] Error connecting to Google Sheets API (${authType}):`, err.message);
-      return {
-        source: 'GOOGLE_SHEETS',
-        sheetName: requestedSheet,
-        status: 'ERROR',
+        branchId: branch.id,
+        branchName: branch.name,
+        sheetTitle: exactTitle,
+        status: 'CONNECTED_EMPTY',
         students: [],
-        warning: `Google Sheets error: ${err.message}`
+        count: 0
       };
     }
+
+    // 3. Smart multi-row header mapping
+    const mapping = identifyColumnsFromRows(rows);
+    const dataRows = rows.slice(mapping.headerRowIdx + 1);
+
+    const students = [];
+    dataRows.forEach((row, index) => {
+      if (!row || !row.length) return;
+
+      let name = mapping.nameIdx !== -1 ? (row[mapping.nameIdx] || '').trim() : '';
+      let phone = mapping.phoneIdx !== -1 ? (row[mapping.phoneIdx] || '').trim() : '';
+      let branchName = branch.name || (mapping.branchIdx !== -1 && row[mapping.branchIdx] ? row[mapping.branchIdx].trim() : 'College');
+
+      // Check split Date/Month/Year vs single DOB column
+      let dob = '';
+      if (mapping.dayIdx !== -1 && mapping.monthIdx !== -1 && row[mapping.dayIdx] && row[mapping.monthIdx]) {
+        const d = String(row[mapping.dayIdx]).trim();
+        const m = String(row[mapping.monthIdx]).trim();
+        const y = mapping.yearIdx !== -1 && row[mapping.yearIdx] ? String(row[mapping.yearIdx]).trim() : '2020';
+        dob = `${d}/${m}/${y}`;
+      } else if (mapping.dobIdx !== -1 && row[mapping.dobIdx]) {
+        dob = String(row[mapping.dobIdx]).trim();
+      }
+
+      if (phone.includes('/')) {
+        phone = phone.split('/')[0].trim();
+      }
+
+      if (name || phone || dob) {
+        students.push({
+          id: `${branch.id}_row_${mapping.headerRowIdx + index + 2}`,
+          name: name || `Inquirer (${phone || 'Student'})`,
+          dob,
+          phone,
+          branch: branchName,
+          branchId: branch.id,
+          branchCustomTemplate: branch.customTemplate || null
+        });
+      }
+    });
+
+    return {
+      branchId: branch.id,
+      branchName: branch.name,
+      sheetTitle: exactTitle,
+      status: 'CONNECTED',
+      count: students.length,
+      students
+    };
+  } catch (err) {
+    console.error(`[GoogleSheets] Error fetching branch "${branch.name}":`, err.message);
+    return {
+      branchId: branch.id,
+      branchName: branch.name,
+      status: 'ERROR',
+      students: [],
+      error: err.message
+    };
+  }
+}
+
+/**
+ * Main aggregator: Fetches student records from all enabled branches.
+ */
+async function fetchStudentsFromSheet() {
+  const currentSettings = settings.loadSettings();
+  const sheetsClientWrapper = getSheetsClient();
+
+  if (!sheetsClientWrapper) {
+    return {
+      source: 'GOOGLE_SHEETS',
+      status: 'AUTH_REQUIRED',
+      students: [],
+      branchesReport: [],
+      warning: 'Please sign in with Google or configure credentials.json in Settings.'
+    };
   }
 
-  // If no spreadsheet ID or URL has been configured yet
+  // Get active branches
+  let activeBranches = (currentSettings.branches || []).filter(b => b.enabled !== false && b.spreadsheetId);
+
+  // If no branches in array, check legacy single sheet
+  if (activeBranches.length === 0 && currentSettings.spreadsheetId) {
+    activeBranches = [{
+      id: 'default_branch',
+      name: 'Main Branch',
+      spreadsheetId: currentSettings.spreadsheetId,
+      sheetName: currentSettings.sheetName || 'INQUIRY DETAILS 2026/27',
+      enabled: true
+    }];
+  }
+
+  if (activeBranches.length === 0) {
+    return {
+      source: 'GOOGLE_SHEETS',
+      status: 'NOT_CONFIGURED',
+      students: [],
+      branchesReport: [],
+      warning: 'No Google Sheets have been added yet. Click "Manage Branches" to add your branch sheets.'
+    };
+  }
+
+  // Fetch all active branch sheets in parallel
+  console.log(`[GoogleSheets] Syncing ${activeBranches.length} active branch sheet(s)...`);
+  const branchPromises = activeBranches.map(branch => fetchBranchStudents(branch, sheetsClientWrapper));
+  const settled = await Promise.all(branchPromises);
+
+  const aggregatedStudents = [];
+  const branchesReport = [];
+
+  settled.forEach(report => {
+    branchesReport.push({
+      id: report.branchId,
+      name: report.branchName,
+      status: report.status,
+      count: report.count || 0,
+      sheetTitle: report.sheetTitle || 'N/A',
+      error: report.error || null
+    });
+
+    if (report.students && report.students.length > 0) {
+      aggregatedStudents.push(...report.students);
+    }
+  });
+
+  const connectedCount = branchesReport.filter(r => r.status === 'CONNECTED').length;
+  console.log(`[GoogleSheets] Multi-branch sync complete: ${aggregatedStudents.length} total students from ${connectedCount}/${activeBranches.length} branch(es).`);
+
   return {
     source: 'GOOGLE_SHEETS',
-    sheetName: requestedSheet || 'None',
-    status: 'NOT_CONFIGURED',
-    students: [],
-    warning: 'Please add your Google Sheet URL and Tab Name in Settings.'
+    status: connectedCount > 0 ? 'CONNECTED' : 'ERROR',
+    authType: sheetsClientWrapper.authType,
+    totalBranches: activeBranches.length,
+    connectedBranches: connectedCount,
+    branchesReport,
+    students: aggregatedStudents,
+    message: `Synced ${aggregatedStudents.length} students across ${connectedCount} branch sheet(s).`
   };
 }
 
 /**
- * Validates Google Sheets connection health.
+ * Validates Google Sheets connection health across all branches or a single branch.
  */
-async function testGoogleSheetsConnection() {
+async function testGoogleSheetsConnection(specificBranchId = null) {
+  if (specificBranchId) {
+    const currentSettings = settings.loadSettings();
+    const branch = currentSettings.branches.find(b => b.id === specificBranchId);
+    if (!branch) {
+      return { success: false, status: 'NOT_FOUND', error: `Branch not found` };
+    }
+    const wrapper = getSheetsClient();
+    if (!wrapper) {
+      return { success: false, status: 'AUTH_REQUIRED', error: 'Authentication required' };
+    }
+    const res = await fetchBranchStudents(branch, wrapper);
+    return {
+      success: res.status === 'CONNECTED',
+      status: res.status,
+      count: res.count || 0,
+      sheetTitle: res.sheetTitle,
+      error: res.error || null,
+      message: res.status === 'CONNECTED' ? `Synced ${res.count} students` : res.error
+    };
+  }
+
   try {
     const result = await fetchStudentsFromSheet();
     return {
-      success: true,
+      success: result.status === 'CONNECTED',
       source: result.source,
       status: result.status,
       count: result.students.length,
-      sheetName: result.sheetName,
+      totalBranches: result.totalBranches || 0,
+      connectedBranches: result.connectedBranches || 0,
+      branchesReport: result.branchesReport || [],
       authType: result.authType || 'Local',
       message: result.message || result.warning
     };
@@ -327,8 +374,10 @@ async function testGoogleSheetsConnection() {
 
 module.exports = {
   fetchStudentsFromSheet,
+  fetchBranchStudents,
   testGoogleSheetsConnection,
   identifyColumnsFromRows,
+  getSheetsClient,
   identifyColumns: (headerRow) => {
     const res = identifyColumnsFromRows([headerRow]);
     return {

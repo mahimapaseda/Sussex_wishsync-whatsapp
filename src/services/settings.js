@@ -35,9 +35,13 @@ const DEFAULT_SETTINGS = {
   autoSendDelaySeconds: config.AUTO_SEND_DELAY_SECONDS,
   minDispatchDelayMs: config.MIN_DISPATCH_DELAY_MS,
   maxDispatchDelayMs: config.MAX_DISPATCH_DELAY_MS,
-  spreadsheetUrl: config.SPREADSHEET_ID ? `https://docs.google.com/spreadsheets/d/${config.SPREADSHEET_ID}/edit` : '',
-  spreadsheetId: config.SPREADSHEET_ID || '',
-  sheetName: config.SHEET_NAME || 'INQUIRY DETAILS 2026/27',
+  // Multi-Branch list
+  branches: [],
+  // Legacy single sheet fallback
+  spreadsheetUrl: '',
+  spreadsheetId: '',
+  sheetName: '',
+  sheetGid: null,
   credentialsConfigured: fs.existsSync(config.GOOGLE_CREDENTIALS_PATH),
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
@@ -59,10 +63,24 @@ function loadSettings() {
     const parsed = JSON.parse(raw);
     const combined = { ...DEFAULT_SETTINGS, ...parsed };
 
-    // Keep spreadsheetId normalized
-    if (combined.spreadsheetUrl && !combined.spreadsheetId) {
-      combined.spreadsheetId = extractSpreadsheetId(combined.spreadsheetUrl);
+    if (!Array.isArray(combined.branches)) {
+      combined.branches = [];
     }
+
+    // Auto-migrate legacy single-sheet into branches array if branches is empty but legacy exists
+    if (combined.branches.length === 0 && combined.spreadsheetId) {
+      combined.branches.push({
+        id: 'branch_' + Date.now(),
+        name: 'Main Branch',
+        spreadsheetUrl: combined.spreadsheetUrl || '',
+        spreadsheetId: combined.spreadsheetId,
+        sheetName: combined.sheetName || 'INQUIRY DETAILS 2026/27',
+        sheetGid: combined.sheetGid || null,
+        enabled: true,
+        customTemplate: ''
+      });
+    }
+
     combined.credentialsConfigured = fs.existsSync(config.GOOGLE_CREDENTIALS_PATH);
 
     // If credentials file exists, try to extract service account client_email
@@ -92,7 +110,20 @@ function updateSettings(newSettings) {
       ...newSettings
     };
 
-    // Auto-extract ID if spreadsheetUrl changed
+    if (newSettings.branches !== undefined && Array.isArray(newSettings.branches)) {
+      updated.branches = newSettings.branches.map(b => ({
+        id: b.id || 'branch_' + Math.random().toString(36).substring(2, 9),
+        name: (b.name || 'Unnamed Branch').trim(),
+        spreadsheetUrl: (b.spreadsheetUrl || '').trim(),
+        spreadsheetId: extractSpreadsheetId(b.spreadsheetUrl || b.spreadsheetId),
+        sheetName: (b.sheetName || 'INQUIRY DETAILS 2026/27').trim(),
+        sheetGid: extractSheetGid(b.spreadsheetUrl) || b.sheetGid || null,
+        enabled: b.enabled !== false,
+        customTemplate: (b.customTemplate || '').trim()
+      }));
+    }
+
+    // Auto-extract ID if legacy spreadsheetUrl changed
     if (newSettings.spreadsheetUrl !== undefined) {
       updated.spreadsheetUrl = newSettings.spreadsheetUrl.trim();
       updated.spreadsheetId = extractSpreadsheetId(updated.spreadsheetUrl);
@@ -141,9 +172,82 @@ function updateSettings(newSettings) {
   }
 }
 
+// Branch CRUD helper methods
+function getBranches() {
+  const current = loadSettings();
+  return current.branches || [];
+}
+
+function addBranch(branchData) {
+  const current = loadSettings();
+  const newBranch = {
+    id: 'branch_' + Date.now(),
+    name: (branchData.name || 'New Branch').trim(),
+    spreadsheetUrl: (branchData.spreadsheetUrl || '').trim(),
+    spreadsheetId: extractSpreadsheetId(branchData.spreadsheetUrl || branchData.spreadsheetId),
+    sheetName: (branchData.sheetName || 'INQUIRY DETAILS 2026/27').trim(),
+    sheetGid: extractSheetGid(branchData.spreadsheetUrl) || null,
+    enabled: branchData.enabled !== false,
+    customTemplate: (branchData.customTemplate || '').trim()
+  };
+
+  if (!newBranch.spreadsheetId) {
+    throw new Error('A valid Google Sheet URL or Spreadsheet ID is required.');
+  }
+
+  current.branches.push(newBranch);
+  updateSettings({ branches: current.branches });
+  return newBranch;
+}
+
+function updateBranch(branchId, branchData) {
+  const current = loadSettings();
+  const index = current.branches.findIndex(b => b.id === branchId);
+  if (index === -1) {
+    throw new Error(`Branch with ID "${branchId}" not found.`);
+  }
+
+  const existing = current.branches[index];
+  const updated = {
+    ...existing,
+    ...branchData,
+    name: branchData.name ? branchData.name.trim() : existing.name,
+    spreadsheetUrl: branchData.spreadsheetUrl !== undefined ? branchData.spreadsheetUrl.trim() : existing.spreadsheetUrl,
+    spreadsheetId: branchData.spreadsheetUrl ? extractSpreadsheetId(branchData.spreadsheetUrl) : (branchData.spreadsheetId ? branchData.spreadsheetId.trim() : existing.spreadsheetId),
+    sheetName: branchData.sheetName !== undefined ? branchData.sheetName.trim() : existing.sheetName,
+    sheetGid: branchData.spreadsheetUrl ? (extractSheetGid(branchData.spreadsheetUrl) || existing.sheetGid) : existing.sheetGid,
+    enabled: branchData.enabled !== undefined ? Boolean(branchData.enabled) : existing.enabled,
+    customTemplate: branchData.customTemplate !== undefined ? branchData.customTemplate.trim() : existing.customTemplate
+  };
+
+  current.branches[index] = updated;
+  updateSettings({ branches: current.branches });
+  return updated;
+}
+
+function deleteBranch(branchId) {
+  const current = loadSettings();
+  const initialLength = current.branches.length;
+  current.branches = current.branches.filter(b => b.id !== branchId);
+  if (current.branches.length === initialLength) {
+    throw new Error(`Branch with ID "${branchId}" not found.`);
+  }
+  updateSettings({ branches: current.branches });
+  return { success: true, remaining: current.branches.length };
+}
+
+function toggleBranch(branchId, enabled) {
+  return updateBranch(branchId, { enabled: Boolean(enabled) });
+}
+
 module.exports = {
   loadSettings,
   updateSettings,
   extractSpreadsheetId,
-  extractSheetGid
+  extractSheetGid,
+  getBranches,
+  addBranch,
+  updateBranch,
+  deleteBranch,
+  toggleBranch
 };
