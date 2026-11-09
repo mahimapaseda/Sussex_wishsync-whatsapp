@@ -929,7 +929,6 @@ async function saveSettingsFromModal() {
     saveSettingsBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save & Apply Settings';
   }
 }
-}
 
 // Reset WhatsApp Session Handler
 async function resetWhatsAppSession() {
