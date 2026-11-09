@@ -14,6 +14,26 @@
       "sheetGid": "350995715",
       "enabled": true,
       "customTemplate": ""
+    },
+    {
+      "id": "branch_1794218837947",
+      "name": "GALLE  - New Admission Inquiries",
+      "spreadsheetUrl": "https://docs.google.com/spreadsheets/d/1PX2ZduIQoN-D9bLA_WrqSkWGe_TfwkFPEgadwn-87v4/edit?gid=751299166#gid=751299166",
+      "spreadsheetId": "1PX2ZduIQoN-D9bLA_WrqSkWGe_TfwkFPEgadwn-87v4",
+      "sheetName": "INQUIRY DETAILS 2026/2027",
+      "sheetGid": "751299166",
+      "enabled": true,
+      "customTemplate": ""
+    },
+    {
+      "id": "branch_1794219628952",
+      "name": "Ampara",
+      "spreadsheetUrl": "https://docs.google.com/spreadsheets/d/1FBj-P08Lk4wEz6W4YzwVh6NbLsRz0vx_0ZKzQacQKTc/edit?gid=1862736102#gid=1862736102",
+      "spreadsheetId": "1FBj-P08Lk4wEz6W4YzwVh6NbLsRz0vx_0ZKzQacQKTc",
+      "sheetName": "INQUIRY DETAILS 2026/27",
+      "sheetGid": "1862736102",
+      "enabled": true,
+      "customTemplate": ""
     }
   ],
   "credentialsConfigured": true,
@@ -21,6 +41,6 @@
   "googleClientSecret": "[REDACTED_CLIENT_SECRET]",
   "googleUserEmail": "mahimapasedakusumsiri@gmail.com",
   "googleAuthConnected": true,
-  "updatedAt": "2026-11-09T10:02:41.357Z",
+  "updatedAt": "2026-11-09T10:20:28.953Z",
   "serviceAccountEmail": "sheetpulse-reader@gen-lang-client-0933907136.iam.gserviceaccount.com"
 }

@@ -269,12 +269,16 @@ function updateBirthdaysUI(data) {
   let displayUpcoming = data.upcoming || [];
 
   if (selectedBranchFilter !== 'ALL') {
-    displayToday = displayToday.filter(s => 
-      s.branchId === selectedBranchFilter || (s.branch && s.branch.toLowerCase() === selectedBranchFilter.toLowerCase())
-    );
-    displayUpcoming = displayUpcoming.filter(s => 
-      s.branchId === selectedBranchFilter || (s.branch && s.branch.toLowerCase() === selectedBranchFilter.toLowerCase())
-    );
+    const isMatch = s => {
+      if (!s) return false;
+      if (s.branchId && s.branchId === selectedBranchFilter) return true;
+      const targetBranch = currentBranches.find(b => b.id === selectedBranchFilter);
+      if (targetBranch && s.branch && s.branch.trim().toLowerCase() === targetBranch.name.trim().toLowerCase()) return true;
+      if (s.branch && s.branch.trim().toLowerCase() === selectedBranchFilter.trim().toLowerCase()) return true;
+      return false;
+    };
+    displayToday = displayToday.filter(isMatch);
+    displayUpcoming = displayUpcoming.filter(isMatch);
   }
 
   const pendingCount = displayToday.filter(s => s.status === 'PENDING_TODAY').length;

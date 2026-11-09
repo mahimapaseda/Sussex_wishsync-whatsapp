@@ -266,6 +266,8 @@ function processStudentRecords(rawStudents, customToday = null) {
       id: raw.id || `row_${index + 1}`,
       name,
       branch: branch || 'College',
+      branchId: raw.branchId || null,
+      branchCustomTemplate: raw.branchCustomTemplate || null,
       dobFormatted: dobInfo.formatted,
       dobRaw: rawDob,
       birthYear: dobInfo.year,
