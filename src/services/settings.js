@@ -6,9 +6,6 @@ const SETTINGS_PATH = path.join(config.DATA_DIR, 'settings.json');
 
 /**
  * Extracts Google Spreadsheet ID from a full Google Sheets URL or returns the raw ID.
- * Examples:
- * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=0
- * -> 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms
  */
 function extractSpreadsheetId(input) {
   if (!input) return '';
@@ -35,13 +32,7 @@ const DEFAULT_SETTINGS = {
   autoSendDelaySeconds: config.AUTO_SEND_DELAY_SECONDS,
   minDispatchDelayMs: config.MIN_DISPATCH_DELAY_MS,
   maxDispatchDelayMs: config.MAX_DISPATCH_DELAY_MS,
-  // Multi-Branch list
   branches: [],
-  // Legacy single sheet fallback
-  spreadsheetUrl: '',
-  spreadsheetId: '',
-  sheetName: '',
-  sheetGid: null,
   credentialsConfigured: fs.existsSync(config.GOOGLE_CREDENTIALS_PATH),
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
@@ -67,23 +58,8 @@ function loadSettings() {
       combined.branches = [];
     }
 
-    // Auto-migrate legacy single-sheet into branches array if branches is empty but legacy exists
-    if (combined.branches.length === 0 && combined.spreadsheetId) {
-      combined.branches.push({
-        id: 'branch_' + Date.now(),
-        name: 'Main Branch',
-        spreadsheetUrl: combined.spreadsheetUrl || '',
-        spreadsheetId: combined.spreadsheetId,
-        sheetName: combined.sheetName || 'INQUIRY DETAILS 2026/27',
-        sheetGid: combined.sheetGid || null,
-        enabled: true,
-        customTemplate: ''
-      });
-    }
-
     combined.credentialsConfigured = fs.existsSync(config.GOOGLE_CREDENTIALS_PATH);
 
-    // If credentials file exists, try to extract service account client_email
     if (combined.credentialsConfigured && !combined.serviceAccountEmail) {
       try {
         const credsRaw = fs.readFileSync(config.GOOGLE_CREDENTIALS_PATH, 'utf8');
@@ -123,19 +99,21 @@ function updateSettings(newSettings) {
       }));
     }
 
-    // Auto-extract ID if legacy spreadsheetUrl changed
-    if (newSettings.spreadsheetUrl !== undefined) {
-      updated.spreadsheetUrl = newSettings.spreadsheetUrl.trim();
-      updated.spreadsheetId = extractSpreadsheetId(updated.spreadsheetUrl);
-      updated.sheetGid = extractSheetGid(updated.spreadsheetUrl);
-    } else if (newSettings.spreadsheetId !== undefined) {
-      updated.spreadsheetId = newSettings.spreadsheetId.trim();
+    if (newSettings.template !== undefined) {
+      updated.template = newSettings.template.trim();
     }
-
-    if (newSettings.sheetName !== undefined) {
-      updated.sheetName = newSettings.sheetName.trim();
+    if (newSettings.autoSendOnBoot !== undefined) {
+      updated.autoSendOnBoot = Boolean(newSettings.autoSendOnBoot);
     }
-
+    if (newSettings.autoSendDelaySeconds !== undefined) {
+      updated.autoSendDelaySeconds = parseInt(newSettings.autoSendDelaySeconds, 10) || 10;
+    }
+    if (newSettings.minDispatchDelayMs !== undefined) {
+      updated.minDispatchDelayMs = parseInt(newSettings.minDispatchDelayMs, 10) || 5000;
+    }
+    if (newSettings.maxDispatchDelayMs !== undefined) {
+      updated.maxDispatchDelayMs = parseInt(newSettings.maxDispatchDelayMs, 10) || 12000;
+    }
     if (newSettings.googleClientId !== undefined) {
       updated.googleClientId = newSettings.googleClientId.trim();
     }
@@ -149,14 +127,12 @@ function updateSettings(newSettings) {
       updated.googleAuthConnected = newSettings.googleAuthConnected;
     }
 
-    // If credentials JSON content was pasted
     if (newSettings.credentialsJsonContent && newSettings.credentialsJsonContent.trim()) {
       try {
         const parsedCreds = JSON.parse(newSettings.credentialsJsonContent.trim());
         fs.writeFileSync(config.GOOGLE_CREDENTIALS_PATH, JSON.stringify(parsedCreds, null, 2), 'utf8');
         updated.credentialsConfigured = true;
         updated.serviceAccountEmail = parsedCreds.client_email || 'Service Account';
-        console.log('[Settings] Saved new credentials.json from UI settings.');
       } catch (e) {
         throw new Error(`Invalid JSON format for Google Service Account credentials: ${e.message}`);
       }
@@ -164,7 +140,6 @@ function updateSettings(newSettings) {
 
     updated.updatedAt = new Date().toISOString();
     fs.writeFileSync(SETTINGS_PATH, JSON.stringify(updated, null, 2), 'utf8');
-    console.log('[Settings] Updated persistent settings on disk.');
     return updated;
   } catch (err) {
     console.error('[Settings] Failed to save settings to disk:', err.message);
@@ -172,7 +147,6 @@ function updateSettings(newSettings) {
   }
 }
 
-// Branch CRUD helper methods
 function getBranches() {
   const current = loadSettings();
   return current.branches || [];

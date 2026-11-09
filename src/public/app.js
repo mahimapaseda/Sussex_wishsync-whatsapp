@@ -74,15 +74,11 @@ const openSettingsModalBtn = document.getElementById('openSettingsModalBtn');
 const closeSettingsModalBtn = document.getElementById('closeSettingsModalBtn');
 const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-const settingSpreadsheetUrl = document.getElementById('settingSpreadsheetUrl');
-const settingSheetName = document.getElementById('settingSheetName');
-const settingExtractedId = document.getElementById('settingExtractedId');
 const settingCredentialsJson = document.getElementById('settingCredentialsJson');
 const credsStatusLabel = document.getElementById('credsStatusLabel');
 const displayServiceEmail = document.getElementById('displayServiceEmail');
-const testSheetConnBtn = document.getElementById('testSheetConnBtn');
-const testConnResultMsg = document.getElementById('testConnResultMsg');
-const settingsSheetStatusBadge = document.getElementById('settingsSheetStatusBadge');
+const settingsOpenBranchesBtn = document.getElementById('settingsOpenBranchesBtn');
+const settingsBranchCountBadge = document.getElementById('settingsBranchCountBadge');
 const settingAutoSendOnBoot = document.getElementById('settingAutoSendOnBoot');
 const settingCountdownSeconds = document.getElementById('settingCountdownSeconds');
 const settingMinDelay = document.getElementById('settingMinDelay');
@@ -842,9 +838,11 @@ async function loadSettingsIntoModal() {
 
     if (settingsRes.success && settingsRes.settings) {
       const s = settingsRes.settings;
-      settingSpreadsheetUrl.value = s.spreadsheetUrl || (s.spreadsheetId ? `https://docs.google.com/spreadsheets/d/${s.spreadsheetId}/edit` : '');
-      settingExtractedId.value = s.spreadsheetId || extractSpreadsheetIdFromUrl(settingSpreadsheetUrl.value);
-      settingSheetName.value = s.sheetName || 'INQUIRY DETAILS 2026/27';
+      const branches = s.branches || [];
+      const activeCount = branches.filter(b => b.enabled !== false).length;
+      if (settingsBranchCountBadge) {
+        settingsBranchCountBadge.textContent = `${activeCount} / ${branches.length} Active`;
+      }
       settingAutoSendOnBoot.checked = Boolean(s.autoSendOnBoot);
       settingCountdownSeconds.value = s.autoSendDelaySeconds || 10;
       settingMinDelay.value = Math.round((s.minDispatchDelayMs || 5000) / 1000);
@@ -859,8 +857,6 @@ async function loadSettingsIntoModal() {
         credsStatusLabel.innerHTML = '<span class="text-amber-400 font-semibold"><i class="fa-solid fa-triangle-exclamation"></i> Not Configured</span>';
         displayServiceEmail.textContent = 'Paste JSON key below to configure';
       }
-
-      testConnResultMsg.textContent = '';
     }
 
     // Update Google OAuth UI
@@ -890,8 +886,6 @@ async function saveSettingsFromModal() {
   saveSettingsBtn.disabled = true;
   saveSettingsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
 
-  const rawUrl = settingSpreadsheetUrl.value.trim();
-  const sheetName = settingSheetName.value.trim() || 'INQUIRY DETAILS 2026/27';
   const credsJson = settingCredentialsJson.value.trim();
   const autoSend = settingAutoSendOnBoot.checked;
   const countdown = parseInt(settingCountdownSeconds.value, 10) || 10;
@@ -902,8 +896,6 @@ async function saveSettingsFromModal() {
 
   try {
     const payload = {
-      spreadsheetUrl: rawUrl,
-      sheetName,
       autoSendOnBoot: autoSend,
       autoSendDelaySeconds: countdown,
       minDispatchDelayMs: minDelay,
@@ -937,56 +929,6 @@ async function saveSettingsFromModal() {
     saveSettingsBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save & Apply Settings';
   }
 }
-
-// Test Live Connection to Google Sheet
-async function testGoogleSheetsLive() {
-  testSheetConnBtn.disabled = true;
-  testSheetConnBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Testing...';
-  testConnResultMsg.className = 'text-xs text-amber-400';
-  testConnResultMsg.textContent = 'Connecting to Google Sheets...';
-
-  try {
-    // Save current values first if changed
-    const rawUrl = settingSpreadsheetUrl.value.trim();
-    const sheetName = settingSheetName.value.trim();
-    const credsJson = settingCredentialsJson.value.trim();
-
-    if (rawUrl || sheetName || credsJson) {
-      await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          spreadsheetUrl: rawUrl,
-          sheetName,
-          ...(credsJson ? { credentialsJsonContent: credsJson } : {})
-        })
-      });
-    }
-
-    const res = await fetch('/api/sheets/test').then(r => r.json());
-    if (res.status === 'CONNECTED') {
-      testConnResultMsg.className = 'text-xs text-emerald-400 font-semibold';
-      testConnResultMsg.innerHTML = `<i class="fa-solid fa-check"></i> Connected! Synced ${res.count} student rows.`;
-      settingsSheetStatusBadge.textContent = 'Connected';
-      settingsSheetStatusBadge.className = 'px-2 py-0.5 text-[10px] font-semibold rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-    } else if (res.status === 'NOT_CONFIGURED') {
-      testConnResultMsg.className = 'text-xs text-amber-400';
-      testConnResultMsg.innerHTML = `<i class="fa-solid fa-info-circle"></i> Please paste a Google Sheet URL above.`;
-      settingsSheetStatusBadge.textContent = 'Not Linked';
-      settingsSheetStatusBadge.className = 'px-2 py-0.5 text-[10px] font-semibold rounded-md bg-slate-800 text-slate-400 border border-slate-700';
-    } else {
-      testConnResultMsg.className = 'text-xs text-red-400';
-      testConnResultMsg.innerHTML = `<i class="fa-solid fa-xmark"></i> ${res.error || res.message || 'Connection failed'}`;
-      settingsSheetStatusBadge.textContent = 'Error';
-      settingsSheetStatusBadge.className = 'px-2 py-0.5 text-[10px] font-semibold rounded-md bg-red-500/10 text-red-400 border border-red-500/20';
-    }
-  } catch (err) {
-    testConnResultMsg.className = 'text-xs text-red-400';
-    testConnResultMsg.textContent = err.message;
-  } finally {
-    testSheetConnBtn.disabled = false;
-    testSheetConnBtn.innerHTML = '<i class="fa-solid fa-plug text-emerald-400"></i> Test Connection Live';
-  }
 }
 
 // Reset WhatsApp Session Handler
@@ -1104,12 +1046,13 @@ document.addEventListener('DOMContentLoaded', () => {
   closeSettingsModalBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
   cancelSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
   saveSettingsBtn.addEventListener('click', saveSettingsFromModal);
-  testSheetConnBtn.addEventListener('click', testGoogleSheetsLive);
 
-  // Auto-extract Spreadsheet ID on URL typing or pasting
-  settingSpreadsheetUrl.addEventListener('input', () => {
-    settingExtractedId.value = extractSpreadsheetIdFromUrl(settingSpreadsheetUrl.value);
-  });
+  if (settingsOpenBranchesBtn) {
+    settingsOpenBranchesBtn.addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+      openBranchesModal();
+    });
+  }
 
   // Toggle OAuth App Configuration
   if (toggleOAuthFieldsBtn) {

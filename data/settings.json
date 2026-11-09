@@ -4,16 +4,28 @@
   "autoSendDelaySeconds": 10,
   "minDispatchDelayMs": 5000,
   "maxDispatchDelayMs": 12000,
+  "branches": [
+    {
+      "id": "branch_1794217485985",
+      "name": "Main Branch",
+      "spreadsheetUrl": "https://docs.google.com/spreadsheets/d/1m8lS4iC8Co3kW2eC5RlAvDJjatEvvVNiKaYY4ScYTx4/edit?gid=350995715#gid=350995715",
+      "spreadsheetId": "1m8lS4iC8Co3kW2eC5RlAvDJjatEvvVNiKaYY4ScYTx4",
+      "sheetName": "INQUIRY DETAILS 2026/27",
+      "sheetGid": "350995715",
+      "enabled": true,
+      "customTemplate": ""
+    }
+  ],
   "spreadsheetUrl": "https://docs.google.com/spreadsheets/d/1m8lS4iC8Co3kW2eC5RlAvDJjatEvvVNiKaYY4ScYTx4/edit?gid=350995715#gid=350995715",
   "spreadsheetId": "1m8lS4iC8Co3kW2eC5RlAvDJjatEvvVNiKaYY4ScYTx4",
   "sheetName": "INQUIRY DETAILS 2026/27",
+  "sheetGid": "350995715",
   "credentialsConfigured": true,
   "googleClientId": "416444086943-8nn0b15koet1mqacjgv23p5dojbe8p6u.apps.googleusercontent.com",
   "googleClientSecret": "[REDACTED_CLIENT_SECRET]",
   "googleUserEmail": "mahimapasedakusumsiri@gmail.com",
   "googleAuthConnected": true,
-  "updatedAt": "2026-11-09T09:33:45.781Z",
-  "sheetGid": "350995715",
+  "updatedAt": "2026-11-09T09:44:45.988Z",
   "credentialsJsonContent": "{\n  \"type\": \"service_account\",\n  \"project_id\": \"gen-lang-client-0933907136\",\n  \"private_key_id\": \"055e0e0b5de894509b5a458230933f5fa1500ab8\",\n  \"private_key\": \"-----BEGIN PRIVATE KEY-----\\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDjCQTYHkBxHQD0\\nr52VWCXDqeI6Mwnpg/Bv5HcLqhhKxpZuj6h53CLqYUTJBEZ0b5/Y9k5PC1lDqLg1\\nyzG0j13xDh0JlaO3I3VgwokmmvrbCxdC/QN/2Um6zAeCaoGYFHIMOxXz/JkOimqT\\nFpewRPjguCGsFWGzPHuVBzB3C5uWmiKNBVyMSQihlhQf8Jc3Qek5QxVJ4PlX8wsW\\nZPl5Z1stuHi+dxHU57mMKSHkM2PCM3b6Viovw+5Bv0hv3/rQ6NpFHJnb3o1URMK0\\nwlhL1WXa2+IQU+q50NKg32p/MkNAn20hzZL6BD/s5/+zNjp2d6GzlbQbgD1grpbU\\nApw/9TnnAgMBAAECggEAYhNoU1AmOHb2Db27jmNo1PCTeN7JfmXvvPZt8s0E93B4\\nVcSbXCEbuDJSu5+sK+p4nAoy4/ScGB1PjnV7wGtagqK9KoHJGnkn4KfJBbNXgL52\\nywpvs5ATSK2Q5ObLmv3iEqSHpEHPgLeMuIO+/XeeJ72DVkpaTUpofIWBizupd9HH\\ng7HjkiHPzb+XQQDHf595nUN9lFyRjzoeT6E3+Pm94dVB4M9LVYpzTcw1aJk6S4WK\\nYPR80GOlR+2tIJec4B00H6L+IgBFgy/Wy8UPQUOSLxbQpzCSGm6gkb0HfjIO/Ye9\\n9Z8RMzlGMVaZUKgNHOXIjpG9r7O7HipzWbMP3Fte+QKBgQD59MyWGapCjSLvs+Zp\\nTiXTQM7nI1n4YLjV7Dv1KwzXg4pB925LNkjg7dAOQ+DwANunuFnxbA2488PM2v2f\\nW41jsO0r9CbaQKVqLDxT9/5//vq777KUCX+1lwmnLTcwYCYWzwbz3T9WHS2HwD+M\\ncgFtM0+/Ks4a0mpBh5L+3E8HiwKBgQDohlddAP1bqeGavuwb1xahj40/TiixKL8g\\nXEAdYQK7VXFWpsKkO5b/rff33iX91dWptYogZXMLSdBuZ4L93N/MAQlxtkm9MOO7\\n29nJIgRsJFYfwKSVC5WeagE6UQRsAwAXjC1Kcg/jqoVNYAMK9waQMCL6eF1T5rJZ\\nAS5lUoxClQKBgQCQRWasoGWwggwPNNQiJfQZKggCS1pLzXACMZct3EpOPmNXzfwA\\nN3X7Nehnw3AatzQRa4ummEqXXUO/gwrupwZF60IJo6OlR7jyPlQX10UzFbYdMa3u\\nWkk3Q9VTg/qd1nFFqvsFWMeM6cx01VcYtljycbJu0cMioh6ochs7NWf8HwKBgQCA\\nXcnVGjrEY+CcYVJPfEqOHoXHsQpd4zTAVK1AitHLQbw0LhO+Pvd5Zz1BpW4r1+UA\\nr6v1fowoazOZ/6MdKtaR9PCVyiCjRV4z04dDtnfii5zQIrW5Yo/SyIqs+xUJ3A4s\\n8cH/G0ESWo0EzkBfyUfiSfDFfbVoIC/NWw2V+iBckQKBgQDcRMs16bmnU4rd7eXK\\nAfxAeabEvDYqFFACL9Ebh5MZ6KmWaFiq4scHvPTdnZ8PxTmUpWaOpizLDk6eAzP2\\nuVZp0/jvlfNGhcSIZo3VYj9poaqsXRLp2uDxhEsOgB4cA5rmcNMvC8cv3eERhjqE\\n3qZMdG52MMeMjetZzScaf6hvDA==\\n-----END PRIVATE KEY-----\\n\",\n  \"client_email\": \"sheetpulse-reader@gen-lang-client-0933907136.iam.gserviceaccount.com\",\n  \"client_id\": \"104921992536822589263\",\n  \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\n  \"token_uri\": \"https://oauth2.googleapis.com/token\",\n  \"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\n  \"client_x509_cert_url\": \"https://www.googleapis.com/robot/v1/metadata/x509/sheetpulse-reader%40gen-lang-client-0933907136.iam.gserviceaccount.com\",\n  \"universe_domain\": \"googleapis.com\"\n}",
   "serviceAccountEmail": "sheetpulse-reader@gen-lang-client-0933907136.iam.gserviceaccount.com"
 }
