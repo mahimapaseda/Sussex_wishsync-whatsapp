@@ -13,7 +13,7 @@ function normalizeHeader(str) {
 }
 
 /**
- * Identifies column mapping across rows (supports both standard row-1 headers and row-3/4 sub-headers).
+ * Identifies column mapping across rows (supports both standard row-1 headers and row-2/3/4 hierarchical sub-headers).
  */
 function identifyColumnsFromRows(rows) {
   const mapping = {
@@ -29,66 +29,66 @@ function identifyColumnsFromRows(rows) {
 
   const maxScanRows = Math.min(rows.length, 6);
 
-  // Scan for best header row
+  // 1. Identify which row is the deepest primary header row (contains Name and/or Phone)
+  let bestHeaderRowIdx = 0;
   for (let r = 0; r < maxScanRows; r++) {
     const row = rows[r] || [];
-    let curNameIdx = -1;
-    let curPhoneIdx = -1;
-    let curBranchIdx = -1;
-    let curDobIdx = -1;
-    let curDayIdx = -1;
-    let curMonthIdx = -1;
-    let curYearIdx = -1;
+    let hasName = false;
+    let hasPhone = false;
 
-    row.forEach((col, idx) => {
+    row.forEach(col => {
       const norm = normalizeHeader(col);
-
-      if (curNameIdx === -1 && (norm.includes('nameofstudent') || norm === 'studentname' || norm === 'name' || norm.includes('fullname') || norm.includes('applicant'))) {
-        curNameIdx = idx;
+      if (norm.includes('nameofstudent') || norm === 'studentname' || norm === 'name' || norm.includes('fullname') || norm.includes('applicant')) {
+        hasName = true;
       }
-      if (curPhoneIdx === -1 && (norm.includes('contactno') || norm.includes('whatsapp') || norm.includes('phone') || norm.includes('mobile') || norm.includes('tel'))) {
-        curPhoneIdx = idx;
-      }
-      if (curBranchIdx === -1 && (norm === 'source' || norm.includes('branch') || norm.includes('location') || norm.includes('center') || norm.includes('campus'))) {
-        curBranchIdx = idx;
-      }
-      if (curDobIdx === -1 && (norm.includes('dateofbirth') || norm === 'dob' || norm.includes('birthdate') || norm.includes('bday'))) {
-        curDobIdx = idx;
-      }
-      if (curDayIdx === -1 && norm === 'date' && idx >= 4) {
-        curDayIdx = idx;
-      }
-      if (curMonthIdx === -1 && norm === 'month') {
-        curMonthIdx = idx;
-      }
-      if (curYearIdx === -1 && norm === 'year') {
-        curYearIdx = idx;
+      if (norm.includes('contactno') || norm.includes('whatsapp') || norm.includes('phone') || norm.includes('mobile') || norm.includes('tel')) {
+        hasPhone = true;
       }
     });
 
-    // If both name and phone are found in this row, this is our main sub-header!
-    if (curNameIdx !== -1 && curPhoneIdx !== -1) {
-      mapping.headerRowIdx = r;
-      mapping.nameIdx = curNameIdx;
-      mapping.phoneIdx = curPhoneIdx;
-      mapping.branchIdx = curBranchIdx;
-      mapping.dobIdx = curDobIdx;
-      mapping.dayIdx = curDayIdx;
-      mapping.monthIdx = curMonthIdx;
-      mapping.yearIdx = curYearIdx;
-      return mapping;
+    if (hasName && hasPhone) {
+      bestHeaderRowIdx = r;
+      break;
     }
   }
 
-  // Fallback: standard row 0 matching
-  if (rows.length > 0) {
-    const row0 = rows[0] || [];
-    row0.forEach((col, idx) => {
+  mapping.headerRowIdx = bestHeaderRowIdx;
+
+  // 2. Scan across ALL header rows (0 through bestHeaderRowIdx) to build complete mapping!
+  // This seamlessly handles merged/split headers (e.g. Row 1: "Date Of Birth", Row 2: "DD/MM/YY" or "Date/Month/Year")
+  for (let r = 0; r <= bestHeaderRowIdx; r++) {
+    const row = rows[r] || [];
+    row.forEach((col, idx) => {
       const norm = normalizeHeader(col);
-      if (mapping.nameIdx === -1 && (norm.includes('name') || norm.includes('student'))) mapping.nameIdx = idx;
-      if (mapping.dobIdx === -1 && (norm.includes('dob') || norm.includes('birth'))) mapping.dobIdx = idx;
-      if (mapping.phoneIdx === -1 && (norm.includes('phone') || norm.includes('whatsapp') || norm.includes('contact'))) mapping.phoneIdx = idx;
-      if (mapping.branchIdx === -1 && (norm.includes('branch') || norm.includes('source') || norm.includes('location'))) mapping.branchIdx = idx;
+
+      if (mapping.nameIdx === -1 && (norm.includes('nameofstudent') || norm === 'studentname' || norm === 'name' || norm.includes('fullname') || norm.includes('applicant'))) {
+        mapping.nameIdx = idx;
+      }
+      if (mapping.phoneIdx === -1 && (norm.includes('contactno') || norm.includes('whatsapp') || norm.includes('phone') || norm.includes('mobile') || norm.includes('tel'))) {
+        mapping.phoneIdx = idx;
+      }
+      if (mapping.branchIdx === -1 && (norm === 'source' || norm.includes('branch') || norm.includes('location') || norm.includes('center') || norm.includes('campus'))) {
+        mapping.branchIdx = idx;
+      }
+      if (mapping.dobIdx === -1 && (
+        norm.includes('dateofbirth') || 
+        norm === 'dob' || 
+        norm.includes('birthdate') || 
+        norm.includes('bday') ||
+        norm.includes('ddmmyy') ||
+        norm.includes('ddmmyyyy')
+      )) {
+        mapping.dobIdx = idx;
+      }
+      if (mapping.dayIdx === -1 && (norm === 'date' || norm === 'day') && idx >= 4) {
+        mapping.dayIdx = idx;
+      }
+      if (mapping.monthIdx === -1 && norm === 'month') {
+        mapping.monthIdx = idx;
+      }
+      if (mapping.yearIdx === -1 && norm === 'year') {
+        mapping.yearIdx = idx;
+      }
     });
   }
 
@@ -198,9 +198,11 @@ async function fetchBranchStudents(branch, sheetsClientWrapper) {
       let phone = mapping.phoneIdx !== -1 ? (row[mapping.phoneIdx] || '').trim() : '';
       let branchName = branch.name || (mapping.branchIdx !== -1 && row[mapping.branchIdx] ? row[mapping.branchIdx].trim() : 'College');
 
-      // Check split Date/Month/Year vs single DOB column
+      // Check combined DOB column vs split Date/Month/Year columns
       let dob = '';
-      if (mapping.dayIdx !== -1 && mapping.monthIdx !== -1 && row[mapping.dayIdx] && row[mapping.monthIdx]) {
+      if (mapping.dobIdx !== -1 && row[mapping.dobIdx] && (String(row[mapping.dobIdx]).includes('/') || String(row[mapping.dobIdx]).includes('-') || String(row[mapping.dobIdx]).includes('.'))) {
+        dob = String(row[mapping.dobIdx]).trim();
+      } else if (mapping.dayIdx !== -1 && mapping.monthIdx !== -1 && row[mapping.dayIdx] && row[mapping.monthIdx]) {
         const d = String(row[mapping.dayIdx]).trim();
         const m = String(row[mapping.monthIdx]).trim();
         const y = mapping.yearIdx !== -1 && row[mapping.yearIdx] ? String(row[mapping.yearIdx]).trim() : '2020';

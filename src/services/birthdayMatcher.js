@@ -59,7 +59,7 @@ function parseDateOfBirth(rawDate) {
     return { day: null, month: null, year: null, isValid: false, formatted: '' };
   }
 
-  const str = String(rawDate).trim();
+  let str = String(rawDate).trim().replace(/\.+/g, '.').replace(/\s+/g, ' ');
 
   // 1. Check for Excel numeric serial date (e.g., 38950)
   if (/^\d{4,5}$/.test(str)) {
@@ -80,10 +80,13 @@ function parseDateOfBirth(rawDate) {
     }
   }
 
-  // 2. YYYY-MM-DD or YYYY/MM/DD
-  const isoMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  // 2. YYYY-MM-DD or YYYY.MM.DD or YYYY/MM/DD (supports typo 5-digit years like 20018 -> 2018)
+  const isoMatch = str.match(/^(\d{4,5})[-/.](\d{1,2})[-/.](\d{1,2})/);
   if (isoMatch) {
-    const y = parseInt(isoMatch[1], 10);
+    let y = parseInt(isoMatch[1], 10);
+    if (y > 2100 && String(y).length === 5 && String(y).startsWith('200')) {
+      y = parseInt('20' + String(y).substring(3), 10);
+    }
     const m = parseInt(isoMatch[2], 10);
     const d = parseInt(isoMatch[3], 10);
     if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
