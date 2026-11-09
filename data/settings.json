@@ -4,12 +4,23 @@
   "autoSendDelaySeconds": 10,
   "minDispatchDelayMs": 5000,
   "maxDispatchDelayMs": 12000,
-  "branches": [],
+  "branches": [
+    {
+      "id": "branch_1794218561357",
+      "name": "AMBALANGODA  - New Admission Inquiries",
+      "spreadsheetUrl": "https://docs.google.com/spreadsheets/d/1m8lS4iC8Co3kW2eC5RlAvDJjatEvvVNiKaYY4ScYTx4/edit?gid=350995715#gid=350995715",
+      "spreadsheetId": "1m8lS4iC8Co3kW2eC5RlAvDJjatEvvVNiKaYY4ScYTx4",
+      "sheetName": "INQUIRY DETAILS 2026/27",
+      "sheetGid": "350995715",
+      "enabled": true,
+      "customTemplate": ""
+    }
+  ],
   "credentialsConfigured": true,
   "googleClientId": "416444086943-8nn0b15koet1mqacjgv23p5dojbe8p6u.apps.googleusercontent.com",
   "googleClientSecret": "[REDACTED_CLIENT_SECRET]",
   "googleUserEmail": "mahimapasedakusumsiri@gmail.com",
   "googleAuthConnected": true,
-  "updatedAt": "2026-11-09T09:59:45.366Z",
+  "updatedAt": "2026-11-09T10:02:41.357Z",
   "serviceAccountEmail": "sheetpulse-reader@gen-lang-client-0933907136.iam.gserviceaccount.com"
 }
