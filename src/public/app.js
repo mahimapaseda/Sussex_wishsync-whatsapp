@@ -21,6 +21,9 @@ let countdownRemaining = 10;
 let isDispatching = false;
 
 // DOM Elements
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+const themeToggleIcon = document.getElementById('themeToggleIcon');
+const themeToggleText = document.getElementById('themeToggleText');
 const headerDateDisplay = document.getElementById('headerDateDisplay');
 const sheetsStatusText = document.getElementById('sheetsStatusText');
 const waStatusText = document.getElementById('waStatusText');
@@ -113,6 +116,29 @@ const templateTextarea = document.getElementById('templateTextarea');
 const templatePreviewText = document.getElementById('templatePreviewText');
 const toastContainer = document.getElementById('toastContainer');
 
+// Theme Management: Light & Dark Mode
+function updateThemeUI(theme) {
+  if (theme === 'light') {
+    document.documentElement.classList.remove('dark');
+    document.documentElement.classList.add('light');
+    if (themeToggleIcon) themeToggleIcon.className = 'fa-solid fa-sun text-amber-500';
+    if (themeToggleText) themeToggleText.textContent = 'Light';
+  } else {
+    document.documentElement.classList.remove('light');
+    document.documentElement.classList.add('dark');
+    if (themeToggleIcon) themeToggleIcon.className = 'fa-solid fa-moon text-amber-400';
+    if (themeToggleText) themeToggleText.textContent = 'Dark';
+  }
+}
+
+function toggleTheme() {
+  const isDark = document.documentElement.classList.contains('dark');
+  const newTheme = isDark ? 'light' : 'dark';
+  localStorage.setItem('sheetpulse_theme', newTheme);
+  updateThemeUI(newTheme);
+  showToast(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode`, 'info');
+}
+
 // Utility: Show Toast Notification
 function showToast(message, type = 'info') {
   const toast = document.createElement('div');
@@ -151,11 +177,11 @@ async function fetchAllState() {
     if (branchesRes.success && Array.isArray(branchesRes.branches)) {
       currentBranches = branchesRes.branches;
       navBranchCountBadge.textContent = currentBranches.length;
-      updateBranchFilterPills();
     }
 
     updateStatusUI(statusRes);
     updateBirthdaysUI(birthdaysRes);
+    updateBranchFilterPills();
     updateTemplateUI(templateRes);
 
     // Check if auto-send countdown should start
@@ -226,24 +252,39 @@ function updateBranchFilterPills() {
   const totalToday = currentData.today ? currentData.today.length : 0;
   if (filterAllCount) filterAllCount.textContent = totalToday;
 
+  const normalize = str => (str || '').toString().toLowerCase().replace(/\s+/g, ' ').trim();
+
+  const allBtnClass = selectedBranchFilter === 'ALL'
+    ? 'bg-blue-600 text-white shadow-sm'
+    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-white/5';
+
   const branchPillsHtml = [
-    `<button type="button" class="branch-filter-btn px-3 py-1 rounded-lg text-xs font-semibold ${selectedBranchFilter === 'ALL' ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}" data-branch="ALL">All Branches (${totalToday})</button>`
+    `<button type="button" class="branch-filter-btn px-3 py-1 rounded-lg text-xs font-semibold ${allBtnClass}" data-branch="ALL">All Branches (${totalToday})</button>`
   ];
 
   currentBranches.forEach(b => {
+    const normBranchName = normalize(b.name);
     // Count today's birthdays for this branch
-    const branchCount = (currentData.today || []).filter(s => 
-      (s.branch && s.branch.toLowerCase() === b.name.toLowerCase()) || (s.branchId === b.id)
-    ).length;
+    const branchCount = (currentData.today || []).filter(s => {
+      if (!s) return false;
+      if (s.branchId && s.branchId === b.id) return true;
+      if (s.id && s.id.startsWith(b.id)) return true;
+      const normStudentBranch = normalize(s.branch);
+      if (normStudentBranch === normBranchName) return true;
+      if (normStudentBranch && normBranchName && (normStudentBranch.includes(normBranchName) || normBranchName.includes(normStudentBranch))) return true;
+      return false;
+    }).length;
 
-    const isActive = selectedBranchFilter === b.id || selectedBranchFilter === b.name;
-    const btnClass = isActive ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-800 text-slate-300 hover:bg-slate-700';
+    const isActive = selectedBranchFilter === b.id || normalize(selectedBranchFilter) === normBranchName;
+    const btnClass = isActive 
+      ? 'bg-blue-600 text-white shadow-sm' 
+      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-white/5';
 
     branchPillsHtml.push(`
       <button type="button" class="branch-filter-btn px-3 py-1 rounded-lg text-xs font-semibold ${btnClass} flex items-center gap-1.5" data-branch="${b.id}">
         <span class="w-1.5 h-1.5 rounded-full ${b.enabled ? 'bg-emerald-400' : 'bg-slate-500'}"></span>
         <span>${b.name}</span>
-        <span class="px-1.5 py-0.2 bg-black/20 rounded-md text-[10px] font-bold">${branchCount}</span>
+        <span class="px-1.5 py-0.2 bg-black/10 dark:bg-black/30 rounded-md text-[10px] font-bold">${branchCount}</span>
       </button>
     `);
   });
@@ -269,12 +310,22 @@ function updateBirthdaysUI(data) {
   let displayUpcoming = data.upcoming || [];
 
   if (selectedBranchFilter !== 'ALL') {
+    const normalize = str => (str || '').toString().toLowerCase().replace(/\s+/g, ' ').trim();
     const isMatch = s => {
       if (!s) return false;
       if (s.branchId && s.branchId === selectedBranchFilter) return true;
+      if (s.id && s.id.startsWith(selectedBranchFilter)) return true;
       const targetBranch = currentBranches.find(b => b.id === selectedBranchFilter);
-      if (targetBranch && s.branch && s.branch.trim().toLowerCase() === targetBranch.name.trim().toLowerCase()) return true;
-      if (s.branch && s.branch.trim().toLowerCase() === selectedBranchFilter.trim().toLowerCase()) return true;
+      if (targetBranch) {
+        const normTarget = normalize(targetBranch.name);
+        const normStudentBranch = normalize(s.branch);
+        if (normStudentBranch === normTarget) return true;
+        if (normStudentBranch && normTarget && (normStudentBranch.includes(normTarget) || normTarget.includes(normStudentBranch))) return true;
+      }
+      const normFilter = normalize(selectedBranchFilter);
+      const normStudentBranch = normalize(s.branch);
+      if (normStudentBranch === normFilter) return true;
+      if (normStudentBranch && normFilter && (normStudentBranch.includes(normFilter) || normFilter.includes(normStudentBranch))) return true;
       return false;
     };
     displayToday = displayToday.filter(isMatch);
@@ -297,33 +348,33 @@ function updateBirthdaysUI(data) {
   // Render Today's List
   if (displayToday.length === 0) {
     todayBirthdaysList.innerHTML = `
-      <div class="p-8 text-center text-slate-500">
-        <i class="fa-solid fa-mug-hot text-2xl text-slate-600 mb-2"></i>
+      <div class="p-8 text-center text-slate-500 dark:text-slate-400">
+        <i class="fa-solid fa-mug-hot text-2xl text-slate-400 dark:text-slate-600 mb-2"></i>
         <p class="text-sm font-medium">No student birthdays found for today ${selectedBranchFilter !== 'ALL' ? 'in this branch' : ''}.</p>
-        <p class="text-xs text-slate-600 mt-1">Check the upcoming list below for birthdays happening this week.</p>
+        <p class="text-xs text-slate-500 dark:text-slate-500 mt-1">Check the upcoming list below for birthdays happening this week.</p>
       </div>
     `;
   } else {
     todayBirthdaysList.innerHTML = displayToday.map(student => {
       const isSent = student.status === 'SENT_TODAY';
       const branchLower = (student.branch || '').toLowerCase();
-      let branchBadgeClass = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      let branchBadgeClass = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
       if (branchLower.includes('ambalangoda')) {
-        branchBadgeClass = 'bg-amber-400/10 text-amber-300 border-amber-400/25';
+        branchBadgeClass = 'bg-amber-400/15 text-amber-700 dark:text-amber-300 border-amber-400/30';
       } else if (branchLower.includes('galle')) {
-        branchBadgeClass = 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25';
+        branchBadgeClass = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
       } else if (branchLower.includes('ampara')) {
-        branchBadgeClass = 'bg-purple-500/10 text-purple-300 border-purple-500/25';
+        branchBadgeClass = 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30';
       }
 
       const statusBadge = isSent
-        ? '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/25"><i class="fa-solid fa-circle-check text-emerald-400"></i> Wish Delivered</span>'
-        : '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400/10 text-amber-300 border border-amber-400/25"><i class="fa-regular fa-clock text-amber-400"></i> Pending Wish</span>';
+        ? '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25"><i class="fa-solid fa-circle-check text-emerald-500 dark:text-emerald-400"></i> Wish Delivered</span>'
+        : '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400/15 text-amber-700 dark:text-amber-300 border border-amber-400/30"><i class="fa-regular fa-clock text-amber-500 dark:text-amber-400"></i> Pending Wish</span>';
 
       const initial = student.name ? student.name.charAt(0).toUpperCase() : '?';
 
       return `
-        <div class="p-4 sm:p-5 hover:bg-white/[0.02] transition flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="p-4 sm:p-5 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center space-x-3.5">
             <div class="relative shrink-0">
               <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold text-base shadow-md font-display">
@@ -333,15 +384,15 @@ function updateBirthdaysUI(data) {
             </div>
             <div>
               <div class="flex items-center flex-wrap gap-2">
-                <h4 class="text-sm sm:text-base font-bold text-white font-display">${student.name}</h4>
+                <h4 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-display">${student.name}</h4>
                 <span class="px-2.5 py-0.5 text-[10px] font-semibold rounded-md border ${branchBadgeClass}">${student.branch}</span>
               </div>
-              <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
-                <span class="text-slate-300 font-mono"><i class="fa-solid fa-phone text-[10px] text-slate-500 mr-1.5"></i>${student.phoneDisplay}</span>
-                <span class="text-slate-600">•</span>
-                <span class="text-amber-200/90 font-medium"><i class="fa-solid fa-cake-candles text-[10px] text-amber-400 mr-1.5"></i>Turning <strong class="text-white">${student.age || 'N/A'}</strong></span>
-                <span class="text-slate-600">•</span>
-                <span>Born: <strong class="text-slate-300">${student.dobFormatted}</strong></span>
+              <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <span class="text-slate-700 dark:text-slate-300 font-mono"><i class="fa-solid fa-phone text-[10px] text-slate-400 dark:text-slate-500 mr-1.5"></i>${student.phoneDisplay}</span>
+                <span class="text-slate-300 dark:text-slate-600">•</span>
+                <span class="text-amber-600 dark:text-amber-300 font-medium"><i class="fa-solid fa-cake-candles text-[10px] text-amber-500 dark:text-amber-400 mr-1.5"></i>Turning <strong class="text-slate-900 dark:text-white">${student.age || 'N/A'}</strong></span>
+                <span class="text-slate-300 dark:text-slate-600">•</span>
+                <span>Born: <strong class="text-slate-700 dark:text-slate-300">${student.dobFormatted}</strong></span>
               </div>
             </div>
           </div>
@@ -366,7 +417,7 @@ function updateBirthdaysUI(data) {
             <!-- Native Desktop App URI Link Fallback -->
             <a 
               href="whatsapp://send?phone=${student.phone}&text=${encodeURIComponent(formatPreview(student))}"
-              class="p-2 text-slate-400 hover:text-emerald-400 hover:bg-oxford-800 rounded-xl border border-white/5 transition text-xs"
+              class="theme-pill p-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 rounded-xl border transition text-xs"
               title="Open chat in Windows WhatsApp Desktop App"
             >
               <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -391,7 +442,7 @@ function updateBirthdaysUI(data) {
   // Render Upcoming List
   if (data.upcoming.length === 0) {
     upcomingBirthdaysList.innerHTML = `
-      <div class="p-6 text-center text-slate-500 text-xs">
+      <div class="p-6 text-center text-slate-500 dark:text-slate-400 text-xs">
         No upcoming birthdays recorded in the next 7 days across active branches.
       </div>
     `;
@@ -399,15 +450,15 @@ function updateBirthdaysUI(data) {
     upcomingBirthdaysList.innerHTML = data.upcoming.map(student => {
       const inDaysText = student.daysUntil === 1 ? 'Tomorrow' : `In ${student.daysUntil} days`;
       return `
-        <div class="p-3.5 px-6 hover:bg-white/[0.02] transition flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div class="p-3.5 px-6 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
           <div class="flex items-center space-x-3">
-            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-            <span class="font-bold text-white">${student.name}</span>
-            <span class="text-slate-400">(${student.branch})</span>
+            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+            <span class="font-bold text-slate-900 dark:text-white">${student.name}</span>
+            <span class="text-slate-500 dark:text-slate-400">(${student.branch})</span>
           </div>
-          <div class="flex items-center space-x-4 text-slate-400">
-            <span>DOB: <strong class="text-slate-300">${student.dobFormatted}</strong> (Turning <strong class="text-white">${student.age || 'N/A'}</strong>)</span>
-            <span class="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-300 font-semibold border border-blue-500/20 text-[11px]">${inDaysText}</span>
+          <div class="flex items-center space-x-4 text-slate-500 dark:text-slate-400">
+            <span>DOB: <strong class="text-slate-700 dark:text-slate-300">${student.dobFormatted}</strong> (Turning <strong class="text-slate-900 dark:text-white">${student.age || 'N/A'}</strong>)</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-300 font-semibold border border-blue-500/20 text-[11px]">${inDaysText}</span>
           </div>
         </div>
       `;
@@ -602,26 +653,26 @@ function renderBranchesList(branches) {
     const shortUrl = b.spreadsheetUrl ? (b.spreadsheetUrl.length > 50 ? b.spreadsheetUrl.substring(0, 47) + '...' : b.spreadsheetUrl) : b.spreadsheetId;
 
     return `
-      <div class="p-4 rounded-2xl bg-slate-950/70 border ${isEnabled ? 'border-slate-800 hover:border-blue-500/40' : 'border-slate-800/40 opacity-60'} transition flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="p-4 rounded-2xl surface-subtle border ${isEnabled ? 'border-slate-200 dark:border-white/10 hover:border-blue-500/40' : 'border-slate-200/40 dark:border-white/5 opacity-60'} transition flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-start space-x-3.5">
-          <div class="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/20 shrink-0 mt-0.5">
+          <div class="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/20 shrink-0 mt-0.5">
             <i class="fa-solid fa-building-columns"></i>
           </div>
           <div>
             <div class="flex items-center space-x-2">
-              <h4 class="text-sm font-bold text-white">${b.name}</h4>
-              <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md ${isEnabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400'}">
+              <h4 class="text-sm font-bold text-slate-900 dark:text-white font-display">${b.name}</h4>
+              <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md ${isEnabled ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}">
                 ${isEnabled ? 'Active' : 'Disabled'}
               </span>
             </div>
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
-              <span><i class="fa-solid fa-table text-slate-500 mr-1 text-[11px]"></i>Tab: <strong class="text-slate-300">${b.sheetName}</strong></span>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
+              <span><i class="fa-solid fa-table text-slate-400 dark:text-slate-500 mr-1 text-[11px]"></i>Tab: <strong class="text-slate-700 dark:text-slate-300">${b.sheetName}</strong></span>
               <span>•</span>
-              <a href="${b.spreadsheetUrl || '#'}" target="_blank" class="text-blue-400 hover:underline flex items-center gap-1 font-mono text-[11px]" title="${b.spreadsheetUrl}">
+              <a href="${b.spreadsheetUrl || '#'}" target="_blank" class="text-blue-500 dark:text-blue-400 hover:underline flex items-center gap-1 font-mono text-[11px]" title="${b.spreadsheetUrl}">
                 <i class="fa-solid fa-link text-[10px]"></i> ${shortUrl}
               </a>
             </div>
-            ${b.customTemplate ? `<p class="text-[11px] text-purple-300 italic mt-1">Custom template: "${b.customTemplate.substring(0, 45)}..."</p>` : ''}
+            ${b.customTemplate ? `<p class="text-[11px] text-purple-600 dark:text-purple-300 italic mt-1">Custom template: "${b.customTemplate.substring(0, 45)}..."</p>` : ''}
           </div>
         </div>
 
@@ -630,7 +681,7 @@ function renderBranchesList(branches) {
           <!-- Toggle Enabled Switch -->
           <button 
             type="button" 
-            class="toggle-branch-btn px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${isEnabled ? 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700' : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'}"
+            class="toggle-branch-btn px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${isEnabled ? 'theme-pill' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'}"
             data-id="${b.id}"
             data-enabled="${isEnabled}"
           >
@@ -640,16 +691,16 @@ function renderBranchesList(branches) {
           <!-- Test Connection Button -->
           <button 
             type="button" 
-            class="test-branch-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5"
+            class="test-branch-btn theme-pill px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 hover:border-blue-400"
             data-id="${b.id}"
           >
-            <i class="fa-solid fa-plug text-blue-400 text-[11px]"></i> Test
+            <i class="fa-solid fa-plug text-blue-500 dark:text-blue-400 text-[11px]"></i> Test
           </button>
 
           <!-- Edit Button -->
           <button 
             type="button" 
-            class="edit-branch-btn p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition text-xs"
+            class="edit-branch-btn theme-pill p-2 rounded-xl text-xs"
             data-id="${b.id}"
             title="Edit Branch Settings"
           >
@@ -659,7 +710,7 @@ function renderBranchesList(branches) {
           <!-- Delete Button -->
           <button 
             type="button" 
-            class="delete-branch-btn p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition text-xs"
+            class="delete-branch-btn theme-pill p-2 text-red-500 dark:text-red-400 hover:bg-red-500/10 rounded-xl text-xs"
             data-id="${b.id}"
             data-name="${b.name}"
             title="Delete Branch"
@@ -995,6 +1046,14 @@ async function toggleLedger() {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize Theme (Dark / Light)
+  const savedTheme = localStorage.getItem('sheetpulse_theme') || 'dark';
+  updateThemeUI(savedTheme);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', toggleTheme);
+  }
+
   fetchAllState();
 
   // Periodic polling for status (QR or ready) every 4s
