@@ -281,36 +281,24 @@ async function fetchStudentsFromSheet() {
       };
     } catch (err) {
       console.error(`[GoogleSheets] Error connecting to Google Sheets API (${authType}):`, err.message);
-      if (config.DATA_SOURCE_FALLBACK) {
-        console.warn('[GoogleSheets] Falling back to local sample CSV due to API error.');
-        const fallbackStudents = loadFallbackCsv();
-        return {
-          source: 'LOCAL_FALLBACK_CSV',
-          sheetName: requestedSheet,
-          status: 'FALLBACK_ON_ERROR',
-          students: fallbackStudents,
-          warning: `Google Sheets error (${err.message}). Using local sample data (${fallbackStudents.length} records).`
-        };
-      }
-      throw err;
+      return {
+        source: 'GOOGLE_SHEETS',
+        sheetName: requestedSheet,
+        status: 'ERROR',
+        students: [],
+        warning: `Google Sheets error: ${err.message}`
+      };
     }
   }
 
-  // Fallback mode if credentials or sheet ID not configured yet
-  if (config.DATA_SOURCE_FALLBACK) {
-    const reason = !hasCreds ? 'credentials.json not configured' : 'Google Sheet Link or ID not set';
-    console.log(`[GoogleSheets] ${reason}. Using local sample data (data/sample_students.csv).`);
-    const fallbackStudents = loadFallbackCsv();
-    return {
-      source: 'LOCAL_FALLBACK_CSV',
-      sheetName: requestedSheet || 'data/sample_students.csv',
-      status: 'FALLBACK_DEMO',
-      students: fallbackStudents,
-      warning: `${reason}. Loaded ${fallbackStudents.length} demo records from local sample CSV.`
-    };
-  }
-
-  throw new Error('Google Sheets credentials or SPREADSHEET_ID missing, and fallback is disabled.');
+  // If no spreadsheet ID or URL has been configured yet
+  return {
+    source: 'GOOGLE_SHEETS',
+    sheetName: requestedSheet || 'None',
+    status: 'NOT_CONFIGURED',
+    students: [],
+    warning: 'Please add your Google Sheet URL and Tab Name in Settings.'
+  };
 }
 
 /**

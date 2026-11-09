@@ -23,7 +23,7 @@ module.exports = {
   SPREADSHEET_ID: process.env.SPREADSHEET_ID || '',
   SHEET_NAME: process.env.SHEET_NAME || 'INQUIRY DETAILS 2026/27',
   GOOGLE_CREDENTIALS_PATH: path.resolve(ROOT_DIR, process.env.GOOGLE_CREDENTIALS_PATH || 'credentials.json'),
-  DATA_SOURCE_FALLBACK: process.env.DATA_SOURCE_FALLBACK !== 'false',
+  DATA_SOURCE_FALLBACK: process.env.DATA_SOURCE_FALLBACK === 'true',
   WHATSAPP_CLIENT_ID: process.env.WHATSAPP_CLIENT_ID || 'sheetpulse-session',
   AUTO_SEND_ON_BOOT: process.env.AUTO_SEND_ON_BOOT === 'true',
   AUTO_SEND_DELAY_SECONDS: parseInt(process.env.AUTO_SEND_DELAY_SECONDS, 10) || 10,

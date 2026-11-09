@@ -102,7 +102,7 @@ function updateSettings(newSettings) {
     }
 
     if (newSettings.sheetName !== undefined) {
-      updated.sheetName = newSettings.sheetName.trim() || 'INQUIRY DETAILS 2026/27';
+      updated.sheetName = newSettings.sheetName.trim();
     }
 
     if (newSettings.googleClientId !== undefined) {

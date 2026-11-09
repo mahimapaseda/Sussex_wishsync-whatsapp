@@ -158,13 +158,14 @@ function updateStatusUI(data) {
   if (sheets.status === 'CONNECTED') {
     sheetsStatusText.textContent = `Connected (${sheets.count || 0} rows)`;
     sheetsStatusText.className = 'text-emerald-400 font-semibold';
-  } else if (sheets.status === 'FALLBACK_DEMO' || sheets.status === 'FALLBACK_ON_ERROR') {
-    sheetsStatusText.textContent = 'Local Demo CSV';
-    sheetsStatusText.className = 'text-amber-400 font-semibold';
-    sheetsStatusText.title = sheets.message || 'Using local sample data';
+  } else if (sheets.status === 'NOT_CONFIGURED') {
+    sheetsStatusText.textContent = 'Not Linked (Click Settings)';
+    sheetsStatusText.className = 'text-slate-400 font-semibold';
+    sheetsStatusText.title = 'Add your Google Sheet link in Settings';
   } else {
-    sheetsStatusText.textContent = 'Disconnected';
+    sheetsStatusText.textContent = 'Disconnected / Error';
     sheetsStatusText.className = 'text-red-400 font-semibold';
+    sheetsStatusText.title = sheets.message || sheets.warning || 'Connection error';
   }
 
   // WhatsApp Status
@@ -598,14 +599,14 @@ async function testGoogleSheetsLive() {
       testConnResultMsg.innerHTML = `<i class="fa-solid fa-check"></i> Connected! Synced ${res.count} student rows.`;
       settingsSheetStatusBadge.textContent = 'Connected';
       settingsSheetStatusBadge.className = 'px-2 py-0.5 text-[10px] font-semibold rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-    } else if (res.status === 'FALLBACK_DEMO' || res.status === 'FALLBACK_ON_ERROR') {
+    } else if (res.status === 'NOT_CONFIGURED') {
       testConnResultMsg.className = 'text-xs text-amber-400';
-      testConnResultMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Using Demo CSV (${res.message || ''})`;
-      settingsSheetStatusBadge.textContent = 'Demo Mode';
-      settingsSheetStatusBadge.className = 'px-2 py-0.5 text-[10px] font-semibold rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20';
+      testConnResultMsg.innerHTML = `<i class="fa-solid fa-info-circle"></i> Please paste a Google Sheet URL above.`;
+      settingsSheetStatusBadge.textContent = 'Not Linked';
+      settingsSheetStatusBadge.className = 'px-2 py-0.5 text-[10px] font-semibold rounded-md bg-slate-800 text-slate-400 border border-slate-700';
     } else {
       testConnResultMsg.className = 'text-xs text-red-400';
-      testConnResultMsg.innerHTML = `<i class="fa-solid fa-xmark"></i> ${res.error || 'Connection failed'}`;
+      testConnResultMsg.innerHTML = `<i class="fa-solid fa-xmark"></i> ${res.error || res.message || 'Connection failed'}`;
       settingsSheetStatusBadge.textContent = 'Error';
       settingsSheetStatusBadge.className = 'px-2 py-0.5 text-[10px] font-semibold rounded-md bg-red-500/10 text-red-400 border border-red-500/20';
     }
