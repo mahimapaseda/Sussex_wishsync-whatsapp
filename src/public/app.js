@@ -306,59 +306,68 @@ function updateBirthdaysUI(data) {
   } else {
     todayBirthdaysList.innerHTML = displayToday.map(student => {
       const isSent = student.status === 'SENT_TODAY';
-      const branchBadge = student.branch.toLowerCase().includes('head') 
-        ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' 
-        : 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      const branchLower = (student.branch || '').toLowerCase();
+      let branchBadgeClass = 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      if (branchLower.includes('ambalangoda')) {
+        branchBadgeClass = 'bg-amber-400/10 text-amber-300 border-amber-400/25';
+      } else if (branchLower.includes('galle')) {
+        branchBadgeClass = 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25';
+      } else if (branchLower.includes('ampara')) {
+        branchBadgeClass = 'bg-purple-500/10 text-purple-300 border-purple-500/25';
+      }
 
       const statusBadge = isSent
-        ? '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i class="fa-solid fa-check"></i> Wish Sent</span>'
-        : '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20"><i class="fa-regular fa-clock"></i> Pending</span>';
+        ? '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/25"><i class="fa-solid fa-circle-check text-emerald-400"></i> Wish Delivered</span>'
+        : '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400/10 text-amber-300 border border-amber-400/25"><i class="fa-regular fa-clock text-amber-400"></i> Pending Wish</span>';
 
       const initial = student.name ? student.name.charAt(0).toUpperCase() : '?';
 
       return `
-        <div class="p-4 hover:bg-slate-800/50 transition flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="p-4 sm:p-5 hover:bg-white/[0.02] transition flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center space-x-3.5">
-            <div class="h-10 w-10 rounded-full bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-sm shadow">
-              ${initial}
+            <div class="relative shrink-0">
+              <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold text-base shadow-md font-display">
+                ${initial}
+              </div>
+              <span class="absolute -top-1.5 -right-1.5 text-xs text-amber-300 drop-shadow">👑</span>
             </div>
             <div>
-              <div class="flex items-center space-x-2">
-                <h4 class="text-sm font-bold text-white">${student.name}</h4>
-                <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md border ${branchBadge}">${student.branch}</span>
+              <div class="flex items-center flex-wrap gap-2">
+                <h4 class="text-sm sm:text-base font-bold text-white font-display">${student.name}</h4>
+                <span class="px-2.5 py-0.5 text-[10px] font-semibold rounded-md border ${branchBadgeClass}">${student.branch}</span>
               </div>
-              <div class="flex items-center space-x-3 text-xs text-slate-400 mt-0.5">
-                <span><i class="fa-solid fa-phone text-[10px] text-slate-500 mr-1"></i>${student.phoneDisplay}</span>
-                <span>•</span>
-                <span><i class="fa-solid fa-cake-candles text-[10px] text-slate-500 mr-1"></i>Turning <strong class="text-slate-200">${student.age || 'N/A'}</strong></span>
-                <span>•</span>
-                <span>DOB: ${student.dobFormatted}</span>
+              <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400 mt-1">
+                <span class="text-slate-300 font-mono"><i class="fa-solid fa-phone text-[10px] text-slate-500 mr-1.5"></i>${student.phoneDisplay}</span>
+                <span class="text-slate-600">•</span>
+                <span class="text-amber-200/90 font-medium"><i class="fa-solid fa-cake-candles text-[10px] text-amber-400 mr-1.5"></i>Turning <strong class="text-white">${student.age || 'N/A'}</strong></span>
+                <span class="text-slate-600">•</span>
+                <span>Born: <strong class="text-slate-300">${student.dobFormatted}</strong></span>
               </div>
             </div>
           </div>
 
           <!-- Actions -->
-          <div class="flex items-center space-x-3 self-end md:self-center">
+          <div class="flex items-center space-x-2.5 self-end md:self-center shrink-0">
             ${statusBadge}
 
-            <!-- Direct WhatsApp Web.js Dispatch Button -->
+            <!-- Direct Automated WhatsApp Dispatch Button -->
             <button 
-              class="send-single-btn px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-700/80 hover:bg-emerald-600 hover:text-white text-slate-200 border border-slate-600/60 transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              class="send-single-btn px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
               data-id="${student.id}"
               data-phone="${student.phone}"
               data-name="${student.name}"
               ${isSent || isDispatching ? 'disabled' : ''}
-              title="Send automated message via linked WhatsApp"
+              title="Send personalized birthday message via WhatsApp"
             >
-              <i class="fa-brands fa-whatsapp text-emerald-400"></i>
+              <i class="fa-brands fa-whatsapp text-white text-sm"></i>
               ${isSent ? 'Sent' : 'Send Wish'}
             </button>
 
             <!-- Native Desktop App URI Link Fallback -->
             <a 
               href="whatsapp://send?phone=${student.phone}&text=${encodeURIComponent(formatPreview(student))}"
-              class="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-700/50 rounded-xl border border-slate-700/40 transition text-xs"
-              title="Open directly in Windows WhatsApp Desktop App"
+              class="p-2 text-slate-400 hover:text-emerald-400 hover:bg-oxford-800 rounded-xl border border-white/5 transition text-xs"
+              title="Open chat in Windows WhatsApp Desktop App"
             >
               <i class="fa-solid fa-arrow-up-right-from-square"></i>
             </a>
@@ -382,23 +391,23 @@ function updateBirthdaysUI(data) {
   // Render Upcoming List
   if (data.upcoming.length === 0) {
     upcomingBirthdaysList.innerHTML = `
-      <div class="p-4 text-center text-slate-500 text-xs">
-        No upcoming birthdays in the next 7 days.
+      <div class="p-6 text-center text-slate-500 text-xs">
+        No upcoming birthdays recorded in the next 7 days across active branches.
       </div>
     `;
   } else {
     upcomingBirthdaysList.innerHTML = data.upcoming.map(student => {
       const inDaysText = student.daysUntil === 1 ? 'Tomorrow' : `In ${student.daysUntil} days`;
       return `
-        <div class="p-3 px-6 hover:bg-slate-800/30 transition flex items-center justify-between text-xs">
+        <div class="p-3.5 px-6 hover:bg-white/[0.02] transition flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
           <div class="flex items-center space-x-3">
-            <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-            <span class="font-semibold text-slate-200">${student.name}</span>
-            <span class="text-slate-500">(${student.branch})</span>
+            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+            <span class="font-bold text-white">${student.name}</span>
+            <span class="text-slate-400">(${student.branch})</span>
           </div>
           <div class="flex items-center space-x-4 text-slate-400">
-            <span>DOB: ${student.dobFormatted} (Turning ${student.age || 'N/A'})</span>
-            <span class="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 font-semibold border border-purple-500/20 text-[10px]">${inDaysText}</span>
+            <span>DOB: <strong class="text-slate-300">${student.dobFormatted}</strong> (Turning <strong class="text-white">${student.age || 'N/A'}</strong>)</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-300 font-semibold border border-blue-500/20 text-[11px]">${inDaysText}</span>
           </div>
         </div>
       `;
