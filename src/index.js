@@ -4,6 +4,7 @@ const path = require('path');
 const open = require('open');
 const config = require('./config/env');
 const googleSheets = require('./services/googleSheets');
+const googleAuth = require('./services/googleAuth');
 const birthdayMatcher = require('./services/birthdayMatcher');
 const ledger = require('./services/ledger');
 const settings = require('./services/settings');
@@ -130,6 +131,89 @@ app.post('/api/template', (req, res) => {
 app.post('/api/whatsapp/reset', async (req, res) => {
   try {
     const result = await whatsappClient.resetSession();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4c. Google OAuth 2.0 (Sign in with Google) Endpoints
+app.get('/auth/google', (req, res) => {
+  try {
+    const authUrl = googleAuth.getAuthUrl();
+    res.redirect(authUrl);
+  } catch (err) {
+    res.status(400).send(`
+      <html>
+        <body style="font-family: sans-serif; background: #0f172a; color: #fff; padding: 40px; text-align: center;">
+          <h2 style="color: #f87171;">Google Sign-In Configuration Required</h2>
+          <p>${err.message}</p>
+          <p style="margin-top: 20px;"><a href="/#settings" style="color: #38bdf8; text-decoration: none; border: 1px solid #38bdf8; padding: 8px 16px; rounded: 8px;">Back to SheetPulse Settings</a></p>
+        </body>
+      </html>
+    `);
+  }
+});
+
+app.get('/auth/google/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error) {
+    return res.status(400).send(`Google Login Failed: ${error}`);
+  }
+  if (!code) {
+    return res.status(400).send('Authorization code missing.');
+  }
+
+  try {
+    const result = await googleAuth.handleCallback(code);
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Google Sign-In Successful</title>
+          <style>
+            body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .card { background: #1e293b; border: 1px solid #334155; border-radius: 24px; padding: 32px; max-width: 420px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+            .icon { width: 56px; height: 56px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; color: #4ade80; font-size: 28px; margin-bottom: 16px; }
+            h2 { margin: 0 0 8px 0; font-size: 20px; color: #fff; }
+            p { margin: 4px 0; font-size: 13px; color: #94a3b8; }
+            .btn { display: inline-block; margin-top: 20px; background: #16a34a; color: white; padding: 10px 20px; border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 600; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="icon">✓</div>
+            <h2>Google Sign-In Successful!</h2>
+            <p>Signed in as: <strong style="color: #38bdf8;">${result.email}</strong></p>
+            <p style="margin-top: 12px;">SheetPulse can now securely sync your private Google Sheet without needing any service account.</p>
+            <a href="/" class="btn" onclick="if (window.opener) { window.opener.location.reload(); window.close(); }">Return to Dashboard</a>
+          </div>
+          <script>
+            setTimeout(() => {
+              if (window.opener) {
+                window.opener.location.reload();
+                window.close();
+              } else {
+                window.location.href = '/';
+              }
+            }, 2500);
+          </script>
+        </body>
+      </html>
+    `);
+  } catch (err) {
+    res.status(500).send(`Error completing Google Sign-In: ${err.message}`);
+  }
+});
+
+app.get('/api/auth/google/status', (req, res) => {
+  const status = googleAuth.getAuthStatus();
+  res.json({ success: true, ...status });
+});
+
+app.post('/api/auth/google/signout', (req, res) => {
+  try {
+    const result = googleAuth.signOut();
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

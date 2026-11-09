@@ -324,27 +324,86 @@
             </div>
           </div>
 
-          <!-- Service Account Credentials Area -->
-          <div class="pt-2 border-t border-slate-800/80">
-            <div class="flex items-center justify-between mb-1.5">
-              <label class="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
-                <i class="fa-solid fa-key text-amber-400"></i>
-                Service Account Credentials (JSON):
+          <!-- Google Authentication Methods (OAuth 2.0 Sign In & Service Account) -->
+          <div class="pt-3 border-t border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-bold text-white flex items-center gap-1.5">
+                <i class="fa-brands fa-google text-red-400"></i>
+                Google Account Sign-In (OAuth 2.0)
               </label>
-              <span id="credsStatusLabel" class="text-[11px] text-slate-400">Checking...</span>
+              <span id="googleAuthStatusPill" class="px-2.5 py-0.5 text-[10px] font-semibold rounded-full bg-slate-800 text-slate-400 border border-slate-700">Checking...</span>
             </div>
-            <textarea 
-              id="settingCredentialsJson" 
-              rows="3" 
-              placeholder="Paste content of credentials.json here (or leave blank if credentials.json is already in root folder)..."
-              class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
-            ></textarea>
-            <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 text-[11px] text-slate-400 mt-2 space-y-1">
-              <p class="text-white font-medium flex items-center gap-1">
-                <i class="fa-solid fa-circle-info text-blue-400"></i> How to link Google Sheets:
-              </p>
-              <p>1. Open your Google Sheet in browser $\rightarrow$ click <strong>Share</strong>.</p>
-              <p>2. Add your service account email as <strong>Viewer</strong>: <span id="displayServiceEmail" class="text-emerald-400 font-mono select-all">service-account-email</span></p>
+
+            <!-- Sign in Status & Action Card -->
+            <div id="googleSignInCard" class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center space-x-3">
+                <div class="h-9 w-9 rounded-xl bg-white text-slate-900 flex items-center justify-center font-bold shadow">
+                  <i class="fa-brands fa-google text-lg text-red-500"></i>
+                </div>
+                <div>
+                  <h5 id="googleUserDisplayTitle" class="text-xs font-bold text-white">Not Signed In to Google</h5>
+                  <p id="googleUserDisplaySubtitle" class="text-[11px] text-slate-400">Sign in with your Google account to access your private sheet without sharing.</p>
+                </div>
+              </div>
+
+              <div class="flex items-center space-x-2">
+                <a id="googleSignInBtn" href="/auth/google" target="_blank" class="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-semibold text-xs shadow-md transition flex items-center gap-2">
+                  <i class="fa-brands fa-google text-red-500"></i> Sign in with Google
+                </a>
+                <button id="googleSignOutBtn" type="button" class="hidden px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold border border-red-500/30 transition">
+                  Sign Out
+                </button>
+              </div>
+            </div>
+
+            <!-- Expandable OAuth App Configuration (Client ID / Secret) -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+              <button id="toggleOAuthFieldsBtn" type="button" class="w-full flex items-center justify-between text-[11px] font-semibold text-slate-300 hover:text-white transition">
+                <span class="flex items-center gap-1.5">
+                  <i class="fa-solid fa-sliders text-blue-400"></i> OAuth App Client ID & Secret
+                </span>
+                <span class="text-slate-500 text-[10px] flex items-center gap-1">
+                  <span>Configure</span>
+                  <i id="toggleOAuthChevron" class="fa-solid fa-chevron-down"></i>
+                </span>
+              </button>
+
+              <div id="oauthConfigFields" class="hidden mt-3 space-y-2.5 pt-2 border-t border-slate-800/80">
+                <div>
+                  <label class="block text-[10px] font-semibold text-slate-400 mb-1">Google OAuth Client ID:</label>
+                  <input type="text" id="settingGoogleClientId" placeholder="e.g. 1234567890-xxx.apps.googleusercontent.com" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold text-slate-400 mb-1">Google OAuth Client Secret:</label>
+                  <input type="password" id="settingGoogleClientSecret" placeholder="e.g. GOCSPX-xxxxxxxxxxxx" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-blue-500">
+                </div>
+                <div class="p-2 rounded-lg bg-slate-950 text-[10px] text-slate-400 space-y-1">
+                  <p class="text-slate-300 font-semibold">How to get Client ID & Secret (1 min):</p>
+                  <p>1. In <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-blue-400 underline">Google Cloud Console > Credentials</a>, click <strong>Create Credentials > OAuth client ID</strong>.</p>
+                  <p>2. Select Application type: <strong>Web application</strong>.</p>
+                  <p>3. Add Authorized redirect URI: <code class="text-emerald-400 bg-slate-900 px-1 py-0.5 rounded select-all">http://localhost:3847/auth/google/callback</code></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Alternative: Service Account Dropdown / Accordion -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+              <button id="toggleServiceAccountBtn" type="button" class="w-full flex items-center justify-between text-[11px] font-semibold text-slate-400 hover:text-white transition">
+                <span class="flex items-center gap-1.5">
+                  <i class="fa-solid fa-key text-amber-400"></i> Alternative: Service Account Credentials (JSON)
+                </span>
+                <span id="credsStatusLabel" class="text-[10px] text-slate-500">Checking...</span>
+              </button>
+
+              <div id="serviceAccountFields" class="hidden mt-3 space-y-2 pt-2 border-t border-slate-800/80">
+                <textarea 
+                  id="settingCredentialsJson" 
+                  rows="3" 
+                  placeholder="Paste content of credentials.json here..."
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-mono"
+                ></textarea>
+                <p class="text-[10px] text-slate-500">Service account email: <span id="displayServiceEmail" class="text-emerald-400 font-mono select-all">Not set</span></p>
+              </div>
             </div>
           </div>
 

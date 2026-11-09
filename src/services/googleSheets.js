@@ -3,6 +3,7 @@ const path = require('path');
 const { google } = require('googleapis');
 const config = require('../config/env');
 const settings = require('./settings');
+const googleAuth = require('./googleAuth');
 
 /**
  * Normalizes header strings for flexible column matching.
@@ -163,16 +164,36 @@ async function fetchStudentsFromSheet() {
   const requestedSheet = currentSettings.sheetName || config.SHEET_NAME || 'INQUIRY DETAILS 2026/27';
   const hasSpreadsheetId = Boolean(spreadsheetId && spreadsheetId !== 'your_google_spreadsheet_id_here');
 
-  // Check if we should use Google Sheets API (Service Account)
-  if (hasCreds && hasSpreadsheetId) {
+  // Check 1: Google OAuth2 (Sign In with Google)
+  const oauthSheets = googleAuth.getAuthenticatedSheetsClient();
+  const oauthStatus = googleAuth.getAuthStatus();
+
+  let sheetsClient = null;
+  let authType = null;
+
+  if (oauthSheets && oauthStatus.signedIn) {
+    sheetsClient = oauthSheets;
+    authType = `OAuth2 (${oauthStatus.userEmail})`;
+    console.log(`[GoogleSheets] Authenticating via User Google Account: ${oauthStatus.userEmail}`);
+  } else if (hasCreds && hasSpreadsheetId) {
+    // Check 2: Service Account (credentials.json)
     try {
       console.log(`[GoogleSheets] Authenticating with service account: ${credsPath}`);
       const auth = new google.auth.GoogleAuth({
         keyFile: credsPath,
         scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
       });
+      sheetsClient = google.sheets({ version: 'v4', auth });
+      authType = 'Service Account';
+    } catch (e) {
+      console.warn('[GoogleSheets] Service account init failed:', e.message);
+    }
+  }
 
-      const sheets = google.sheets({ version: 'v4', auth });
+  // If we have an authenticated Google Sheets client (either OAuth or Service Account)
+  if (sheetsClient && hasSpreadsheetId) {
+    try {
+      const sheets = sheetsClient;
 
       // 1. Fetch metadata to resolve exact sheet tab title dynamically (handles slashes/spaces)
       const meta = await sheets.spreadsheets.get({ spreadsheetId });
@@ -189,7 +210,7 @@ async function fetchStudentsFromSheet() {
       }
 
       const exactTitle = matchedSheet.properties.title;
-      console.log(`[GoogleSheets] Resolved Sheet Tab Title: "${exactTitle}" (Requested: "${requestedSheet}")`);
+      console.log(`[GoogleSheets] Resolved Sheet Tab Title: "${exactTitle}" (Requested: "${requestedSheet}") via ${authType}`);
 
       // 2. Fetch all values using properly quoted sheet range: `'<Title>'!A1:Z`
       const range = `'${exactTitle}'!A1:Z`;
@@ -205,7 +226,8 @@ async function fetchStudentsFromSheet() {
           sheetName: exactTitle,
           status: 'CONNECTED_EMPTY',
           students: [],
-          message: `Sheet tab "${exactTitle}" connected successfully, but no rows were found.`
+          authType,
+          message: `Sheet tab "${exactTitle}" connected successfully via ${authType}, but no rows were found.`
         };
       }
 
@@ -248,16 +270,17 @@ async function fetchStudentsFromSheet() {
         }
       });
 
-      console.log(`[GoogleSheets] Successfully synced ${students.length} students from Google Sheet "${exactTitle}".`);
+      console.log(`[GoogleSheets] Successfully synced ${students.length} students from Google Sheet "${exactTitle}" (${authType}).`);
       return {
         source: 'GOOGLE_SHEETS',
         sheetName: exactTitle,
         status: 'CONNECTED',
+        authType,
         students,
-        message: `Synced ${students.length} students from Google Sheets tab "${exactTitle}".`
+        message: `Synced ${students.length} students from Google Sheets tab "${exactTitle}" (${authType}).`
       };
     } catch (err) {
-      console.error('[GoogleSheets] Error connecting to Google Sheets API:', err.message);
+      console.error(`[GoogleSheets] Error connecting to Google Sheets API (${authType}):`, err.message);
       if (config.DATA_SOURCE_FALLBACK) {
         console.warn('[GoogleSheets] Falling back to local sample CSV due to API error.');
         const fallbackStudents = loadFallbackCsv();
@@ -302,6 +325,7 @@ async function testGoogleSheetsConnection() {
       status: result.status,
       count: result.students.length,
       sheetName: result.sheetName,
+      authType: result.authType || 'Local',
       message: result.message || result.warning
     };
   } catch (err) {

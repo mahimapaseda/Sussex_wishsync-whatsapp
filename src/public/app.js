@@ -67,6 +67,20 @@ const settingAutoSendOnBoot = document.getElementById('settingAutoSendOnBoot');
 const settingCountdownSeconds = document.getElementById('settingCountdownSeconds');
 const settingMinDelay = document.getElementById('settingMinDelay');
 const settingMaxDelay = document.getElementById('settingMaxDelay');
+
+// Google OAuth 2.0 Elements
+const googleAuthStatusPill = document.getElementById('googleAuthStatusPill');
+const googleUserDisplayTitle = document.getElementById('googleUserDisplayTitle');
+const googleUserDisplaySubtitle = document.getElementById('googleUserDisplaySubtitle');
+const googleSignInBtn = document.getElementById('googleSignInBtn');
+const googleSignOutBtn = document.getElementById('googleSignOutBtn');
+const toggleOAuthFieldsBtn = document.getElementById('toggleOAuthFieldsBtn');
+const oauthConfigFields = document.getElementById('oauthConfigFields');
+const toggleOAuthChevron = document.getElementById('toggleOAuthChevron');
+const settingGoogleClientId = document.getElementById('settingGoogleClientId');
+const settingGoogleClientSecret = document.getElementById('settingGoogleClientSecret');
+const toggleServiceAccountBtn = document.getElementById('toggleServiceAccountBtn');
+const serviceAccountFields = document.getElementById('serviceAccountFields');
 const qrModal = document.getElementById('qrModal');
 const closeQrModalBtn = document.getElementById('closeQrModalBtn');
 const doneQrModalBtn = document.getElementById('doneQrModalBtn');
@@ -450,9 +464,13 @@ function extractSpreadsheetIdFromUrl(url) {
 // Load Settings into Settings Modal
 async function loadSettingsIntoModal() {
   try {
-    const res = await fetch('/api/settings').then(r => r.json());
-    if (res.success && res.settings) {
-      const s = res.settings;
+    const [settingsRes, authRes] = await Promise.all([
+      fetch('/api/settings').then(r => r.json()),
+      fetch('/api/auth/google/status').then(r => r.json())
+    ]);
+
+    if (settingsRes.success && settingsRes.settings) {
+      const s = settingsRes.settings;
       settingSpreadsheetUrl.value = s.spreadsheetUrl || (s.spreadsheetId ? `https://docs.google.com/spreadsheets/d/${s.spreadsheetId}/edit` : '');
       settingExtractedId.value = s.spreadsheetId || extractSpreadsheetIdFromUrl(settingSpreadsheetUrl.value);
       settingSheetName.value = s.sheetName || 'INQUIRY DETAILS 2026/27';
@@ -460,6 +478,8 @@ async function loadSettingsIntoModal() {
       settingCountdownSeconds.value = s.autoSendDelaySeconds || 10;
       settingMinDelay.value = Math.round((s.minDispatchDelayMs || 5000) / 1000);
       settingMaxDelay.value = Math.round((s.maxDispatchDelayMs || 12000) / 1000);
+      settingGoogleClientId.value = s.googleClientId || '';
+      settingGoogleClientSecret.value = s.googleClientSecret || '';
 
       if (s.credentialsConfigured) {
         credsStatusLabel.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-check"></i> Configured</span>';
@@ -470,6 +490,23 @@ async function loadSettingsIntoModal() {
       }
 
       testConnResultMsg.textContent = '';
+    }
+
+    // Update Google OAuth UI
+    if (authRes.signedIn && authRes.userEmail) {
+      googleAuthStatusPill.textContent = 'Signed In';
+      googleAuthStatusPill.className = 'px-2.5 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      googleUserDisplayTitle.textContent = authRes.userEmail;
+      googleUserDisplaySubtitle.textContent = 'Active Google session. Private sheet access enabled.';
+      googleSignInBtn.classList.add('hidden');
+      googleSignOutBtn.classList.remove('hidden');
+    } else {
+      googleAuthStatusPill.textContent = 'Not Signed In';
+      googleAuthStatusPill.className = 'px-2.5 py-0.5 text-[10px] font-semibold rounded-full bg-slate-800 text-slate-400 border border-slate-700';
+      googleUserDisplayTitle.textContent = 'Not Signed In to Google';
+      googleUserDisplaySubtitle.textContent = 'Sign in with your Google account to access your private sheet without sharing.';
+      googleSignInBtn.classList.remove('hidden');
+      googleSignOutBtn.classList.add('hidden');
     }
   } catch (err) {
     console.error('Failed to load settings:', err);
@@ -489,6 +526,8 @@ async function saveSettingsFromModal() {
   const countdown = parseInt(settingCountdownSeconds.value, 10) || 10;
   const minDelay = (parseInt(settingMinDelay.value, 10) || 5) * 1000;
   const maxDelay = (parseInt(settingMaxDelay.value, 10) || 12) * 1000;
+  const clientId = settingGoogleClientId.value.trim();
+  const clientSecret = settingGoogleClientSecret.value.trim();
 
   try {
     const payload = {
@@ -497,7 +536,9 @@ async function saveSettingsFromModal() {
       autoSendOnBoot: autoSend,
       autoSendDelaySeconds: countdown,
       minDispatchDelayMs: minDelay,
-      maxDispatchDelayMs: maxDelay
+      maxDispatchDelayMs: maxDelay,
+      googleClientId: clientId,
+      googleClientSecret: clientSecret
     };
 
     if (credsJson) {
@@ -675,6 +716,39 @@ document.addEventListener('DOMContentLoaded', () => {
   settingSpreadsheetUrl.addEventListener('input', () => {
     settingExtractedId.value = extractSpreadsheetIdFromUrl(settingSpreadsheetUrl.value);
   });
+
+  // Toggle OAuth App Configuration
+  if (toggleOAuthFieldsBtn) {
+    toggleOAuthFieldsBtn.addEventListener('click', () => {
+      oauthConfigFields.classList.toggle('hidden');
+      toggleOAuthChevron.classList.toggle('fa-chevron-up');
+      toggleOAuthChevron.classList.toggle('fa-chevron-down');
+    });
+  }
+
+  // Toggle Service Account Credentials
+  if (toggleServiceAccountBtn) {
+    toggleServiceAccountBtn.addEventListener('click', () => {
+      serviceAccountFields.classList.toggle('hidden');
+    });
+  }
+
+  // Google Sign Out Button
+  if (googleSignOutBtn) {
+    googleSignOutBtn.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to sign out from your Google Account?')) return;
+      try {
+        const res = await fetch('/api/auth/google/signout', { method: 'POST' }).then(r => r.json());
+        if (res.success) {
+          showToast('Signed out of Google account.', 'info');
+          loadSettingsIntoModal();
+          fetchAllState();
+        }
+      } catch (e) {
+        showToast('Error signing out', 'error');
+      }
+    });
+  }
 
   // QR Modal Buttons
   if (doneQrModalBtn) {

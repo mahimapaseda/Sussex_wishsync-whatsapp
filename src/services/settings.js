@@ -39,6 +39,10 @@ const DEFAULT_SETTINGS = {
   spreadsheetId: config.SPREADSHEET_ID || '',
   sheetName: config.SHEET_NAME || 'INQUIRY DETAILS 2026/27',
   credentialsConfigured: fs.existsSync(config.GOOGLE_CREDENTIALS_PATH),
+  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+  googleUserEmail: null,
+  googleAuthConnected: false,
   updatedAt: new Date().toISOString()
 };
 
@@ -99,6 +103,19 @@ function updateSettings(newSettings) {
 
     if (newSettings.sheetName !== undefined) {
       updated.sheetName = newSettings.sheetName.trim() || 'INQUIRY DETAILS 2026/27';
+    }
+
+    if (newSettings.googleClientId !== undefined) {
+      updated.googleClientId = newSettings.googleClientId.trim();
+    }
+    if (newSettings.googleClientSecret !== undefined) {
+      updated.googleClientSecret = newSettings.googleClientSecret.trim();
+    }
+    if (newSettings.googleUserEmail !== undefined) {
+      updated.googleUserEmail = newSettings.googleUserEmail;
+    }
+    if (newSettings.googleAuthConnected !== undefined) {
+      updated.googleAuthConnected = newSettings.googleAuthConnected;
     }
 
     // If credentials JSON content was pasted
