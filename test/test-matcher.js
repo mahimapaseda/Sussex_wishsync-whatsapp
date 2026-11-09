@@ -6,6 +6,8 @@ const ledger = require('../src/services/ledger');
 const googleSheets = require('../src/services/googleSheets');
 const config = require('../src/config/env');
 
+const originalLedger = fs.existsSync(config.SENT_LOG_PATH) ? fs.readFileSync(config.SENT_LOG_PATH, 'utf8') : null;
+
 console.log('--- Starting SheetPulse Test Suite ---');
 
 // 1. Phone Sanitization Tests
@@ -144,6 +146,11 @@ console.log('\n[Test 6] Student Processing & Categorization:');
   assert.strictEqual(results.upcoming.length, 1);
 
   console.log('  ✓ Correctly categorized: 1 Pending Today, 1 Sent Today, 1 Upcoming');
+}
+
+// Restore original ledger state
+if (originalLedger !== null) {
+  fs.writeFileSync(config.SENT_LOG_PATH, originalLedger, 'utf8');
 }
 
 console.log('\n==========================================');

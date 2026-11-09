@@ -264,18 +264,7 @@ async function fetchStudentsFromSheet() {
   }
 
   // Get active branches
-  let activeBranches = (currentSettings.branches || []).filter(b => b.enabled !== false && b.spreadsheetId);
-
-  // If no branches in array, check legacy single sheet
-  if (activeBranches.length === 0 && currentSettings.spreadsheetId) {
-    activeBranches = [{
-      id: 'default_branch',
-      name: 'Main Branch',
-      spreadsheetId: currentSettings.spreadsheetId,
-      sheetName: currentSettings.sheetName || 'INQUIRY DETAILS 2026/27',
-      enabled: true
-    }];
-  }
+  const activeBranches = (currentSettings.branches || []).filter(b => b.enabled !== false && b.spreadsheetId);
 
   if (activeBranches.length === 0) {
     return {
@@ -283,7 +272,9 @@ async function fetchStudentsFromSheet() {
       status: 'NOT_CONFIGURED',
       students: [],
       branchesReport: [],
-      warning: 'No Google Sheets have been added yet. Click "Manage Branches" to add your branch sheets.'
+      totalBranches: (currentSettings.branches || []).length,
+      connectedBranches: 0,
+      warning: 'No active branch sheets found. Click "Branches" to add your Google Sheets.'
     };
   }
 
