@@ -263,26 +263,19 @@ app.get('/auth/google/callback', async (req, res) => {
             <div class="icon">✓</div>
             <h2>Google Sign-In Successful!</h2>
             <div><span class="email-badge">${result.email}</span></div>
-            <p>Your Google account has been connected securely. Switching back to the SheetPulse software now...</p>
-            <a href="sheetpulse://auth-success" class="btn" id="openAppBtn" onclick="returnToApp()">Switch to SheetPulse</a>
-            <div class="countdown" id="cd">Returning to software in 2s...</div>
+            <p style="margin-top: 14px;">Connected successfully! Returning directly to your dashboard...</p>
           </div>
           <script>
-            function returnToApp() {
-              // Trigger custom protocol to bring SheetPulse Electron software to foreground
-              window.location.href = 'sheetpulse://auth-success';
-              // If opened via window.open, notify and close
+            try {
               if (window.opener) {
-                try {
-                  window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', email: '${result.email}' }, '*');
-                  window.opener.location.reload();
-                } catch (e) {}
-                setTimeout(() => window.close(), 600);
+                window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', email: '${result.email}' }, '*');
               }
-            }
-
-            // Automatically attempt to bring app to front and close browser tab
-            setTimeout(returnToApp, 1000);
+            } catch (e) {}
+            // Close popup window immediately and return to dashboard
+            setTimeout(() => {
+              window.close();
+            }, 600);
+          </script>
           </script>
         </body>
       </html>
