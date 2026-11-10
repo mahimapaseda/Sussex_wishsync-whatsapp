@@ -348,10 +348,12 @@ function updateBirthdaysUI(data) {
   // Render Today's List
   if (displayToday.length === 0) {
     todayBirthdaysList.innerHTML = `
-      <div class="p-8 text-center text-slate-500 dark:text-slate-400">
-        <i class="fa-solid fa-mug-hot text-2xl text-slate-400 dark:text-slate-600 mb-2"></i>
-        <p class="text-sm font-medium">No student birthdays found for today ${selectedBranchFilter !== 'ALL' ? 'in this branch' : ''}.</p>
-        <p class="text-xs text-slate-500 dark:text-slate-500 mt-1">Check the upcoming list below for birthdays happening this week.</p>
+      <div class="p-12 text-center text-slate-500 dark:text-slate-400">
+        <div class="h-14 w-14 rounded-2xl bg-amber-400/10 text-amber-500 dark:text-amber-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-amber-400/20">
+          <i class="fa-solid fa-calendar-check"></i>
+        </div>
+        <p class="text-sm font-bold text-slate-800 dark:text-slate-200 font-display">No Student Birthdays Today ${selectedBranchFilter !== 'ALL' ? 'in this branch' : 'Across Active Branches'}</p>
+        <p class="text-xs text-slate-500 dark:text-slate-500 mt-1 max-w-md mx-auto">All branches are synced in Asia/Colombo timezone. Review the 7-day forecast below for upcoming celebrations.</p>
       </div>
     `;
   } else {
@@ -375,16 +377,16 @@ function updateBirthdaysUI(data) {
 
       return `
         <div class="p-4 sm:p-5 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-center space-x-3.5">
-            <div class="relative shrink-0">
+          <div class="flex items-start space-x-3.5 flex-1 min-w-0">
+            <div class="relative shrink-0 mt-0.5">
               <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold text-base shadow-md font-display">
                 ${initial}
               </div>
               <span class="absolute -top-1.5 -right-1.5 text-xs text-amber-300 drop-shadow">👑</span>
             </div>
-            <div>
+            <div class="flex-1 min-w-0">
               <div class="flex items-center flex-wrap gap-2">
-                <h4 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-display">${student.name}</h4>
+                <h4 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-display truncate">${student.name}</h4>
                 <span class="px-2.5 py-0.5 text-[10px] font-semibold rounded-md border ${branchBadgeClass}">${student.branch}</span>
               </div>
               <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -393,6 +395,11 @@ function updateBirthdaysUI(data) {
                 <span class="text-amber-600 dark:text-amber-300 font-medium"><i class="fa-solid fa-cake-candles text-[10px] text-amber-500 dark:text-amber-400 mr-1.5"></i>Turning <strong class="text-slate-900 dark:text-white">${student.age || 'N/A'}</strong></span>
                 <span class="text-slate-300 dark:text-slate-600">•</span>
                 <span>Born: <strong class="text-slate-700 dark:text-slate-300">${student.dobFormatted}</strong></span>
+              </div>
+              <!-- Live Personalized Message Preview Snippet -->
+              <div class="mt-2.5 px-3 py-1.5 rounded-xl bg-amber-500/[0.04] dark:bg-black/25 border border-amber-500/10 dark:border-white/5 text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                <i class="fa-solid fa-quote-left text-amber-500/60 text-[10px] shrink-0"></i>
+                <span class="truncate italic">${formatPreview(student)}</span>
               </div>
             </div>
           </div>
@@ -450,15 +457,17 @@ function updateBirthdaysUI(data) {
     upcomingBirthdaysList.innerHTML = data.upcoming.map(student => {
       const inDaysText = student.daysUntil === 1 ? 'Tomorrow' : `In ${student.daysUntil} days`;
       return `
-        <div class="p-3.5 px-6 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div class="p-3.5 px-6 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div class="flex items-center space-x-3">
-            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-            <span class="font-bold text-slate-900 dark:text-white">${student.name}</span>
-            <span class="text-slate-500 dark:text-slate-400">(${student.branch})</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+            <div>
+              <span class="font-bold text-slate-900 dark:text-white font-display">${student.name}</span>
+              <span class="text-slate-500 dark:text-slate-400 ml-1.5 font-medium">(${student.branch})</span>
+            </div>
           </div>
-          <div class="flex items-center space-x-4 text-slate-500 dark:text-slate-400">
-            <span>DOB: <strong class="text-slate-700 dark:text-slate-300">${student.dobFormatted}</strong> (Turning <strong class="text-slate-900 dark:text-white">${student.age || 'N/A'}</strong>)</span>
-            <span class="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-300 font-semibold border border-blue-500/20 text-[11px]">${inDaysText}</span>
+          <div class="flex items-center space-x-4 text-slate-500 dark:text-slate-400 self-end sm:self-auto shrink-0">
+            <span>DOB: <strong class="text-slate-700 dark:text-slate-300 font-mono">${student.dobFormatted}</strong> (Turning <strong class="text-slate-900 dark:text-white">${student.age || 'N/A'}</strong>)</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-300 font-semibold border border-blue-500/20 text-[11px] font-mono">${inDaysText}</span>
           </div>
         </div>
       `;

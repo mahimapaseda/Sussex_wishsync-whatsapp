@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SheetPulse — Sussex Education Group Birthday Wisher</title>
+  <title>SheetPulse — Sussex College Network Birthday Engine</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎂</text></svg>">
   
-  <!-- Typography: Plus Jakarta Sans (UI) & Outfit (Display) -->
+  <!-- Typography: Cinzel (Collegiate Emblem), Outfit (Display & Stats), Plus Jakarta Sans (UI Body), JetBrains Mono (Codes) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <!-- Font Awesome 6 Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -37,112 +37,140 @@
         extend: {
           fontFamily: {
             sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
-            display: ['"Outfit"', 'sans-serif']
+            display: ['"Outfit"', 'sans-serif'],
+            crest: ['"Cinzel"', 'serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
           },
           colors: {
-            oxford: {
-              950: '#060B14',
-              900: '#0A111F',
-              850: '#0F182B',
-              800: '#15223C',
-              700: '#1D2F52',
-              600: '#2A4374'
-            },
             sussex: {
-              gold: '#EAB308',
-              goldLight: '#FEF08A',
-              goldDark: '#A16207',
-              navy: '#0E1726',
-              royal: '#2563EB',
-              emerald: '#10B981'
+              navy: '#0A1128',
+              navyDeep: '#060B18',
+              royal: '#1E3A8A',
+              royalLight: '#3B82F6',
+              gold: '#D4AF37',
+              goldLight: '#FDE68A',
+              goldDark: '#997300',
+              emerald: '#059669',
+              emeraldLight: '#10B981',
+              crimson: '#DC2626'
+            },
+            oxford: {
+              950: '#050A12',
+              900: '#0A1220',
+              850: '#0E192C',
+              800: '#14223A',
+              700: '#1C2F50',
+              600: '#2A4370'
             }
           }
         }
       }
     }
   </script>
+
   <style>
     :root {
-      --bg-page: #F5F7FB;
+      --bg-page: #F6F8FC;
       --bg-surface: #FFFFFF;
-      --bg-surface-header: #F8FAFD;
-      --bg-subtle: #EEF2F6;
+      --bg-surface-header: #FFFFFF;
+      --bg-subtle: #EEF2F8;
       --border-card: #E2E8F0;
       --border-subtle: #EDF2F7;
-      --text-title: #0F172A;
+      --text-title: #0A1128;
       --text-body: #1E293B;
       --text-muted: #475569;
       --text-subtle: #64748B;
-      --card-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
+      --card-shadow: 0 4px 20px -2px rgba(10, 17, 40, 0.05), 0 1px 3px rgba(10, 17, 40, 0.02);
       --pill-bg: #FFFFFF;
       --modal-bg: #FFFFFF;
       --input-bg: #F8FAFC;
       --input-border: #CBD5E1;
+      --hero-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 245, 255, 0.8) 100%);
+      --accent-gold-glow: rgba(212, 175, 55, 0.2);
     }
 
     html.dark {
-      --bg-page: #070D18;
-      --bg-surface: rgba(15, 24, 43, 0.76);
-      --bg-surface-header: rgba(21, 34, 60, 0.85);
-      --bg-subtle: #0B1323;
+      --bg-page: #050A12;
+      --bg-surface: rgba(14, 25, 44, 0.82);
+      --bg-surface-header: rgba(18, 32, 56, 0.9);
+      --bg-subtle: #091322;
       --border-card: rgba(255, 255, 255, 0.08);
       --border-subtle: rgba(255, 255, 255, 0.05);
       --text-title: #F8FAFC;
       --text-body: #E2E8F0;
       --text-muted: #94A3B8;
       --text-subtle: #64748B;
-      --card-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.45);
-      --pill-bg: #15223C;
-      --modal-bg: #0A111F;
-      --input-bg: #060B14;
+      --card-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6);
+      --pill-bg: #101E34;
+      --modal-bg: #091222;
+      --input-bg: #050A12;
       --input-border: rgba(255, 255, 255, 0.12);
+      --hero-gradient: linear-gradient(135deg, rgba(14, 25, 44, 0.9) 0%, rgba(9, 17, 30, 0.95) 100%);
+      --accent-gold-glow: rgba(212, 175, 55, 0.25);
     }
 
     body {
       background-color: var(--bg-page);
       color: var(--text-body);
       transition: background-color 0.25s ease, color 0.25s ease;
+      font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     }
+
     html.dark body {
       background-image: 
-        radial-gradient(circle at 50% 0%, rgba(30, 58, 102, 0.28) 0%, rgba(7, 13, 24, 0) 65%),
-        radial-gradient(circle at 90% 20%, rgba(234, 179, 8, 0.04) 0%, transparent 40%);
+        radial-gradient(circle at 50% -5%, rgba(30, 58, 138, 0.25) 0%, rgba(5, 10, 18, 0) 65%),
+        radial-gradient(circle at 95% 15%, rgba(212, 175, 55, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 5% 45%, rgba(5, 150, 105, 0.04) 0%, transparent 45%);
       background-attachment: fixed;
     }
+
     html.light body {
       background-image: 
-        radial-gradient(circle at 50% 0%, rgba(219, 234, 254, 0.5) 0%, rgba(245, 247, 251, 0) 65%),
-        radial-gradient(circle at 90% 20%, rgba(254, 240, 138, 0.15) 0%, transparent 40%);
+        radial-gradient(circle at 50% -5%, rgba(219, 234, 254, 0.5) 0%, rgba(246, 248, 252, 0) 65%),
+        radial-gradient(circle at 95% 15%, rgba(253, 230, 138, 0.18) 0%, transparent 40%),
+        radial-gradient(circle at 5% 45%, rgba(16, 185, 129, 0.05) 0%, transparent 45%);
       background-attachment: fixed;
     }
+
     .surface-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-card);
       box-shadow: var(--card-shadow);
+      backdrop-filter: blur(12px);
       transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     }
+
     .surface-header {
       background: var(--bg-surface-header);
       border-color: var(--border-subtle);
     }
+
     .surface-subtle {
       background: var(--bg-subtle);
       border-color: var(--border-subtle);
     }
+
     .theme-modal {
       background: var(--modal-bg) !important;
       border-color: var(--border-card) !important;
     }
+
     .theme-input {
       background: var(--input-bg) !important;
       border-color: var(--input-border) !important;
       color: var(--text-title) !important;
     }
+
     .theme-pill {
       background: var(--pill-bg) !important;
       border-color: var(--border-card) !important;
       color: var(--text-body) !important;
     }
+
+    .gold-crest-border {
+      box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.3), 0 4px 14px rgba(212, 175, 55, 0.15);
+    }
+
     /* Scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
@@ -160,37 +188,49 @@
     }
   </style>
 </head>
-<body class="min-h-screen antialiased selection:bg-sussex-gold selection:text-slate-950">
+<body class="min-h-screen antialiased selection:bg-amber-400 selection:text-slate-950 font-sans">
 
   <!-- Main Container -->
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
 
-    <!-- Top Navigation & Brand Header -->
-    <header class="flex flex-col lg:flex-row lg:items-center lg:justify-between pb-6 mb-6 border-b border-slate-200 dark:border-white/5 gap-4">
+    <!-- Top Navigation & Collegiate Crest Header -->
+    <header class="flex flex-col lg:flex-row lg:items-center lg:justify-between pb-5 mb-5 border-b border-slate-200 dark:border-white/5 gap-4">
       <div class="flex items-center space-x-3.5">
-        <div class="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-500/20 text-slate-950 shrink-0">
-          <i class="fa-solid fa-graduation-cap text-2xl"></i>
+        <!-- Sussex College Collegiate Crest Seal -->
+        <div class="relative shrink-0">
+          <div class="h-12 w-12 rounded-2xl bg-gradient-to-br from-sussex-navy via-oxford-850 to-oxford-950 p-[2px] gold-crest-border">
+            <div class="h-full w-full rounded-[14px] bg-gradient-to-br from-sussex-navy to-oxford-900 flex items-center justify-center text-amber-400">
+              <i class="fa-solid fa-graduation-cap text-xl"></i>
+            </div>
+          </div>
+          <span class="absolute -bottom-1 -right-1 text-[10px] bg-amber-400 text-slate-950 px-1 py-0.2 rounded font-crest font-extrabold shadow">
+            SCN
+          </span>
         </div>
+
         <div>
-          <div class="flex items-center space-x-2.5">
+          <div class="flex items-center space-x-2.5 flex-wrap">
             <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-display">SheetPulse</h1>
-            <span class="px-2.5 py-0.5 text-[11px] font-semibold tracking-wide bg-amber-400/15 text-amber-700 dark:text-amber-300 border border-amber-400/30 rounded-md">
-              Sussex Education Group
+            <span class="px-2.5 py-0.5 text-[11px] font-semibold tracking-wider uppercase bg-amber-400/15 text-amber-700 dark:text-amber-300 border border-amber-400/30 rounded-md font-crest">
+              Sussex College Network
+            </span>
+            <span class="hidden sm:inline-block text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+              Academic Year 2026/27
             </span>
           </div>
-          <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
-            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            <span id="headerDateDisplay">Loading date...</span>
+          <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center flex-wrap gap-1.5 mt-0.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span id="headerDateDisplay" class="font-medium text-slate-700 dark:text-slate-200">Loading date...</span>
             <span class="text-slate-300 dark:text-slate-600">•</span>
             <span>Asia/Colombo</span>
             <span class="text-slate-300 dark:text-slate-600">•</span>
-            <span>Automated WhatsApp Birthday Engine</span>
+            <span class="text-amber-600 dark:text-amber-300 font-medium">Daily Birthday Dispatch Engine</span>
           </p>
         </div>
       </div>
 
       <!-- Live Service Status Badges, Theme Toggle & Quick Action Controls -->
-      <div class="flex flex-wrap items-center gap-2.5">
+      <div class="flex flex-wrap items-center gap-2">
         <!-- Google Sheets Sync Status -->
         <div id="sheetsStatusPill" class="theme-pill flex items-center space-x-2 px-3 py-1.5 rounded-xl border text-xs shadow-sm">
           <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
@@ -263,46 +303,78 @@
       </div>
     </div>
 
-    <!-- Metrics Summary Strip -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
-      <!-- Card 1: Today's Birthdays -->
-      <div class="surface-card p-4 rounded-2xl relative overflow-hidden">
-        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-          <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Today's Birthdays</span>
-          <i class="fa-solid fa-cake-candles text-amber-500 dark:text-amber-400"></i>
-        </div>
-        <div class="text-3xl font-extrabold text-slate-900 dark:text-white font-display mt-0.5" id="statTodayCount">0</div>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Celebrating today in Sri Lanka</p>
+    <!-- Collegiate Executive Morning Dispatch Deck -->
+    <div class="surface-card rounded-3xl p-5 sm:p-6 mb-6 relative overflow-hidden">
+      <!-- Background Heraldic Watermark Glow -->
+      <div class="absolute -right-8 -bottom-10 opacity-[0.03] dark:opacity-[0.05] pointer-events-none text-9xl text-amber-400">
+        <i class="fa-solid fa-award"></i>
       </div>
 
-      <!-- Card 2: Pending Dispatch -->
-      <div class="surface-card p-4 rounded-2xl relative overflow-hidden">
-        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-          <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Pending Wishes</span>
-          <i class="fa-solid fa-hourglass-half text-amber-500 dark:text-amber-400"></i>
-        </div>
-        <div class="text-3xl font-extrabold text-amber-600 dark:text-amber-300 font-display mt-0.5" id="statPendingCount">0</div>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Awaiting dispatch today</p>
-      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+        <!-- Left Section: Today's Celebrations Proclamation & Dispatch Actions -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="flex items-center space-x-2">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-400/15 text-amber-700 dark:text-amber-300 border border-amber-400/30">
+              <i class="fa-solid fa-cake-candles text-amber-500"></i>
+              <span>Today's Birthday Roster</span>
+            </span>
+            <span class="text-xs text-slate-400 dark:text-slate-500">Sussex College Network</span>
+          </div>
 
-      <!-- Card 3: Delivered Today -->
-      <div class="surface-card p-4 rounded-2xl relative overflow-hidden">
-        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-          <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Delivered Wishes</span>
-          <i class="fa-solid fa-circle-check text-emerald-500 dark:text-emerald-400"></i>
-        </div>
-        <div class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-display mt-0.5" id="statSentCount">0</div>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Successfully sent this year</p>
-      </div>
+          <div class="flex items-baseline space-x-3">
+            <span id="statTodayCount" class="text-5xl sm:text-6xl font-extrabold text-slate-900 dark:text-white font-display tracking-tight">0</span>
+            <div>
+              <p class="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200 font-display">Student Birthdays Today</p>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Celebrating across active Sussex branches</p>
+            </div>
+          </div>
 
-      <!-- Card 4: Upcoming 7 Days -->
-      <div class="surface-card p-4 rounded-2xl relative overflow-hidden">
-        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-          <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Next 7 Days</span>
-          <i class="fa-regular fa-calendar-days text-blue-500 dark:text-blue-400"></i>
+          <!-- Dual Dispatch Actions -->
+          <div class="flex items-center flex-wrap gap-2.5 pt-1">
+            <button id="sendAllBtn" class="px-5 py-2.5 text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/35 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed font-display">
+              <i class="fa-solid fa-paper-plane text-white"></i>
+              <span>Send All Wishes Now</span>
+            </button>
+
+            <button id="refreshDataBtn" class="theme-pill px-4 py-2.5 text-xs font-semibold rounded-xl border transition flex items-center gap-2 shadow-sm hover:border-slate-400 dark:hover:border-slate-600">
+              <i class="fa-solid fa-arrows-rotate text-blue-500"></i>
+              <span>Sync Google Sheets</span>
+            </button>
+          </div>
         </div>
-        <div class="text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-display mt-0.5" id="statUpcomingCount">0</div>
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Upcoming birthday outlook</p>
+
+        <!-- Right Section: Executive Metrics Strip -->
+        <div class="lg:col-span-5 grid grid-cols-3 gap-2.5 sm:gap-3">
+          <!-- Metric 1: Pending Wishes -->
+          <div class="surface-subtle p-3.5 rounded-2xl border text-center relative overflow-hidden">
+            <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-center gap-1">
+              <i class="fa-regular fa-clock text-amber-500"></i>
+              <span>Pending</span>
+            </div>
+            <div id="statPendingCount" class="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-300 font-display">0</div>
+            <p class="text-[10px] text-slate-400 mt-0.5">Awaiting send</p>
+          </div>
+
+          <!-- Metric 2: Delivered Today -->
+          <div class="surface-subtle p-3.5 rounded-2xl border text-center relative overflow-hidden">
+            <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-center gap-1">
+              <i class="fa-solid fa-circle-check text-emerald-500"></i>
+              <span>Delivered</span>
+            </div>
+            <div id="statSentCount" class="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-display">0</div>
+            <p class="text-[10px] text-slate-400 mt-0.5">Sent this year</p>
+          </div>
+
+          <!-- Metric 3: Upcoming 7 Days -->
+          <div class="surface-subtle p-3.5 rounded-2xl border text-center relative overflow-hidden">
+            <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-center gap-1">
+              <i class="fa-regular fa-calendar-days text-blue-500"></i>
+              <span>Next 7 Days</span>
+            </div>
+            <div id="statUpcomingCount" class="text-2xl sm:text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-display">0</div>
+            <p class="text-[10px] text-slate-400 mt-0.5">Coming up</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -319,17 +391,12 @@
             <div>
               <h2 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-display">Students Celebrating Today</h2>
             </div>
-            <span id="todayBadgeCount" class="px-2 py-0.5 text-xs font-bold bg-slate-200 dark:bg-oxford-700 text-slate-800 dark:text-slate-200 rounded-full">0</span>
+            <span id="todayBadgeCount" class="px-2 py-0.5 text-xs font-bold bg-amber-400/20 text-amber-800 dark:text-amber-300 rounded-full font-mono">0</span>
           </div>
 
-          <!-- Header Action Buttons -->
-          <div class="flex items-center space-x-2">
-            <button id="refreshDataBtn" class="theme-pill px-3 py-1.5 text-xs font-semibold rounded-xl border transition flex items-center gap-1.5 shadow-sm hover:border-slate-400 dark:hover:border-slate-600">
-              <i class="fa-solid fa-arrows-rotate"></i> Sync Data
-            </button>
-            <button id="sendAllBtn" class="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-md shadow-emerald-600/20 transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
-              <i class="fa-solid fa-paper-plane"></i> Send All Wishes Now
-            </button>
+          <!-- Network Branch Indicator -->
+          <div class="text-xs text-slate-500 dark:text-slate-400">
+            <i class="fa-solid fa-school text-amber-500/80 mr-1"></i> Sussex Network Branches
           </div>
         </div>
 
@@ -362,7 +429,7 @@
               <i class="fa-regular fa-calendar-check"></i>
             </div>
             <h2 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-display">Upcoming Birthdays (Next 7 Days)</h2>
-            <span id="upcomingBadgeCount" class="px-2 py-0.5 text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-300 border border-blue-500/20 rounded-full">0</span>
+            <span id="upcomingBadgeCount" class="px-2 py-0.5 text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-300 border border-blue-500/20 rounded-full font-mono">0</span>
           </div>
         </div>
         <div id="upcomingBirthdaysList" class="divide-y divide-slate-100 dark:divide-white/5">
@@ -397,8 +464,12 @@
 
     <!-- Page Footer -->
     <footer class="mt-10 pt-4 border-t border-slate-200 dark:border-white/5 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-      <p>Sussex Education Group • SheetPulse Birthday Engine</p>
-      <p>Runs automatically in background on Windows Boot</p>
+      <div class="flex items-center space-x-2">
+        <span class="font-crest font-bold text-amber-600 dark:text-amber-400">SUSSEX COLLEGE NETWORK</span>
+        <span>•</span>
+        <span>SheetPulse Automated Birthday Engine</span>
+      </div>
+      <p>Automated background dispatch in Asia/Colombo Timezone</p>
     </footer>
 
   </div>
