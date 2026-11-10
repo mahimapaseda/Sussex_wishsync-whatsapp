@@ -68,7 +68,11 @@
         }
       ],
       "icon": "build/icon.ico",
-      "requestedExecutionLevel": "asInvoker"
+      "requestedExecutionLevel": "asInvoker",
+      "protocols": {
+        "name": "SheetPulse Protocol",
+        "schemes": ["sheetpulse"]
+      }
     },
     "nsis": {
       "oneClick": false,

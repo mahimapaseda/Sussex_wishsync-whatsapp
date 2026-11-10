@@ -244,33 +244,45 @@ app.get('/auth/google/callback', async (req, res) => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Google Sign-In Successful</title>
+          <title>Google Sign-In Successful - SheetPulse</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-            .card { background: #1e293b; border: 1px solid #334155; border-radius: 24px; padding: 32px; max-width: 420px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
-            .icon { width: 56px; height: 56px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; color: #4ade80; font-size: 28px; margin-bottom: 16px; }
-            h2 { margin: 0 0 8px 0; font-size: 20px; color: #fff; }
-            p { margin: 4px 0; font-size: 13px; color: #94a3b8; }
-            .btn { display: inline-block; margin-top: 20px; background: #16a34a; color: white; padding: 10px 20px; border-radius: 12px; text-decoration: none; font-size: 13px; font-weight: 600; }
+            body { font-family: system-ui, -apple-system, sans-serif; background: #0a0f1d; color: #e2e8f0; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .card { background: #131d35; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 28px; padding: 36px; max-width: 440px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+            .icon { width: 64px; height: 64px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; color: #4ade80; font-size: 32px; margin-bottom: 20px; }
+            h2 { margin: 0 0 10px 0; font-size: 22px; color: #fff; font-weight: 700; }
+            p { margin: 6px 0; font-size: 13px; color: #94a3b8; line-height: 1.5; }
+            .email-badge { display: inline-block; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; font-weight: 600; padding: 6px 14px; border-radius: 12px; margin: 10px 0; }
+            .btn { display: inline-block; margin-top: 24px; background: #2563eb; color: white; padding: 12px 24px; border-radius: 14px; text-decoration: none; font-size: 14px; font-weight: 600; transition: background 0.2s; box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3); }
+            .btn:hover { background: #1d4ed8; }
+            .countdown { font-size: 11px; color: #64748b; margin-top: 14px; }
           </style>
         </head>
         <body>
           <div class="card">
             <div class="icon">✓</div>
             <h2>Google Sign-In Successful!</h2>
-            <p>Signed in as: <strong style="color: #38bdf8;">${result.email}</strong></p>
-            <p style="margin-top: 12px;">SheetPulse can now securely sync your private Google Sheet without needing any service account.</p>
-            <a href="/" class="btn" onclick="if (window.opener) { window.opener.location.reload(); window.close(); }">Return to Dashboard</a>
+            <div><span class="email-badge">${result.email}</span></div>
+            <p>Your Google account has been connected securely. Switching back to the SheetPulse software now...</p>
+            <a href="sheetpulse://auth-success" class="btn" id="openAppBtn" onclick="returnToApp()">Switch to SheetPulse</a>
+            <div class="countdown" id="cd">Returning to software in 2s...</div>
           </div>
           <script>
-            setTimeout(() => {
+            function returnToApp() {
+              // Trigger custom protocol to bring SheetPulse Electron software to foreground
+              window.location.href = 'sheetpulse://auth-success';
+              // If opened via window.open, notify and close
               if (window.opener) {
-                window.opener.location.reload();
-                window.close();
-              } else {
-                window.location.href = '/';
+                try {
+                  window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', email: '${result.email}' }, '*');
+                  window.opener.location.reload();
+                } catch (e) {}
+                setTimeout(() => window.close(), 600);
               }
-            }, 2500);
+            }
+
+            // Automatically attempt to bring app to front and close browser tab
+            setTimeout(returnToApp, 1000);
           </script>
         </body>
       </html>

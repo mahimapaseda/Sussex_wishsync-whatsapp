@@ -182,6 +182,15 @@ function setupAutoStart() {
   }
 }
 
+// Register custom protocol so browser can bring SheetPulse to foreground after OAuth
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient('sheetpulse', process.execPath, [path.resolve(process.argv[1])]);
+  }
+} else {
+  app.setAsDefaultProtocolClient('sheetpulse');
+}
+
 // App lifecycle
 app.whenReady().then(() => {
   startBackendServer();
@@ -194,15 +203,27 @@ app.whenReady().then(() => {
   }
 });
 
-// Second instance triggered: restore existing window
-app.on('second-instance', () => {
+function bringWindowToForeground() {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.focus();
+    // Trigger dashboard state refresh after OAuth
+    mainWindow.webContents.executeJavaScript("if (typeof fetchAllState === 'function') fetchAllState();");
   } else {
     createWindow();
   }
+}
+
+// Second instance triggered: restore existing window or handle custom protocol
+app.on('second-instance', (event, commandLine) => {
+  bringWindowToForeground();
+});
+
+// macOS / Windows protocol handler
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  bringWindowToForeground();
 });
 
 app.on('before-quit', () => {

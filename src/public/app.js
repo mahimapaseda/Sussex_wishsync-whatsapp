@@ -1307,6 +1307,36 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Google Sign In & OAuth Post-Message / Polling Listener
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+      showToast(`Google Sign-In successful (${event.data.email})!`, 'success');
+      loadSettingsIntoModal();
+      fetchAllState();
+    }
+  });
+
+  if (googleSignInBtn) {
+    googleSignInBtn.addEventListener('click', () => {
+      // Poll auth status after clicking Sign In so once completed in the external browser,
+      // the software immediately updates and reloads the active user session!
+      let checks = 0;
+      const pollInterval = setInterval(async () => {
+        checks++;
+        try {
+          const authRes = await fetch('/api/auth/google/status').then(r => r.json());
+          if (authRes.signedIn && authRes.userEmail) {
+            clearInterval(pollInterval);
+            showToast(`Connected to Google as ${authRes.userEmail}!`, 'success');
+            loadSettingsIntoModal();
+            fetchAllState();
+          }
+        } catch (e) {}
+        if (checks > 60) clearInterval(pollInterval); // Stop polling after 2 minutes
+      }, 2000);
+    });
+  }
+
   // Google Sign Out Button
   if (googleSignOutBtn) {
     googleSignOutBtn.addEventListener('click', async () => {
