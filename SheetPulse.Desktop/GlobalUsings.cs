@@ -1,0 +1,10 @@
+global using MessageBox = System.Windows.MessageBox;
+global using Button = System.Windows.Controls.Button;
+global using Application = System.Windows.Application;
+global using CheckBox = System.Windows.Controls.CheckBox;
+global using ComboBox = System.Windows.Controls.ComboBox;
+global using TextBox = System.Windows.Controls.TextBox;
+global using Orientation = System.Windows.Controls.Orientation;
+global using HorizontalAlignment = System.Windows.HorizontalAlignment;
+global using VerticalAlignment = System.Windows.VerticalAlignment;
+

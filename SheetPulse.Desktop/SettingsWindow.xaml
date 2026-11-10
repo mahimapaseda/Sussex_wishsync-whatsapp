@@ -1,0 +1,96 @@
+<Window x:Class="SheetPulse.Desktop.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings &amp; Multi-Branch Configuration — SheetPulse"
+        Height="680" Width="640"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BgDarkBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="SheetPulse Settings" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentGoldBrush}"/>
+            <TextBlock Text="Customize templates, startup settings, and multi-branch Google Sheets" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Form Groups -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Startup & Boot Group -->
+                <Border Background="{StaticResource CardDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="Windows Startup &amp; Automation" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                        <CheckBox x:Name="StartupCheckBox" Content="Run SheetPulse automatically on Windows boot (minimized to tray)" Foreground="{StaticResource TextPrimaryBrush}" IsChecked="True" Margin="0,0,0,6"/>
+                        <CheckBox x:Name="AutoSendBootCheckBox" Content="Automatically dispatch today's birthday wishes on boot after countdown" Foreground="{StaticResource TextPrimaryBrush}" IsChecked="True" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Boot Countdown Delay:" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,8,0"/>
+                            <TextBox x:Name="DelayTextBox" Text="10" Width="50" HorizontalContentAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="seconds" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Template Editor Group -->
+                <Border Background="{StaticResource CardDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="Birthday Message Template" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                        <TextBlock Text="Click chips below to insert dynamic student tokens:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+
+                        <WrapPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="+ {name}" Click="OnInsertTokenClicked" Margin="0,0,6,6" Tag="{}{name}"/>
+                            <Button Content="+ {first_name}" Click="OnInsertTokenClicked" Margin="0,0,6,6" Tag="{}{first_name}"/>
+                            <Button Content="+ {branch}" Click="OnInsertTokenClicked" Margin="0,0,6,6" Tag="{}{branch}"/>
+                            <Button Content="+ {age}" Click="OnInsertTokenClicked" Margin="0,0,6,6" Tag="{}{age}"/>
+                            <Button Content="+ {dob}" Click="OnInsertTokenClicked" Margin="0,0,6,6" Tag="{}{dob}"/>
+                        </WrapPanel>
+
+                        <TextBox x:Name="TemplateTextBox" TextWrapping="Wrap" AcceptsReturn="True" Height="140" VerticalScrollBarVisibility="Auto" Margin="0,0,0,8"/>
+
+                        <!-- Greeting Card Image toggle -->
+                        <CheckBox x:Name="AttachImageCheckBox" Content="Attach Greeting Card Image ('data/assets/birthday-card.jpeg')" Foreground="{StaticResource TextPrimaryBrush}" IsChecked="True"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Branch Management Group -->
+                <Border Background="{StaticResource CardDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="10" Padding="14">
+                    <StackPanel>
+                        <TextBlock Text="Active Branch Sheets (3 Configured)" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <TextBlock Text="SheetPulse automatically checks and synchronizes with all active branches." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
+
+                        <ItemsControl x:Name="BranchesItemsControl">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource CardSubtleBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="{Binding SheetName}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                            <CheckBox Grid.Column="1" IsChecked="{Binding Enabled}" Content="Active" VerticalAlignment="Center" Foreground="{StaticResource AccentGreenBrush}"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Bottom Action Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Cancel" Click="OnCancelClicked" Width="90" Margin="0,0,10,0"/>
+            <Button Content="Save Settings" Click="OnSaveClicked" Background="{StaticResource AccentGoldBrush}" Foreground="Black" Width="120"/>
+        </StackPanel>
+    </Grid>
+</Window>
