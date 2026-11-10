@@ -45,8 +45,8 @@
   "credentialsConfigured": true,
   "googleClientId": "416444086943-8nn0b15koet1mqacjgv23p5dojbe8p6u.apps.googleusercontent.com",
   "googleClientSecret": "[REDACTED_CLIENT_SECRET]",
-  "googleUserEmail": "mahimapasedakusumsiri@gmail.com",
-  "googleAuthConnected": true,
+  "googleUserEmail": null,
+  "googleAuthConnected": false,
   "updatedAt": "2026-11-09T10:20:28.953Z",
   "serviceAccountEmail": "sheetpulse-reader@gen-lang-client-0933907136.iam.gserviceaccount.com"
 }
