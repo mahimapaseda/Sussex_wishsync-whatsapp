@@ -102,6 +102,8 @@ function initializeWhatsAppClient() {
         clientId: config.WHATSAPP_CLIENT_ID,
         dataPath: authDataPath
       }),
+      deviceName: 'SheetPulse',
+      browserName: 'SheetPulse',
       puppeteer: {
         headless: true,
         executablePath: chromePath,
