@@ -15,10 +15,25 @@ let clientInfo = null;
 let isDispatching = false;
 let retryTimeout = null;
 
-// Ensure auth directory exists
-const authDataPath = path.join(config.ROOT_DIR, '.wwebjs_auth');
+// Ensure auth directory exists in writeable DATA_DIR
+const authDataPath = path.join(config.DATA_DIR, '.wwebjs_auth');
 if (!fs.existsSync(authDataPath)) {
   fs.mkdirSync(authDataPath, { recursive: true });
+}
+
+// Migrate existing auth directory from ROOT_DIR if present
+const legacyAuthPath = path.join(config.ROOT_DIR, '.wwebjs_auth');
+if (legacyAuthPath !== authDataPath && fs.existsSync(legacyAuthPath)) {
+  try {
+    const legacySession = path.join(legacyAuthPath, `session-${config.WHATSAPP_CLIENT_ID}`);
+    const targetSession = path.join(authDataPath, `session-${config.WHATSAPP_CLIENT_ID}`);
+    if (fs.existsSync(legacySession) && !fs.existsSync(targetSession)) {
+      fs.cpSync(legacySession, targetSession, { recursive: true });
+      console.log('[WhatsApp] Migrated active session to AppData storage.');
+    }
+  } catch (mErr) {
+    console.warn('[WhatsApp] Session migration notice:', mErr.message);
+  }
 }
 
 /**
@@ -118,7 +133,10 @@ function initializeWhatsAppClient() {
           '--no-first-run',
           '--no-zygote',
           '--disable-gpu',
-          '--disable-extensions'
+          '--disable-extensions',
+          '--disable-software-rasterizer',
+          '--renderer-process-limit=1',
+          '--js-flags=--max-old-space-size=256'
         ]
       }
     });

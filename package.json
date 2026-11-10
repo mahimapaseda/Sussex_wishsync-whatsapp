@@ -2,12 +2,15 @@
   "name": "sheet-pulse-bday",
   "version": "1.0.0",
   "description": "Automated Birthday Wisher for Google Sheets & WhatsApp with Windows Startup integration",
-  "main": "src/index.js",
+  "main": "electron/main.js",
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
+    "electron": "electron .",
     "dev": "node --watch src/index.js",
-    "test": "node test/test-matcher.js"
+    "test": "node test/test-matcher.js",
+    "build:exe": "electron-builder --win nsis",
+    "build:portable": "electron-builder --win portable"
   },
   "keywords": [
     "whatsapp",
@@ -16,7 +19,7 @@
     "automation",
     "startup"
   ],
-  "author": "",
+  "author": "Sussex Education Group",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
@@ -27,6 +30,53 @@
     "open": "^10.1.0",
     "qrcode": "^1.5.4",
     "whatsapp-web.js": "^1.26.0"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "lk.sussex.sheetpulse",
+    "productName": "SheetPulse",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "data/sample_students.csv",
+      "data/assets/**/*",
+      "build/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SheetPulse",
+      "runAfterFinish": true
+    }
   }
 }
-
