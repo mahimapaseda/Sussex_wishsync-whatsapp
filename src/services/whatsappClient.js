@@ -229,7 +229,7 @@ function generateFallbackLinks(phone, text) {
 /**
  * Dispatches a message to a single student via whatsapp-web.js.
  */
-async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE) {
+async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, force = false) {
   const today = matcher.getCurrentDateInTimezone();
   const phone = student.phone;
   const message = matcher.formatMessage(template, student);
@@ -238,8 +238,8 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE) {
     throw new Error(`Invalid phone number for student ${student.name}: ${student.phoneRaw}`);
   }
 
-  // Deduplication check
-  if (ledger.hasBeenSentThisYear(phone, today.year)) {
+  // Deduplication check (unless force is requested, e.g. manual dispatch)
+  if (!force && ledger.hasBeenSentThisYear(phone, today.year)) {
     console.log(`[WhatsApp] Skip: Wish already sent to ${student.name} (${phone}) for ${today.year}`);
     return {
       success: true,
@@ -259,7 +259,7 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE) {
   console.log(`[WhatsApp] Sending message to ${student.name} (${chatId})...`);
 
   try {
-    let sentMsg;
+    let sentMsg = null;
     let usedImage = false;
 
     // Check if birthday greeting image is configured and available
@@ -281,10 +281,10 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE) {
         usedImage = true;
       }
     } catch (imgErr) {
-      console.warn('[WhatsApp] Could not load image media, falling back to direct text:', imgErr.message);
+      console.warn('[WhatsApp] Could not send image greeting card, falling back to direct text:', imgErr.message);
     }
 
-    if (!sentMsg) {
+    if (!usedImage) {
       sentMsg = await client.sendMessage(chatId, message);
     }
 
@@ -301,7 +301,7 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE) {
     return {
       success: true,
       skipped: false,
-      messageId: sentMsg.id?._serialized,
+      messageId: sentMsg?.id?._serialized || (typeof sentMsg?.id === 'string' ? sentMsg.id : `msg_${Date.now()}`),
       student,
       message,
       hasImage: usedImage

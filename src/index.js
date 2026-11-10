@@ -324,7 +324,8 @@ app.post('/api/send', async (req, res) => {
     const userSettings = settings.loadSettings();
     // Prioritize: explicitly passed template > branch custom template > global template
     const wishTemplate = template || branchCustomTemplate || userSettings.template;
-    const sendResult = await whatsappClient.sendWishToStudent(student, wishTemplate);
+    const forceResend = req.body.force !== undefined ? Boolean(req.body.force) : true;
+    const sendResult = await whatsappClient.sendWishToStudent(student, wishTemplate, forceResend);
     res.json(sendResult);
   } catch (err) {
     console.error('[API] Error in /api/send:', err.message);
