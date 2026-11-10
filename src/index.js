@@ -281,7 +281,7 @@ app.post('/api/auth/google/signout', (req, res) => {
   }
 });
 
-// 5. Send Wish to Single Student API
+// 5. Send Wish to Single Student / Manual Phone Dispatch API
 app.post('/api/send', async (req, res) => {
   try {
     const { studentId, phone, name, branch, age, template, branchCustomTemplate } = req.body;
@@ -289,11 +289,21 @@ app.post('/api/send', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Phone number is required.' });
     }
 
+    const phoneSanitized = birthdayMatcher.sanitizePhoneNumber(phone);
+    if (!phoneSanitized.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid phone number: "${phone}". Please enter a valid 10-digit Sri Lankan mobile number (e.g. 07XXXXXXXX) or international number.`
+      });
+    }
+
     const student = {
-      id: studentId,
-      name: name || 'Student',
-      phone,
-      branch: branch || 'College',
+      id: studentId || `manual_${Date.now()}`,
+      name: (name && name.trim()) ? name.trim() : 'Little Sunshine',
+      phone: phoneSanitized.sanitized,
+      phoneRaw: phone,
+      phoneDisplay: phoneSanitized.formattedDisplay,
+      branch: (branch && branch.trim()) ? branch.trim() : 'Sussex College Network',
       age: age || null,
       isPhoneValid: true
     };

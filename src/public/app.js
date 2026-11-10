@@ -116,6 +116,22 @@ const templateTextarea = document.getElementById('templateTextarea');
 const templatePreviewText = document.getElementById('templatePreviewText');
 const toastContainer = document.getElementById('toastContainer');
 
+// Manual Phone Number Dispatch Elements
+const openManualSendModalBtn = document.getElementById('openManualSendModalBtn');
+const navManualSendBtn = document.getElementById('navManualSendBtn');
+const manualSendModal = document.getElementById('manualSendModal');
+const closeManualSendModalBtn = document.getElementById('closeManualSendModalBtn');
+const cancelManualSendBtn = document.getElementById('cancelManualSendBtn');
+const manualSendForm = document.getElementById('manualSendForm');
+const manualInputPhone = document.getElementById('manualInputPhone');
+const manualPhoneStatusBadge = document.getElementById('manualPhoneStatusBadge');
+const manualInputName = document.getElementById('manualInputName');
+const manualInputBranch = document.getElementById('manualInputBranch');
+const manualInputMessage = document.getElementById('manualInputMessage');
+const manualResetTemplateBtn = document.getElementById('manualResetTemplateBtn');
+const manualDesktopAppLink = document.getElementById('manualDesktopAppLink');
+const submitManualSendBtn = document.getElementById('submitManualSendBtn');
+
 // Theme Management: Light & Dark Mode
 function updateThemeUI(theme) {
   if (theme === 'light') {
@@ -1053,6 +1069,129 @@ async function toggleLedger() {
   }
 }
 
+// ==========================================
+// Manual Phone Number Dispatch Logic
+// ==========================================
+
+function sanitizeClientPhone(rawPhone) {
+  if (!rawPhone) return { digits: '', formatted: '', isValid: false };
+  let digits = String(rawPhone).trim().replace(/\D/g, '');
+  if (digits.startsWith('0094')) digits = digits.substring(2);
+  else if (digits.startsWith('0') && digits.length === 10) digits = '94' + digits.substring(1);
+  else if (digits.length === 9 && digits.startsWith('7')) digits = '94' + digits;
+
+  const isSLMobile = /^947\d{8}$/.test(digits);
+  const isValid = isSLMobile || (digits.length >= 10 && digits.length <= 15);
+  let formatted = digits;
+  if (isSLMobile) {
+    formatted = `+${digits.substring(0, 2)} ${digits.substring(2, 4)} ${digits.substring(4, 7)} ${digits.substring(7)}`;
+  } else if (digits) {
+    formatted = `+${digits}`;
+  }
+  return { digits, formatted, isValid };
+}
+
+function updateManualPhoneValidation() {
+  if (!manualInputPhone) return;
+  const val = manualInputPhone.value.trim();
+  const res = sanitizeClientPhone(val);
+
+  if (!val) {
+    manualPhoneStatusBadge.textContent = 'e.g. 077 123 4567';
+    manualPhoneStatusBadge.className = 'text-[10px] font-mono text-slate-400';
+  } else if (res.isValid) {
+    manualPhoneStatusBadge.textContent = `✓ ${res.formatted}`;
+    manualPhoneStatusBadge.className = 'text-[10px] font-mono text-emerald-500 font-bold';
+  } else {
+    manualPhoneStatusBadge.textContent = '✗ Invalid phone format';
+    manualPhoneStatusBadge.className = 'text-[10px] font-mono text-red-400 font-semibold';
+  }
+
+  // Update desktop app fallback URI link
+  const msg = manualInputMessage ? (manualInputMessage.value.trim() || currentTemplate) : currentTemplate;
+  if (manualDesktopAppLink) {
+    manualDesktopAppLink.href = `whatsapp://send?phone=${res.digits}&text=${encodeURIComponent(msg)}`;
+  }
+}
+
+function openManualSendModal() {
+  if (!manualSendModal) return;
+
+  // Populate branches in dropdown
+  if (manualInputBranch) {
+    const opts = [
+      '<option value="Sussex College Network">Sussex College Network</option>'
+    ];
+    currentBranches.forEach(b => {
+      opts.push(`<option value="${b.name}">${b.name}</option>`);
+    });
+    manualInputBranch.innerHTML = opts.join('');
+  }
+
+  // Set message text
+  if (manualInputMessage) {
+    manualInputMessage.value = currentTemplate;
+  }
+  updateManualPhoneValidation();
+  manualSendModal.classList.remove('hidden');
+  setTimeout(() => {
+    if (manualInputPhone) manualInputPhone.focus();
+  }, 60);
+}
+
+function closeManualSendModal() {
+  if (manualSendModal) manualSendModal.classList.add('hidden');
+}
+
+async function handleManualSendSubmit(e) {
+  e.preventDefault();
+  const phoneRaw = manualInputPhone.value.trim();
+  const phoneInfo = sanitizeClientPhone(phoneRaw);
+  if (!phoneInfo.isValid) {
+    showToast('Please enter a valid Sri Lankan mobile number (e.g. 07XXXXXXXX) or international number.', 'warning');
+    manualInputPhone.focus();
+    return;
+  }
+
+  const messageText = manualInputMessage.value.trim();
+  if (!messageText) {
+    showToast('Message text cannot be empty.', 'warning');
+    return;
+  }
+
+  submitManualSendBtn.disabled = true;
+  const originalBtnText = submitManualSendBtn.innerHTML;
+  submitManualSendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-sm"></i> Sending Wish...';
+
+  try {
+    const res = await fetch('/api/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: phoneInfo.digits,
+        name: manualInputName.value.trim() || 'Little Sunshine',
+        branch: manualInputBranch.value || 'Sussex College Network',
+        template: messageText
+      })
+    }).then(r => r.json());
+
+    if (res.success) {
+      showToast(`Birthday wish sent successfully to ${phoneInfo.formatted}! 🎉`, 'success');
+      closeManualSendModal();
+      manualInputPhone.value = '';
+      manualInputName.value = '';
+      fetchAllState();
+    } else {
+      showToast(res.error || 'Failed to send WhatsApp message', 'error');
+    }
+  } catch (err) {
+    showToast(`Send error: ${err.message}`, 'error');
+  } finally {
+    submitManualSendBtn.disabled = false;
+    submitManualSendBtn.innerHTML = originalBtnText;
+  }
+}
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Theme (Dark / Light)
@@ -1230,5 +1369,34 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Failed to save template', 'error');
     }
   });
+
+  // Manual Send Modal Triggers & Form
+  if (openManualSendModalBtn) {
+    openManualSendModalBtn.addEventListener('click', openManualSendModal);
+  }
+  if (navManualSendBtn) {
+    navManualSendBtn.addEventListener('click', openManualSendModal);
+  }
+  if (closeManualSendModalBtn) {
+    closeManualSendModalBtn.addEventListener('click', closeManualSendModal);
+  }
+  if (cancelManualSendBtn) {
+    cancelManualSendBtn.addEventListener('click', closeManualSendModal);
+  }
+  if (manualInputPhone) {
+    manualInputPhone.addEventListener('input', updateManualPhoneValidation);
+  }
+  if (manualInputMessage) {
+    manualInputMessage.addEventListener('input', updateManualPhoneValidation);
+  }
+  if (manualResetTemplateBtn) {
+    manualResetTemplateBtn.addEventListener('click', () => {
+      manualInputMessage.value = currentTemplate;
+      updateManualPhoneValidation();
+    });
+  }
+  if (manualSendForm) {
+    manualSendForm.addEventListener('submit', handleManualSendSubmit);
+  }
 });
 

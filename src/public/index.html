@@ -245,6 +245,12 @@
           <span id="waStatusText" class="text-amber-600 dark:text-amber-300 font-semibold">Initializing...</span>
         </button>
 
+        <!-- Manual Enter Number Dispatch Button -->
+        <button id="navManualSendBtn" class="theme-pill flex items-center gap-1.5 px-3 py-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl border transition text-xs font-semibold shadow-sm hover:border-amber-400" title="Manually enter phone number and dispatch birthday greeting">
+          <i class="fa-solid fa-mobile-screen-button text-amber-500"></i>
+          <span>Manual Send</span>
+        </button>
+
         <!-- Template Editor -->
         <button id="openTemplateModalBtn" class="theme-pill p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl border transition text-xs shadow-sm" title="Customize Birthday Message Template">
           <i class="fa-solid fa-feather text-sm"></i>
@@ -339,6 +345,11 @@
             <button id="refreshDataBtn" class="theme-pill px-4 py-2.5 text-xs font-semibold rounded-xl border transition flex items-center gap-2 shadow-sm hover:border-slate-400 dark:hover:border-slate-600">
               <i class="fa-solid fa-arrows-rotate text-blue-500"></i>
               <span>Sync Google Sheets</span>
+            </button>
+
+            <button id="openManualSendModalBtn" class="theme-pill px-4 py-2.5 text-xs font-semibold rounded-xl border transition flex items-center gap-2 shadow-sm hover:border-amber-400">
+              <i class="fa-solid fa-phone text-amber-500"></i>
+              <span>Manual Enter Number</span>
             </button>
           </div>
         </div>
@@ -823,6 +834,133 @@
         <button id="cancelTemplateBtn" class="theme-pill px-4 py-2 text-xs font-semibold rounded-xl border transition">Cancel</button>
         <button id="saveTemplateBtn" class="px-5 py-2 text-xs font-semibold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl shadow-md transition font-display">Save Template</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Manual Phone Number Birthday Dispatch Modal -->
+  <div id="manualSendModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="theme-modal border rounded-3xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <button id="closeManualSendModalBtn" type="button" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center space-x-3.5 mb-5 pb-4 border-b border-slate-200 dark:border-white/10">
+        <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold text-lg shadow-md font-display shrink-0">
+          <i class="fa-solid fa-paper-plane"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white font-display">Manual Birthday Wish Dispatch</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Enter any mobile number to send the official Sussex birthday greeting & card image.</p>
+        </div>
+      </div>
+
+      <form id="manualSendForm" class="space-y-4">
+        <!-- Phone Number Input with live validation -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+            <span>Phone Number (WhatsApp): <span class="text-red-500">*</span></span>
+            <span id="manualPhoneStatusBadge" class="text-[10px] font-mono text-slate-400">e.g. 077 123 4567</span>
+          </label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-xs">
+              <i class="fa-solid fa-phone"></i>
+            </div>
+            <input 
+              type="text" 
+              id="manualInputPhone" 
+              placeholder="0771234567 or +94 77 123 4567" 
+              class="theme-input w-full border rounded-xl pl-9 pr-3 py-2.5 text-xs font-mono focus:outline-none focus:border-amber-500 font-bold"
+              required
+              autocomplete="off"
+            >
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Accepts any Sri Lankan format: <code class="text-amber-600 dark:text-amber-300 font-mono">07XXXXXXXX</code>, <code class="text-amber-600 dark:text-amber-300 font-mono">947XXXXXXXX</code>, or international.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Recipient Name (Optional) -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Recipient Name (Optional):
+            </label>
+            <input 
+              type="text" 
+              id="manualInputName" 
+              placeholder="e.g. Student Name" 
+              class="theme-input w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500"
+            >
+          </div>
+
+          <!-- Branch Selection -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Branch:
+            </label>
+            <select id="manualInputBranch" class="theme-input w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500">
+              <option value="Sussex College Network">Sussex College Network</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Attached Image Card Preview -->
+        <div class="p-3 rounded-2xl surface-subtle border flex items-center justify-between gap-3">
+          <div class="flex items-center space-x-3">
+            <img src="/assets/birthday-card.jpeg" alt="Greeting Card" class="h-12 w-12 object-cover rounded-xl border border-amber-400/30 shadow-sm">
+            <div>
+              <h5 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-image text-emerald-500"></i>
+                Attached Greeting Card
+              </h5>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Image will automatically send with this message as caption.</p>
+            </div>
+          </div>
+          <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 shrink-0">
+            Attached
+          </span>
+        </div>
+
+        <!-- Message Preview / Customizer -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+            <span>Message Text (Caption):</span>
+            <button type="button" id="manualResetTemplateBtn" class="text-[10px] text-amber-600 dark:text-amber-400 hover:underline">Reset to Default</button>
+          </label>
+          <textarea 
+            id="manualInputMessage" 
+            rows="5" 
+            class="theme-input w-full border rounded-2xl p-3 text-xs focus:outline-none focus:border-amber-500 font-sans leading-relaxed"
+          ></textarea>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
+          <!-- Fallback Desktop App Link -->
+          <a 
+            id="manualDesktopAppLink" 
+            href="#" 
+            target="_blank" 
+            class="w-full sm:w-auto text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-500 flex items-center justify-center gap-1.5 py-1.5"
+            title="Open in Windows WhatsApp Desktop App directly"
+          >
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            <span>Open in Desktop App</span>
+          </a>
+
+          <div class="flex items-center space-x-2.5 w-full sm:w-auto justify-end">
+            <button type="button" id="cancelManualSendBtn" class="theme-pill px-4 py-2 text-xs font-semibold rounded-xl border transition flex-1 sm:flex-none">
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              id="submitManualSendBtn" 
+              class="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 flex-1 sm:flex-none font-display disabled:opacity-50"
+            >
+              <i class="fa-brands fa-whatsapp text-sm"></i>
+              <span>Send Birthday Wish</span>
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
 
