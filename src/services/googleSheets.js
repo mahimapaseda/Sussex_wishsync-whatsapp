@@ -248,10 +248,18 @@ async function fetchBranchStudents(branch, sheetsClientWrapper) {
   }
 }
 
+let cachedSheetResult = null;
+let lastFetchTime = 0;
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes in-memory cache to prevent Google Sheets rate-limiting
+
 /**
  * Main aggregator: Fetches student records from all enabled branches.
  */
-async function fetchStudentsFromSheet() {
+async function fetchStudentsFromSheet(forceRefresh = false) {
+  if (!forceRefresh && cachedSheetResult && (Date.now() - lastFetchTime < CACHE_TTL_MS)) {
+    return cachedSheetResult;
+  }
+
   const currentSettings = settings.loadSettings();
   const sheetsClientWrapper = getSheetsClient();
 
@@ -306,7 +314,7 @@ async function fetchStudentsFromSheet() {
   const connectedCount = branchesReport.filter(r => r.status === 'CONNECTED').length;
   console.log(`[GoogleSheets] Multi-branch sync complete: ${aggregatedStudents.length} total students from ${connectedCount}/${activeBranches.length} branch(es).`);
 
-  return {
+  const result = {
     source: 'GOOGLE_SHEETS',
     status: connectedCount > 0 ? 'CONNECTED' : 'ERROR',
     authType: sheetsClientWrapper.authType,
@@ -316,6 +324,10 @@ async function fetchStudentsFromSheet() {
     students: aggregatedStudents,
     message: `Synced ${aggregatedStudents.length} students across ${connectedCount} branch sheet(s).`
   };
+
+  cachedSheetResult = result;
+  lastFetchTime = Date.now();
+  return result;
 }
 
 /**

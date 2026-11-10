@@ -10,6 +10,14 @@ const ledger = require('./services/ledger');
 const settings = require('./services/settings');
 const whatsappClient = require('./services/whatsappClient');
 
+// Catch any unhandled Puppeteer navigation/disconnection rejections without crashing server
+process.on('unhandledRejection', (reason) => {
+  console.warn('[Process] Handled unhandled rejection:', reason?.message || reason);
+});
+process.on('uncaughtException', (err) => {
+  console.warn('[Process] Handled uncaught exception:', err?.message || err);
+});
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -19,7 +27,12 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 let autoSendBootTriggered = false;
 
-// 1. System Status API
+// 1a. Dedicated WhatsApp Status API (Fast, zero external API overhead for polling)
+app.get('/api/whatsapp/status', (req, res) => {
+  res.json(whatsappClient.getStatus());
+});
+
+// 1b. Full System Status API
 app.get('/api/status', async (req, res) => {
   const today = birthdayMatcher.getCurrentDateInTimezone();
   const waStatus = whatsappClient.getStatus();

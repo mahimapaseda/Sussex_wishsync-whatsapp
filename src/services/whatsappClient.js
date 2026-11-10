@@ -13,11 +13,27 @@ let latestQrCode = null;
 let latestQrDataUrl = null;
 let clientInfo = null;
 let isDispatching = false;
+let retryTimeout = null;
 
 // Ensure auth directory exists
 const authDataPath = path.join(config.ROOT_DIR, '.wwebjs_auth');
 if (!fs.existsSync(authDataPath)) {
   fs.mkdirSync(authDataPath, { recursive: true });
+}
+
+/**
+ * Safely removes session directory if corrupted or logged out
+ */
+function cleanSessionFolder() {
+  const sessionDir = path.join(authDataPath, `session-${config.WHATSAPP_CLIENT_ID}`);
+  if (fs.existsSync(sessionDir)) {
+    try {
+      fs.rmSync(sessionDir, { recursive: true, force: true });
+      console.log('[WhatsApp] Cleaned session directory from disk.');
+    } catch (e) {
+      console.warn('[WhatsApp] Could not remove session directory:', e.message);
+    }
+  }
 }
 
 /**
@@ -63,6 +79,11 @@ function sleep(ms) {
  * Initializes the WhatsApp Web client with LocalAuth.
  */
 function initializeWhatsAppClient() {
+  if (retryTimeout) {
+    clearTimeout(retryTimeout);
+    retryTimeout = null;
+  }
+
   if (client) {
     return client;
   }
@@ -84,6 +105,9 @@ function initializeWhatsAppClient() {
       puppeteer: {
         headless: true,
         executablePath: chromePath,
+        handleSIGINT: false,
+        handleSIGTERM: false,
+        handleSIGHUP: false,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -102,7 +126,7 @@ function initializeWhatsAppClient() {
       latestQrCode = qr;
       clientStatus = 'QR_READY';
       try {
-        latestQrDataUrl = await qrcode.toDataURL(qr);
+        latestQrDataUrl = await qrcode.toDataURL(qr, { width: 280, margin: 2 });
       } catch (err) {
         console.error('[WhatsApp] Failed to generate QR data URL:', err.message);
       }
@@ -115,9 +139,17 @@ function initializeWhatsAppClient() {
       latestQrDataUrl = null;
     });
 
-    client.on('auth_failure', (msg) => {
+    client.on('auth_failure', async (msg) => {
       console.error('[WhatsApp] Authentication failure:', msg);
       clientStatus = 'AUTH_FAILURE';
+      latestQrCode = null;
+      latestQrDataUrl = null;
+      try {
+        await client.destroy();
+      } catch (e) {}
+      client = null;
+      cleanSessionFolder();
+      retryTimeout = setTimeout(() => initializeWhatsAppClient(), 2000);
     });
 
     client.on('ready', () => {
@@ -128,22 +160,40 @@ function initializeWhatsAppClient() {
       clientInfo = client.info || { wid: { user: 'Connected' } };
     });
 
-    client.on('disconnected', (reason) => {
+    client.on('disconnected', async (reason) => {
       console.warn('[WhatsApp] Client disconnected:', reason);
       clientStatus = 'DISCONNECTED';
       clientInfo = null;
-      // Reset client for possible re-initialization
+      latestQrCode = null;
+      latestQrDataUrl = null;
+      try {
+        await client.destroy();
+      } catch (e) {}
       client = null;
+
+      cleanSessionFolder();
+      console.log('[WhatsApp] Auto-recovering: generating fresh QR session in 2s...');
+      retryTimeout = setTimeout(() => initializeWhatsAppClient(), 2000);
     });
 
-    client.initialize().catch((err) => {
+    client.initialize().catch(async (err) => {
       console.error('[WhatsApp] Client initialization failed:', err.message);
       clientStatus = 'ERROR';
+      try {
+        await client.destroy();
+      } catch (e) {}
+      client = null;
+
+      cleanSessionFolder();
+      console.log('[WhatsApp] Retrying client initialization in 3 seconds...');
+      retryTimeout = setTimeout(() => initializeWhatsAppClient(), 3000);
     });
 
   } catch (err) {
     console.error('[WhatsApp] Failed to instantiate WhatsApp client:', err.message);
     clientStatus = 'ERROR';
+    cleanSessionFolder();
+    retryTimeout = setTimeout(() => initializeWhatsAppClient(), 3000);
   }
 
   return client;
@@ -337,6 +387,10 @@ async function dispatchBatch(students, template = config.DEFAULT_TEMPLATE, onPro
  */
 async function resetSession() {
   console.log('[WhatsApp] Resetting WhatsApp session...');
+  if (retryTimeout) {
+    clearTimeout(retryTimeout);
+    retryTimeout = null;
+  }
   try {
     if (client) {
       try {
@@ -344,21 +398,16 @@ async function resetSession() {
       } catch (e) {}
       client = null;
     }
-    clientStatus = 'DISCONNECTED';
+    clientStatus = 'INITIALIZING';
     clientInfo = null;
     latestQrCode = null;
     latestQrDataUrl = null;
 
-    // Clean up local auth folder
-    const sessionDir = path.join(authDataPath, `session-${config.WHATSAPP_CLIENT_ID}`);
-    if (fs.existsSync(sessionDir)) {
-      fs.rmSync(sessionDir, { recursive: true, force: true });
-      console.log('[WhatsApp] Removed old session files from disk.');
-    }
+    cleanSessionFolder();
 
     // Re-initialize fresh client
     initializeWhatsAppClient();
-    return { success: true, message: 'Session reset. New QR code generating...' };
+    return { success: true, message: 'Session reset initiated. Generating fresh QR code...' };
   } catch (err) {
     console.error('[WhatsApp] Error resetting session:', err.message);
     throw err;

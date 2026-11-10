@@ -234,13 +234,23 @@ function updateStatusUI(data) {
   }
 
   // WhatsApp Status
-  const wa = data.whatsapp || {};
+  updateWhatsAppUI(data.whatsapp);
+}
+
+// Dedicated WhatsApp UI updater (called on full fetch or fast polling)
+function updateWhatsAppUI(wa) {
+  if (!wa) return;
+  if (!currentStatus) currentStatus = {};
+  currentStatus.whatsapp = wa;
+
   if (wa.status === 'READY') {
-    waStatusText.textContent = wa.user?.pushname ? `Ready (${wa.user.pushname})` : 'Ready';
+    waStatusText.textContent = wa.user?.pushname ? `Ready (${wa.user.pushname})` : 'Connected';
     waStatusText.className = 'text-emerald-400 font-semibold';
     waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
-    // Hide QR modal if open
-    qrModal.classList.add('hidden');
+    if (!qrModal.classList.contains('hidden')) {
+      qrModal.classList.add('hidden');
+      showToast('WhatsApp successfully linked and ready!', 'success');
+    }
   } else if (wa.status === 'QR_READY') {
     waStatusText.textContent = 'Scan QR Needed';
     waStatusText.className = 'text-amber-400 font-semibold';
@@ -251,11 +261,19 @@ function updateStatusUI(data) {
       qrPlaceholder.classList.add('hidden');
     }
   } else if (wa.status === 'AUTHENTICATED') {
-    waStatusText.textContent = 'Authenticated';
+    waStatusText.textContent = 'Authenticated...';
     waStatusText.className = 'text-blue-400 font-semibold';
-    waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-blue-400';
+    waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse';
+  } else if (wa.status === 'INITIALIZING') {
+    waStatusText.textContent = 'Connecting...';
+    waStatusText.className = 'text-amber-400 font-semibold';
+    waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+  } else if (wa.status === 'ERROR' || wa.status === 'DISCONNECTED') {
+    waStatusText.textContent = 'Tap to Reconnect';
+    waStatusText.className = 'text-rose-400 font-semibold';
+    waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse';
   } else {
-    waStatusText.textContent = wa.status || 'Initializing...';
+    waStatusText.textContent = wa.status || 'Starting...';
     waStatusText.className = 'text-slate-400 font-semibold';
     waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500 animate-pulse';
   }
@@ -1204,13 +1222,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   fetchAllState();
 
-  // Periodic polling for status (QR or ready) every 4s
+  // Periodic polling for WhatsApp connection status (fast, lightweight, zero sheet overhead)
   setInterval(async () => {
     try {
-      const statusRes = await fetch('/api/status').then(r => r.json());
-      updateStatusUI(statusRes);
+      const waRes = await fetch('/api/whatsapp/status').then(r => r.json());
+      updateWhatsAppUI(waRes);
     } catch (e) {}
-  }, 4000);
+  }, 3000);
 
   // Sync Data
   refreshDataBtn.addEventListener('click', () => {
@@ -1313,13 +1331,32 @@ document.addEventListener('DOMContentLoaded', () => {
   if (resetSessionBtn) {
     resetSessionBtn.addEventListener('click', resetWhatsAppSession);
   }
-  whatsappStatusBtn.addEventListener('click', () => {
-    if (currentStatus.whatsapp?.status === 'QR_READY') {
-      qrModal.classList.remove('hidden');
-    } else if (currentStatus.whatsapp?.status === 'READY') {
-      showToast('WhatsApp session is active and ready!', 'success');
+  whatsappStatusBtn.addEventListener('click', async () => {
+    const wa = currentStatus.whatsapp || {};
+    if (wa.status === 'READY') {
+      showToast(wa.user?.phone ? `WhatsApp is connected (+${wa.user.phone})` : 'WhatsApp session is active and ready!', 'success');
+      return;
+    }
+
+    // Open QR modal right away
+    qrModal.classList.remove('hidden');
+
+    if (wa.status === 'QR_READY' && wa.qrDataUrl) {
+      qrImageElement.src = wa.qrDataUrl;
+      qrImageElement.classList.remove('hidden');
+      qrPlaceholder.classList.add('hidden');
     } else {
-      showToast(`WhatsApp status: ${currentStatus.whatsapp?.status || 'Starting...'}`, 'info');
+      // Display spinner placeholder and request clean pairing reset if in ERROR or stuck
+      qrImageElement.classList.add('hidden');
+      qrPlaceholder.classList.remove('hidden');
+      try {
+        showToast('Refreshing WhatsApp session...', 'info');
+        await fetch('/api/whatsapp/reset', { method: 'POST' });
+        const freshWa = await fetch('/api/whatsapp/status').then(r => r.json());
+        updateWhatsAppUI(freshWa);
+      } catch (err) {
+        console.error('Error refreshing WhatsApp session:', err);
+      }
     }
   });
   closeQrModalBtn.addEventListener('click', () => qrModal.classList.add('hidden'));
