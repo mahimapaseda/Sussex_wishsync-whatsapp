@@ -1,5 +1,11 @@
 {
-  "template": "Dear {name}, on behalf of Sussex, we wish you a very Happy Birthday! 🎂🎉 May this special day bring you immense joy, happiness, and great success ahead!",
+  "template": "Happy Birthday, Little Sunshine!\n\nWishing our little birthday star a day filled with sweet smiles, happy giggles, lovely surprises and lots of cuddles!\n\nMay your little world always be filled with love, laughter, magical discoveries and beautiful moments. Keep growing, keep smiling and keep shining bright, little one!\n\nWith warmest birthday wishes and lots of love,\nSussex College Network",
+  "birthdayImage": {
+    "enabled": true,
+    "fileName": "birthday-card.jpeg",
+    "relativePath": "data/assets/birthday-card.jpeg",
+    "originalPath": "C:\\Users\\User\\Downloads\\WhatsApp Image 2026-11-10 at 15.29.33.jpeg"
+  },
   "autoSendOnBoot": true,
   "autoSendDelaySeconds": 10,
   "minDispatchDelayMs": 5000,

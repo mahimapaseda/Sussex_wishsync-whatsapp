@@ -796,8 +796,25 @@
 
       <textarea id="templateTextarea" rows="4" class="theme-input w-full border rounded-2xl p-3 text-xs focus:outline-none focus:border-amber-500 font-sans"></textarea>
 
+      <!-- Attached Birthday Greeting Card Image -->
+      <div id="templateAttachedImageCard" class="mt-3 p-3 rounded-2xl surface-subtle border flex items-center justify-between gap-3">
+        <div class="flex items-center space-x-3">
+          <img id="templateAttachedImgTag" src="/assets/birthday-card.jpeg" alt="Birthday Greeting Card" class="h-14 w-14 object-cover rounded-xl border border-amber-400/30 shadow-sm" onerror="this.parentElement.parentElement.classList.add('hidden')">
+          <div>
+            <h5 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <i class="fa-solid fa-image text-emerald-500"></i>
+              Attached Birthday Card Image
+            </h5>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Automatically sent with this wish as its image caption on WhatsApp.</p>
+          </div>
+        </div>
+        <span class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 shrink-0">
+          Attached
+        </span>
+      </div>
+
       <!-- Live Preview Box -->
-      <div class="mt-4 p-3 rounded-2xl surface-subtle border">
+      <div class="mt-3 p-3 rounded-2xl surface-subtle border">
         <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Live Sample Preview:</p>
         <p id="templatePreviewText" class="text-xs text-amber-700 dark:text-amber-200 italic"></p>
       </div>

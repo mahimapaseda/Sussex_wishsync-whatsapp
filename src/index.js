@@ -14,6 +14,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/assets', express.static(path.join(config.DATA_DIR, 'assets')));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 let autoSendBootTriggered = false;
@@ -172,7 +173,10 @@ app.get('/api/branches/:id/test', async (req, res) => {
 
 app.get('/api/template', (req, res) => {
   const current = settings.loadSettings();
-  res.json({ template: current.template });
+  res.json({
+    template: current.template,
+    birthdayImage: current.birthdayImage || null
+  });
 });
 
 app.post('/api/template', (req, res) => {

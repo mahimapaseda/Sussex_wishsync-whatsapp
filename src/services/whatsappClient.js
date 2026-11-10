@@ -1,10 +1,11 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config/env');
 const ledger = require('./ledger');
 const matcher = require('./birthdayMatcher');
+const settings = require('./settings');
 
 let client = null;
 let clientStatus = 'INITIALIZING'; // INITIALIZING, QR_READY, AUTHENTICATED, READY, DISCONNECTED, ERROR
@@ -208,7 +209,34 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE) {
   console.log(`[WhatsApp] Sending message to ${student.name} (${chatId})...`);
 
   try {
-    const sentMsg = await client.sendMessage(chatId, message);
+    let sentMsg;
+    let usedImage = false;
+
+    // Check if birthday greeting image is configured and available
+    try {
+      const userSettings = settings.loadSettings();
+      const imgConfig = userSettings.birthdayImage;
+      const isImageEnabled = !imgConfig || imgConfig.enabled !== false;
+      const candidatePaths = [
+        imgConfig?.relativePath ? path.join(config.ROOT_DIR, imgConfig.relativePath) : null,
+        imgConfig?.originalPath || null,
+        path.join(config.DATA_DIR, 'assets', 'birthday-card.jpeg')
+      ].filter(Boolean);
+
+      const foundPath = candidatePaths.find(p => fs.existsSync(p));
+      if (isImageEnabled && foundPath) {
+        console.log(`[WhatsApp] Attaching birthday greeting image: ${foundPath}`);
+        const media = MessageMedia.fromFilePath(foundPath);
+        sentMsg = await client.sendMessage(chatId, media, { caption: message });
+        usedImage = true;
+      }
+    } catch (imgErr) {
+      console.warn('[WhatsApp] Could not load image media, falling back to direct text:', imgErr.message);
+    }
+
+    if (!sentMsg) {
+      sentMsg = await client.sendMessage(chatId, message);
+    }
 
     // Record in ledger immediately upon dispatch confirmation
     ledger.recordSent({
@@ -217,7 +245,7 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE) {
       year: today.year,
       date: today.dateString,
       message,
-      method: 'whatsapp-web.js'
+      method: usedImage ? 'whatsapp-web.js (with greeting card image)' : 'whatsapp-web.js'
     });
 
     return {
@@ -225,7 +253,8 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE) {
       skipped: false,
       messageId: sentMsg.id?._serialized,
       student,
-      message
+      message,
+      hasImage: usedImage
     };
   } catch (err) {
     console.error(`[WhatsApp] Failed to send message to ${student.name} (${phone}):`, err.message);
