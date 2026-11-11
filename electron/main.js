@@ -99,78 +99,13 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Handle in-app Google Auth without launching external browser
+  // Open external links in default OS browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.includes('/auth/google') || url.includes('accounts.google.com')) {
-      openGoogleAuthModal(url);
-      return { action: 'deny' };
-    }
-
     if (url.startsWith('http:') || url.startsWith('https:')) {
       shell.openExternal(url);
       return { action: 'deny' };
     }
     return { action: 'allow' };
-  });
-}
-
-let authWindow = null;
-
-function openGoogleAuthModal(authUrl) {
-  if (authWindow && !authWindow.isDestroyed()) {
-    authWindow.focus();
-    return;
-  }
-
-  const iconPath = getIconPath();
-  authWindow = new BrowserWindow({
-    width: 540,
-    height: 720,
-    parent: mainWindow || undefined,
-    modal: true,
-    title: 'Sign In with Google - SheetPulse',
-    icon: iconPath,
-    backgroundColor: '#0a0f1d',
-    autoHideMenuBar: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  });
-
-  // Standard Chrome User Agent to avoid Google disallowed_useragent
-  authWindow.webContents.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-  );
-
-  authWindow.loadURL(authUrl);
-
-  // Once callback completes, close popup and return directly to dashboard
-  authWindow.webContents.on('did-navigate', (event, targetUrl) => {
-    if (targetUrl.includes('/auth/google/callback') || targetUrl === `http://localhost:${PORT}/` || targetUrl.includes('auth-success')) {
-      setTimeout(() => {
-        if (authWindow && !authWindow.isDestroyed()) {
-          authWindow.close();
-          authWindow = null;
-        }
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-          mainWindow.webContents.executeJavaScript(`
-            // Automatically close the Settings modal and return directly to dashboard!
-            const sm = document.getElementById('settingsModal');
-            if (sm) sm.classList.add('hidden');
-            if (typeof loadSettingsIntoModal === 'function') loadSettingsIntoModal();
-            if (typeof fetchAllState === 'function') fetchAllState();
-            if (typeof showToast === 'function') showToast('Google account connected! Dashboard updated.', 'success');
-          `);
-        }
-      }, 800);
-    }
-  });
-
-  authWindow.on('closed', () => {
-    authWindow = null;
   });
 }
 

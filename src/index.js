@@ -9,6 +9,7 @@ const birthdayMatcher = require('./services/birthdayMatcher');
 const ledger = require('./services/ledger');
 const settings = require('./services/settings');
 const whatsappClient = require('./services/whatsappClient');
+const pkg = require('../package.json');
 
 // Catch any unhandled Puppeteer navigation/disconnection rejections without crashing server
 process.on('unhandledRejection', (reason) => {
@@ -41,7 +42,7 @@ app.get('/api/status', async (req, res) => {
 
   res.json({
     appName: 'SheetPulse Birthday Wisher',
-    version: '1.0.0',
+    version: pkg.version || '1.0.1',
     today,
     sheets: sheetsTest,
     whatsapp: waStatus,
@@ -263,19 +264,26 @@ app.get('/auth/google/callback', async (req, res) => {
             <div class="icon">✓</div>
             <h2>Google Sign-In Successful!</h2>
             <div><span class="email-badge">${result.email}</span></div>
-            <p style="margin-top: 14px;">Connected successfully! Returning directly to your dashboard...</p>
+            <p>Your Google account has been connected securely. Switching back to the SheetPulse software now...</p>
+            <a href="sheetpulse://auth-success" class="btn" id="openAppBtn" onclick="returnToApp()">Switch to SheetPulse</a>
+            <div class="countdown" id="cd">Returning to software in 2s...</div>
           </div>
           <script>
-            try {
+            function returnToApp() {
+              // Trigger custom protocol to bring SheetPulse Electron software to foreground
+              window.location.href = 'sheetpulse://auth-success';
+              // If opened via window.open, notify and close
               if (window.opener) {
-                window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', email: '${result.email}' }, '*');
+                try {
+                  window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS', email: '${result.email}' }, '*');
+                  window.opener.location.reload();
+                } catch (e) {}
+                setTimeout(() => window.close(), 600);
               }
-            } catch (e) {}
-            // Close popup window immediately and return to dashboard
-            setTimeout(() => {
-              window.close();
-            }, 600);
-          </script>
+            }
+
+            // Automatically attempt to bring app to front and close browser tab
+            setTimeout(returnToApp, 1000);
           </script>
         </body>
       </html>

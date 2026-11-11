@@ -1317,11 +1317,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   if (googleSignInBtn) {
-    googleSignInBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.open('/auth/google', 'GoogleAuth', 'width=540,height=720');
-
-      // Poll auth status after clicking Sign In
+    googleSignInBtn.addEventListener('click', () => {
+      // Poll auth status after clicking Sign In so once completed in the external browser,
+      // the software immediately updates and reloads the active user session!
       let checks = 0;
       const pollInterval = setInterval(async () => {
         checks++;
@@ -1330,16 +1328,12 @@ document.addEventListener('DOMContentLoaded', () => {
           if (authRes.signedIn && authRes.userEmail) {
             clearInterval(pollInterval);
             showToast(`Connected to Google as ${authRes.userEmail}!`, 'success');
-            // Automatically close the Settings modal and return directly to dashboard
-            if (settingsModal) {
-              settingsModal.classList.add('hidden');
-            }
             loadSettingsIntoModal();
             fetchAllState();
           }
         } catch (e) {}
-        if (checks > 60) clearInterval(pollInterval);
-      }, 1500);
+        if (checks > 60) clearInterval(pollInterval); // Stop polling after 2 minutes
+      }, 2000);
     });
   }
 
