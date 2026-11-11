@@ -657,55 +657,6 @@
               </button>
             </div>
           </div>
-
-          <!-- OAuth App Configuration Accordion -->
-          <div class="rounded-xl border border-slate-200 dark:border-white/5 p-3">
-            <button id="toggleOAuthFieldsBtn" type="button" class="w-full flex items-center justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">
-              <span class="flex items-center gap-1.5">
-                <i class="fa-solid fa-key text-blue-500"></i> OAuth Client ID & Secret
-              </span>
-              <span class="text-slate-400 text-[10px] flex items-center gap-1">
-                <span>Configure</span>
-                <i id="toggleOAuthChevron" class="fa-solid fa-chevron-down"></i>
-              </span>
-            </button>
-
-            <div id="oauthConfigFields" class="hidden mt-3 space-y-2.5 pt-2 border-t border-slate-200 dark:border-white/5">
-              <div>
-                <label class="block text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Google OAuth Client ID:</label>
-                <input type="text" id="settingGoogleClientId" placeholder="e.g. 1234567890-xxx.apps.googleusercontent.com" class="theme-input w-full border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:border-blue-500">
-              </div>
-              <div>
-                <label class="block text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Google OAuth Client Secret:</label>
-                <input type="password" id="settingGoogleClientSecret" placeholder="e.g. GOCSPX-xxxxxxxxxxxx" class="theme-input w-full border rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:border-blue-500">
-              </div>
-              <div class="p-2 rounded-lg bg-slate-100 dark:bg-oxford-950 text-[10px] text-slate-600 dark:text-slate-400 space-y-1">
-                <p class="text-slate-800 dark:text-slate-300 font-semibold">How to get Client ID & Secret:</p>
-                <p>1. In <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-blue-500 underline">Google Cloud Console > Credentials</a>, create an <strong>OAuth client ID</strong> (Web application).</p>
-                <p>2. Authorized redirect URI: <code class="text-emerald-600 dark:text-emerald-400 bg-slate-200 dark:bg-oxford-900 px-1 py-0.5 rounded select-all">http://localhost:3847/auth/google/callback</code></p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Service Account Accordion -->
-          <div class="rounded-xl border border-slate-200 dark:border-white/5 p-3">
-            <button id="toggleServiceAccountBtn" type="button" class="w-full flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">
-              <span class="flex items-center gap-1.5">
-                <i class="fa-solid fa-file-code text-amber-500"></i> Alternative: Service Account Credentials (JSON)
-              </span>
-              <span id="credsStatusLabel" class="text-[10px] text-slate-400">Checking...</span>
-            </button>
-
-            <div id="serviceAccountFields" class="hidden mt-3 space-y-2 pt-2 border-t border-slate-200 dark:border-white/5">
-              <textarea 
-                id="settingCredentialsJson" 
-                rows="3" 
-                placeholder="Paste content of credentials.json here..."
-                class="theme-input w-full border rounded-xl p-2.5 text-[11px] focus:outline-none focus:border-blue-500 font-mono"
-              ></textarea>
-              <p class="text-[10px] text-slate-500">Service account email: <span id="displayServiceEmail" class="text-emerald-600 dark:text-emerald-400 font-mono select-all">Not set</span></p>
-            </div>
-          </div>
         </div>
 
         <!-- 3. Startup & Anti-Ban Automation -->

@@ -77,9 +77,6 @@ const openSettingsModalBtn = document.getElementById('openSettingsModalBtn');
 const closeSettingsModalBtn = document.getElementById('closeSettingsModalBtn');
 const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-const settingCredentialsJson = document.getElementById('settingCredentialsJson');
-const credsStatusLabel = document.getElementById('credsStatusLabel');
-const displayServiceEmail = document.getElementById('displayServiceEmail');
 const settingsOpenBranchesBtn = document.getElementById('settingsOpenBranchesBtn');
 const settingsBranchCountBadge = document.getElementById('settingsBranchCountBadge');
 const settingAutoSendOnBoot = document.getElementById('settingAutoSendOnBoot');
@@ -93,13 +90,6 @@ const googleUserDisplayTitle = document.getElementById('googleUserDisplayTitle')
 const googleUserDisplaySubtitle = document.getElementById('googleUserDisplaySubtitle');
 const googleSignInBtn = document.getElementById('googleSignInBtn');
 const googleSignOutBtn = document.getElementById('googleSignOutBtn');
-const toggleOAuthFieldsBtn = document.getElementById('toggleOAuthFieldsBtn');
-const oauthConfigFields = document.getElementById('oauthConfigFields');
-const toggleOAuthChevron = document.getElementById('toggleOAuthChevron');
-const settingGoogleClientId = document.getElementById('settingGoogleClientId');
-const settingGoogleClientSecret = document.getElementById('settingGoogleClientSecret');
-const toggleServiceAccountBtn = document.getElementById('toggleServiceAccountBtn');
-const serviceAccountFields = document.getElementById('serviceAccountFields');
 const qrModal = document.getElementById('qrModal');
 const closeQrModalBtn = document.getElementById('closeQrModalBtn');
 const doneQrModalBtn = document.getElementById('doneQrModalBtn');
@@ -954,16 +944,6 @@ async function loadSettingsIntoModal() {
       settingCountdownSeconds.value = s.autoSendDelaySeconds || 10;
       settingMinDelay.value = Math.round((s.minDispatchDelayMs || 5000) / 1000);
       settingMaxDelay.value = Math.round((s.maxDispatchDelayMs || 12000) / 1000);
-      settingGoogleClientId.value = s.googleClientId || '';
-      settingGoogleClientSecret.value = s.googleClientSecret || '';
-
-      if (s.credentialsConfigured) {
-        credsStatusLabel.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-check"></i> Configured</span>';
-        displayServiceEmail.textContent = s.serviceAccountEmail || 'Configured via credentials.json';
-      } else {
-        credsStatusLabel.innerHTML = '<span class="text-amber-400 font-semibold"><i class="fa-solid fa-triangle-exclamation"></i> Not Configured</span>';
-        displayServiceEmail.textContent = 'Paste JSON key below to configure';
-      }
     }
 
     // Update Google OAuth UI
@@ -993,27 +973,18 @@ async function saveSettingsFromModal() {
   saveSettingsBtn.disabled = true;
   saveSettingsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
 
-  const credsJson = settingCredentialsJson.value.trim();
   const autoSend = settingAutoSendOnBoot.checked;
   const countdown = parseInt(settingCountdownSeconds.value, 10) || 10;
   const minDelay = (parseInt(settingMinDelay.value, 10) || 5) * 1000;
   const maxDelay = (parseInt(settingMaxDelay.value, 10) || 12) * 1000;
-  const clientId = settingGoogleClientId.value.trim();
-  const clientSecret = settingGoogleClientSecret.value.trim();
 
   try {
     const payload = {
       autoSendOnBoot: autoSend,
       autoSendDelaySeconds: countdown,
       minDispatchDelayMs: minDelay,
-      maxDispatchDelayMs: maxDelay,
-      googleClientId: clientId,
-      googleClientSecret: clientSecret
+      maxDispatchDelayMs: maxDelay
     };
-
-    if (credsJson) {
-      payload.credentialsJsonContent = credsJson;
-    }
 
     const res = await fetch('/api/settings', {
       method: 'POST',
@@ -1024,7 +995,6 @@ async function saveSettingsFromModal() {
     if (res.success) {
       showToast('Settings saved successfully!', 'success');
       settingsModal.classList.add('hidden');
-      settingCredentialsJson.value = ''; // Clear textarea for security
       fetchAllState();
     } else {
       showToast(res.error || 'Failed to save settings', 'error');
@@ -1288,22 +1258,6 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsOpenBranchesBtn.addEventListener('click', () => {
       settingsModal.classList.add('hidden');
       openBranchesModal();
-    });
-  }
-
-  // Toggle OAuth App Configuration
-  if (toggleOAuthFieldsBtn) {
-    toggleOAuthFieldsBtn.addEventListener('click', () => {
-      oauthConfigFields.classList.toggle('hidden');
-      toggleOAuthChevron.classList.toggle('fa-chevron-up');
-      toggleOAuthChevron.classList.toggle('fa-chevron-down');
-    });
-  }
-
-  // Toggle Service Account Credentials
-  if (toggleServiceAccountBtn) {
-    toggleServiceAccountBtn.addEventListener('click', () => {
-      serviceAccountFields.classList.toggle('hidden');
     });
   }
 
