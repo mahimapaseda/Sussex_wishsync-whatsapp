@@ -1,148 +1,185 @@
-# SheetPulse Birthday Wisher 🎂🎉
+<div align="center">
+  <img src="src/public/sussex-logo.jpg" alt="Sussex College Network Logo" width="84" />
+  <h1>WishSync</h1>
+  <p><strong>Automated Birthday Dispatch Desktop Software for Google Sheets &amp; WhatsApp</strong></p>
+  <p>Built for the <strong>Sussex College Network</strong> &bull; Lightweight 4GB-RAM Windows Startup Edition (<code>v1.0.2</code>)</p>
 
-**SheetPulse** is an automated desktop application and Windows startup background service tailored for **Sussex Education Group**. It connects to your Google Sheet (`INQUIRY DETAILS 2026/27`), checks for student birthdays matching the current calendar day in `Asia/Colombo` time, displays an interactive dashboard, and sends personalized WhatsApp wishes using your local WhatsApp account.
-
----
-
-## Features
-
-- 🚀 **Windows Auto-Startup**: Launches silently on Windows boot via `launch-hidden.vbs` without intrusive black CMD windows.
-- 📊 **Google Sheets Sync**: Dynamically locates student columns (Name, DOB, Phone, Branch) in tab `INQUIRY DETAILS 2026/27`. Includes local fallback mode if credentials are not yet configured.
-- 📱 **Sri Lankan Phone Normalizer**: Auto-converts numbers (`07XXXXXXXX` → `947XXXXXXXX`, stripping spaces, symbols, and leading zeroes).
-- 📅 **Timezone-Aware Birthday Matcher**: Accurately matches Day and Month in `Asia/Colombo` (`UTC+05:30`) and calculates the student's turning age. Supports `DD/MM/YYYY`, `YYYY-MM-DD`, `MM/DD/YYYY`, and serial dates.
-- 🔒 **Zero Duplicate Wishes**: Uses a persistent JSON ledger (`data/sent_log.json`). Even if your laptop reboots multiple times in a single day, no student receives duplicate wishes.
-- 💬 **Dual-Mode WhatsApp Dispatch**:
-  - **Headless Automation**: Uses `whatsapp-web.js` with `LocalAuth` so you only scan the QR code once on setup.
-  - **Windows Desktop Protocol Fallback**: Includes 1-click `whatsapp://send?phone=...` links for the native Windows WhatsApp app.
-- 🛡️ **Anti-Ban Protection**: Enforces randomized 5–12 second jitter delays between consecutive messages.
-- ⏱️ **10-Second Auto-Send Countdown**: Visual countdown on startup allowing you to review or cancel auto-dispatch before wishes are sent.
-- 🎨 **Modern Glassmorphism Dashboard**: Runs locally at `http://localhost:3847` with live connection indicators, upcoming 7-day birthdays, sent history, and a message template editor.
+  <p>
+    <img src="https://img.shields.io/badge/Version-1.0.2-1B365D?style=flat-square" alt="Version 1.0.2" />
+    <img src="https://img.shields.io/badge/Platform-Windows%20Desktop%20%7C%20Electron-0F766E?style=flat-square" alt="Windows Desktop Electron" />
+    <img src="https://img.shields.io/badge/RAM%20Target-4GB%20Low--End%20PCs-B45309?style=flat-square" alt="4GB RAM Optimized" />
+    <img src="https://img.shields.io/badge/Package-%40mahimapaseda%2Fwishsync-24292F?style=flat-square" alt="GitHub Packages" />
+  </p>
+</div>
 
 ---
 
-## Directory Structure
+## Interface Showcase
 
-```text
-sheet-pulse-bday/
-├── src/
-│   ├── config/
-│   │   └── env.js              # Environment settings & defaults
-│   ├── services/
-│   │   ├── googleSheets.js     # Google Sheets API client & fallback CSV loader
-│   │   ├── birthdayMatcher.js  # Date parser, +94 normalizer & birthday matcher
-│   │   ├── ledger.js           # sent_log.json duplicate prevention engine
-│   │   └── whatsappClient.js   # whatsapp-web.js LocalAuth & anti-ban queue
-│   ├── public/
-│   │   ├── index.html          # Sleek Tailwind CSS dashboard UI
-│   │   └── app.js              # Live state polling, countdown timer & actions
-│   └── index.js                # Express orchestrator & browser launcher
-├── scripts/
-│   ├── register-startup.bat    # Adds app to Windows Startup folder
-│   ├── unregister-startup.bat  # Removes app from Windows Startup folder
-│   └── launch-hidden.vbs       # Runs node server silently on boot
-├── data/
-│   ├── sent_log.json           # Sent messages ledger (auto-generated)
-│   └── sample_students.csv     # Offline/demo dataset
-├── .env.example                # Configuration blueprint
-├── .gitignore                  # Git exclusions
-├── package.json
-└── README.md
-```
+### Main Operations Workbench — Light Mode (Default) & Dark Mode
+
+<p align="center">
+  <img src="docs/screenshots/dashboard-light.png" alt="WishSync Dashboard — Light Mode" width="100%" />
+</p>
+
+<details>
+<summary>View Dark Mode Dashboard</summary>
+<br />
+<p align="center">
+  <img src="docs/screenshots/dashboard-dark.png" alt="WishSync Dashboard — Dark Mode" width="100%" />
+</p>
+</details>
+
+### Key Dialogs & Workflows
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <strong>Multi-Branch Google Sheets Manager</strong><br /><br />
+      <img src="docs/screenshots/branches-modal.png" alt="Branch Google Sheets Manager" width="100%" />
+      <sub>Manage multiple branch spreadsheets, sheet tabs, enable/disable toggles, and per-branch templates.</sub>
+    </td>
+    <td align="center" width="50%">
+      <strong>Manual Birthday Wish Dispatch</strong><br /><br />
+      <img src="docs/screenshots/manual-send-modal.png" alt="Manual Birthday Wish Dialog" width="100%" />
+      <sub>Send the greeting card image and birthday caption directly to any mobile number on demand.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <strong>Settings, Google Account & Startup Dispatch Pacing</strong><br /><br />
+      <img src="docs/screenshots/settings-modal.png" alt="WishSync Settings Dialog" width="68%" /><br />
+      <sub>One-click Google Sign-In, Windows boot auto-send delay, and randomized anti-ban dispatch intervals.</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
-## Quick Start & Setup
+## Core Capabilities
 
-### 1. Prerequisites
-- **Node.js**: v20 or higher (v22 tested)
-- A Google Cloud Service Account (for live Google Sheets sync)
-- Personal WhatsApp on your mobile phone (for 1-time QR pairing)
+- **Multi-Branch Google Sheets Sync**: Reads live student rosters across multiple branch spreadsheets (`AMBALANGODA`, `GALLE`, `Ampara`, and custom branches) with single-flight request deduplication and Asia/Colombo (`UTC+05:30`) date matching.
+- **Google OAuth Desktop Sign-In**: Connects securely to private Google Sheets via Google OAuth (`wishsync://auth-success` deep-link callback) with persistent encrypted/local token storage in user app data.
+- **Automated WhatsApp Media Dispatch**: Sends personalized birthday captions paired with the official greeting card graphic via `whatsapp-web.js` (with randomized min/max pacing between recipients) or manual `wa.me` / WhatsApp Desktop fallback.
+- **Zero Duplicate Wishes**: Tracks every sent delivery in a local JSON ledger (`data/sent_log.json` / `%APPDATA%\WishSync\sent_log.json`) keyed by date and phone number so students never receive duplicate birthday messages on restarts.
+- **Unified Operations Workbench**: Filter today's roster, preview birthdays in the next 7 days, inspect the delivery log, export CSV summaries, or send ad-hoc wishes to manual phone numbers.
 
-### 2. Installation
-Clone or navigate to the project directory and install dependencies:
+---
+
+## Optimized for 4GB RAM & Windows Startup PCs (`v1.0.2`)
+
+Designed specifically to run quietly all day on older 4GB RAM office PCs configured for **Start with Windows**:
+
+- **Zero-Renderer Tray Standby**: Closing the WishSync window destroys the Electron Chromium renderer instead of hiding it, dropping UI memory usage to `0 MB` while keeping the system tray icon, local server, and WhatsApp watcher active.
+- **Staggered Windows Boot (`--hidden`)**: Automatically registers with Windows login (`--hidden`), waits **15 seconds** on boot before initializing the headless WhatsApp Web engine so Windows Explorer and startup services settle cleanly, and runs **headless auto-dispatch** (`runHeadlessBootAutoDispatch`) without opening a heavy UI window.
+- **Strict V8 & Chromium Memory Caps**: Caps Electron renderer heap (`128 MB`), headless WhatsApp Web heap (`192 MB`), disk cache (`20 MB`), and HTTP media cache (`15 MB`), with headless Chromium GPU/extension overhead disabled.
+- **Low-CPU Polling & Single-Flight Caching**: Pauses dashboard polling when minimized/hidden (`visibilityState`), serves fresh cached branch data across tabs, and shares in-flight Google Sheets fetches (`inflightFetchPromise`).
+
+---
+
+## Installation (Windows Desktop)
+
+Download pre-built Windows binaries directly from [**GitHub Releases**](../../releases):
+
+- **Installer**: `WishSync Setup 1.0.2.exe` — Installs WishSync, creates desktop/Start Menu shortcuts, registers the `wishsync://` protocol handler, and enables Windows startup tray launch.
+- **Portable**: `WishSync 1.0.2.exe` — Single-file portable executable with zero installation required.
+
+---
+
+## Development & Building from Source
+
+### Prerequisites
+
+- **Node.js** `v18+` (includes `npm`)
+- **Google Chrome** or Microsoft Edge installed on Windows (used by `whatsapp-web.js`)
+
+### Quick Start
+
 ```bash
+# Install dependencies
 npm install
-```
 
-### 3. Google Sheets Setup (Via UI Settings or .env)
-
-You can link your Google Sheet in seconds directly through the **Settings** menu:
-
-1. Click the **Settings** gear button in the top navigation bar of the dashboard (`http://localhost:3847`).
-2. **Paste your Google Sheet link** directly into the `Google Sheet URL or Spreadsheet ID` field:
-   `https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit`
-   *(SheetPulse will automatically extract the Spreadsheet ID for you!)*
-3. Verify or edit the **Sheet Tab Name** (default: `INQUIRY DETAILS 2026/27`).
-4. **Service Account Key**:
-   - Either place your `credentials.json` in the root folder, OR paste the contents of your Service Account JSON directly into the settings textarea.
-5. In your Google Sheet, click **Share**, and share the sheet as **Viewer** with your service account email (displayed inside the Settings modal).
-6. Click **Test Connection Live** to immediately test the connection and see synced row counts, then click **Save & Apply Settings**.
-
-*(Note: If no Google Sheet is linked, SheetPulse automatically operates in Demo mode using `data/sample_students.csv` so you can explore all features safely).*
-
-### 4. Running the Application Manually
-```bash
+# Run the standalone Express dashboard server (http://localhost:3847)
 npm start
-```
-The application will launch and open `http://localhost:3847` automatically in your browser.
 
----
+# Launch the full Electron desktop application + system tray
+npm run electron
 
-## One-Time WhatsApp Pairing
-
-1. On first launch, look at the **WhatsApp** status button on the top right.
-2. If it displays **Scan QR Needed**, click it to open the QR Code modal.
-3. Open WhatsApp on your phone:
-   - **Android**: Tap the 3 dots > **Linked Devices** > **Link a device**
-   - **iOS**: Go to **Settings** > **Linked Devices** > **Link a device**
-4. Scan the QR code on your laptop screen.
-5. Once authenticated, the status turns **Ready** in green. The session is saved to `.wwebjs_auth/` and **persists across laptop reboots**.
-
----
-
-## Windows Startup Registration
-
-To have SheetPulse start automatically in the background every time you turn on your Windows laptop:
-
-1. Right-click `scripts/register-startup.bat` and click **Run as administrator** (or double-click it).
-2. It will create a silent shortcut in your Windows Startup directory:
-   `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\SheetPulse.lnk`
-3. Now, on every boot:
-   - `launch-hidden.vbs` runs silently without showing a black command line window.
-   - The server boots up and synchronizes today's birthdays.
-   - The browser opens `http://localhost:3847`.
-   - If `AUTO_SEND_ON_BOOT=true`, a 10-second countdown gives you a chance to review or cancel before wishes are dispatched!
-
-To remove it from startup at any time, run `scripts/unregister-startup.bat`.
-
----
-
-## Message Template Customization
-
-Click the **pen icon** in the top navigation bar to open the Message Template Editor. You can use any of the following placeholders:
-- `{name}` : Full student name (e.g. *Kavindu Perera*)
-- `{first_name}` : First name only (e.g. *Kavindu*)
-- `{branch}` : Branch or campus (e.g. *College* or *Head Office*)
-- `{age}` : Turning age on their birthday this year (e.g. *18*)
-
-Example template:
-```text
-Dear {name}, on behalf of Sussex, we wish you a very Happy Birthday! 🎂🎉 May this special day bring you immense joy, happiness, and great success ahead!
-```
-
----
-
-## Testing
-
-Run the automated test suite:
-```bash
+# Run the birthday matcher & phone normalizer unit tests
 npm test
 ```
-This tests:
-- Sri Lankan phone normalizer (+94 formatting)
-- Multi-format date parser (`DD/MM/YYYY`, `YYYY-MM-DD`, etc.)
-- Template variable replacement
-- Ledger duplicate prevention
-- Google Sheets dynamic column mapping
-- Age calculation and upcoming birthday categorization
 
+### Build Windows Installers
+
+```bash
+# Build NSIS installer + Portable .exe into release output
+npm run build:release
+```
+
+### Configuration
+
+Copy `.env.example` to `.env` if you are supplying custom runtime overrides outside the packaged desktop configuration:
+
+```env
+PORT=3847
+TIMEZONE=Asia/Colombo
+DEFAULT_COUNTRY_CODE=94
+AUTO_SEND_ON_BOOT=true
+AUTO_SEND_DELAY_SECONDS=10
+```
+
+---
+
+## GitHub Packages
+
+WishSync is also published as a private scoped npm package (`@mahimapaseda/wishsync`) via [`.github/workflows/publish-package.yml`](.github/workflows/publish-package.yml) whenever a GitHub Release is published.
+
+```ini
+# .npmrc
+@mahimapaseda:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+```bash
+npm install @mahimapaseda/wishsync
+```
+
+---
+
+## Repository Structure
+
+```text
+.
+├── .github/workflows/
+│   └── publish-package.yml       # Auto-publish @mahimapaseda/wishsync to GitHub Packages
+├── build/                        # Windows app icon & Electron packaging assets
+├── data/
+│   ├── assets/                   # Birthday greeting card image attached to WhatsApp wishes
+│   ├── sample_students.csv       # Fallback/sample student dataset
+│   └── settings.json             # Default branch sheet registry & pacing defaults
+├── docs/
+│   └── screenshots/              # Verified UI screenshots shown in README
+├── electron/
+│   ├── main.js                   # Tray lifecycle, 4GB RAM flags, staggered boot, headless auto-send
+│   └── preload.js                # Secure Electron IPC bridge
+├── src/
+│   ├── config/env.js             # Environment & writable user-data path resolution
+│   ├── public/                   # Workbench frontend (index.html, app.js, branding assets)
+│   ├── services/
+│   │   ├── birthdayMatcher.js    # Asia/Colombo DOB parsing & phone normalization
+│   │   ├── googleAuth.js         # Google OAuth flow & token persistence
+│   │   ├── googleSheets.js       # Multi-branch sheet reader & single-flight cache
+│   │   ├── ledger.js             # Duplicate-prevention JSON delivery ledger
+│   │   ├── settings.js           # Settings store & greeting template renderer
+│   │   └── whatsappClient.js     # Low-RAM whatsapp-web.js engine & batch dispatch queue
+│   └── index.js                  # Express API, SSE stream & headless boot orchestrator
+└── test/
+    └── test-matcher.js           # Unit tests for date matching & Sri Lankan phone normalization
+```
+
+---
+
+<div align="center">
+  <strong>Software Engineering by Mahima Paseda</strong><br />
+  <a href="https://www.mahimapaseda.lk">www.mahimapaseda.lk</a>
+</div>
