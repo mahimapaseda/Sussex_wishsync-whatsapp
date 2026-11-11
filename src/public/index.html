@@ -504,10 +504,6 @@
   <!-- Multi-Branch Management Modal -->
   <div id="branchesModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
     <div class="theme-modal border rounded-3xl max-w-4xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-      <button id="closeBranchesModalBtn" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-
       <!-- Modal Header -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 mb-6 border-b border-slate-200 dark:border-white/10 gap-4">
         <div class="flex items-center space-x-3.5">
@@ -520,9 +516,14 @@
           </div>
         </div>
 
-        <button id="addNewBranchBtn" type="button" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md shadow-blue-600/20 transition flex items-center gap-1.5 self-start sm:self-auto">
-          <i class="fa-solid fa-plus"></i> Add New Branch Sheet
-        </button>
+        <div class="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
+          <button id="addNewBranchBtn" type="button" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md shadow-blue-600/20 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-plus"></i> Add New Branch Sheet
+          </button>
+          <button id="closeBranchesModalBtn" type="button" title="Close" aria-label="Close" class="h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
       </div>
 
       <!-- Add / Edit Branch Drawer -->
@@ -588,12 +589,12 @@
   <!-- System Settings Modal -->
   <div id="settingsModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
     <div class="theme-modal border rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-      <button id="closeSettingsModalBtn" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">
+      <button id="closeSettingsModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-5 right-5 h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
       <!-- Modal Header -->
-      <div class="flex items-center space-x-3.5 mb-6 pb-4 border-b border-slate-200 dark:border-white/10">
+      <div class="flex items-center space-x-3.5 mb-6 pb-4 pr-10 border-b border-slate-200 dark:border-white/10">
         <div class="h-10 w-10 rounded-2xl bg-amber-400/15 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-400/25">
           <i class="fa-solid fa-gear text-lg"></i>
         </div>
@@ -711,7 +712,7 @@
   <!-- WhatsApp Pairing QR Code Modal -->
   <div id="qrModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
     <div class="theme-modal border rounded-3xl max-w-md w-full p-6 shadow-2xl relative text-center">
-      <button id="closeQrModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">
+      <button id="closeQrModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
@@ -752,11 +753,11 @@
   <!-- Birthday Wish Template Modal -->
   <div id="templateModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
     <div class="theme-modal border rounded-3xl max-w-lg w-full p-6 shadow-2xl relative">
-      <button id="closeTemplateModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">
+      <button id="closeTemplateModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
-      <div class="mb-4">
+      <div class="mb-4 pr-10">
         <h3 class="text-lg font-bold text-slate-900 dark:text-white font-display flex items-center gap-2">
           <i class="fa-solid fa-envelope-open-text text-amber-500"></i>
           Birthday Message Template
@@ -807,11 +808,11 @@
   <!-- Manual Phone Number Birthday Dispatch Modal -->
   <div id="manualSendModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
     <div class="theme-modal border rounded-3xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-      <button id="closeManualSendModalBtn" type="button" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">
+      <button id="closeManualSendModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
-      <div class="flex items-center space-x-3.5 mb-5 pb-4 border-b border-slate-200 dark:border-white/10">
+      <div class="flex items-center space-x-3.5 mb-5 pb-4 pr-10 border-b border-slate-200 dark:border-white/10">
         <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold text-lg shadow-md font-display shrink-0">
           <i class="fa-solid fa-paper-plane"></i>
         </div>
@@ -934,7 +935,7 @@
   <!-- Developer / Software Engineering Attribution Modal -->
   <div id="developerModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
     <div class="theme-modal border rounded-3xl max-w-sm w-full p-6 shadow-2xl relative text-center">
-      <button id="closeDeveloperModalBtn" type="button" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">
+      <button id="closeDeveloperModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
