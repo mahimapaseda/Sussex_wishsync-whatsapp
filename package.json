@@ -1,6 +1,6 @@
 {
   "name": "sheet-pulse-bday",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automated Birthday Wisher for Google Sheets & WhatsApp with Windows Startup integration",
   "main": "electron/main.js",
   "type": "commonjs",
@@ -10,7 +10,8 @@
     "dev": "node --watch src/index.js",
     "test": "node test/test-matcher.js",
     "build:exe": "electron-builder --win nsis",
-    "build:portable": "electron-builder --win portable"
+    "build:portable": "electron-builder --win portable",
+    "build:release": "electron-builder --win"
   },
   "keywords": [
     "whatsapp",
@@ -45,6 +46,7 @@
     "files": [
       "electron/**/*",
       "src/**/*",
+      "data/settings.json",
       "data/sample_students.csv",
       "data/assets/**/*",
       "build/**/*",
