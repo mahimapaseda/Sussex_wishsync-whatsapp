@@ -25,6 +25,23 @@ let isDispatching = false;
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 const themeToggleIcon = document.getElementById('themeToggleIcon');
 const themeToggleText = document.getElementById('themeToggleText');
+const mobileThemeToggleBtn = document.getElementById('mobileThemeToggleBtn');
+const mobileThemeToggleIcon = document.getElementById('mobileThemeToggleIcon');
+const mobileThemeToggleText = document.getElementById('mobileThemeToggleText');
+const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+const mobileMenuIcon = document.getElementById('mobileMenuIcon');
+const mobileNavDrawer = document.getElementById('mobileNavDrawer');
+const mobileQuickWaBtn = document.getElementById('mobileQuickWaBtn');
+const mobileQuickWaDot = document.getElementById('mobileQuickWaDot');
+const mobileSheetsStatusText = document.getElementById('mobileSheetsStatusText');
+const mobileWhatsappStatusBtn = document.getElementById('mobileWhatsappStatusBtn');
+const mobileWaStatusDot = document.getElementById('mobileWaStatusDot');
+const mobileWaStatusText = document.getElementById('mobileWaStatusText');
+const mobileManualSendBtn = document.getElementById('mobileManualSendBtn');
+const mobileTemplateModalBtn = document.getElementById('mobileTemplateModalBtn');
+const mobileBranchesModalBtn = document.getElementById('mobileBranchesModalBtn');
+const mobileBranchCountBadge = document.getElementById('mobileBranchCountBadge');
+const mobileSettingsModalBtn = document.getElementById('mobileSettingsModalBtn');
 const headerDateDisplay = document.getElementById('headerDateDisplay');
 const sheetsStatusText = document.getElementById('sheetsStatusText');
 const waStatusText = document.getElementById('waStatusText');
@@ -147,17 +164,36 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function setMobileMenuOpen(isOpen) {
+  if (!mobileNavDrawer || !mobileMenuBtn) return;
+  mobileNavDrawer.classList.toggle('hidden', !isOpen);
+  mobileMenuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  if (mobileMenuIcon) {
+    mobileMenuIcon.className = isOpen
+      ? 'fa-solid fa-xmark text-sm text-[var(--text-primary)]'
+      : 'fa-solid fa-bars text-sm text-[var(--text-primary)]';
+  }
+}
+
+function syncBranchBadgeCount(count) {
+  if (navBranchCountBadge) navBranchCountBadge.textContent = count;
+  if (mobileBranchCountBadge) mobileBranchCountBadge.textContent = count;
+}
+
 // Theme Management (Light default desktop palette, optional Dark mode)
 function updateThemeUI(theme) {
-  if (theme === 'dark') {
-    document.documentElement.classList.add('dark');
-    if (themeToggleIcon) themeToggleIcon.className = 'fa-solid fa-sun text-[11px] text-amber-400';
-    if (themeToggleText) themeToggleText.textContent = 'Dark';
-  } else {
-    document.documentElement.classList.remove('dark');
-    if (themeToggleIcon) themeToggleIcon.className = 'fa-solid fa-moon text-[11px] text-[var(--text-muted)]';
-    if (themeToggleText) themeToggleText.textContent = 'Light';
-  }
+  const isDark = theme === 'dark';
+  document.documentElement.classList.toggle('dark', isDark);
+
+  const iconClass = isDark
+    ? 'fa-solid fa-sun text-[11px] text-amber-400'
+    : 'fa-solid fa-moon text-[11px] text-[var(--text-muted)]';
+  const label = isDark ? 'Dark' : 'Light';
+
+  if (themeToggleIcon) themeToggleIcon.className = iconClass;
+  if (themeToggleText) themeToggleText.textContent = label;
+  if (mobileThemeToggleIcon) mobileThemeToggleIcon.className = iconClass;
+  if (mobileThemeToggleText) mobileThemeToggleText.textContent = label;
 }
 
 function toggleTheme() {
@@ -242,7 +278,7 @@ async function fetchAllState(forceRefresh = false) {
 
     if (branchesRes.success && Array.isArray(branchesRes.branches)) {
       currentBranches = branchesRes.branches;
-      navBranchCountBadge.textContent = currentBranches.length;
+      syncBranchBadgeCount(currentBranches.length);
     }
 
     updateStatusUI(statusRes);
@@ -273,18 +309,29 @@ function updateStatusUI(data) {
 
   // Google Sheets Status
   const sheets = data.sheets || {};
+  let sheetsLabel = 'Disconnected';
+  let sheetsClass = 'font-medium text-red-700 dark:text-red-400';
+  let sheetsTooltip = sheets.message || sheets.warning || 'Connection error';
+
   if (sheets.status === 'CONNECTED') {
-    sheetsStatusText.textContent = `Connected (${sheets.count || 0} rows)`;
-    sheetsStatusText.className = 'font-medium text-emerald-700 dark:text-emerald-400';
+    sheetsLabel = `Connected (${sheets.count || 0} rows)`;
+    sheetsClass = 'font-medium text-emerald-700 dark:text-emerald-400';
+    sheetsTooltip = sheetsLabel;
   } else if (sheets.status === 'NOT_CONFIGURED') {
-    sheetsStatusText.textContent = 'Not linked';
-    sheetsStatusText.className = 'font-medium text-[var(--text-muted)]';
-    sheetsStatusText.title = 'Add your Google Sheet link in Branches';
-  } else {
-    sheetsStatusText.textContent = 'Disconnected';
-    sheetsStatusText.className = 'font-medium text-red-700 dark:text-red-400';
-    sheetsStatusText.title = sheets.message || sheets.warning || 'Connection error';
+    sheetsLabel = 'Not linked';
+    sheetsClass = 'font-medium text-[var(--text-muted)]';
+    sheetsTooltip = 'Add your Google Sheet link in Branches';
   }
+
+  [sheetsStatusText, mobileSheetsStatusText].forEach(el => {
+    if (!el) return;
+    el.textContent = sheetsLabel;
+    const widthClass = el === sheetsStatusText
+      ? 'inline-block align-bottom truncate max-w-[135px] xl:max-w-[170px]'
+      : 'truncate';
+    el.className = `${sheetsClass} ${widthClass}`;
+    el.title = sheetsTooltip;
+  });
 
   updateWhatsAppUI(data.whatsapp);
 }
@@ -295,18 +342,22 @@ function updateWhatsAppUI(wa) {
   if (!currentStatus) currentStatus = {};
   currentStatus.whatsapp = wa;
 
+  let waLabel = wa.status || 'Starting...';
+  let waTextClass = 'font-medium text-[var(--text-muted)]';
+  let waDotClass = 'w-2 h-2 rounded-full bg-gray-400 shrink-0';
+
   if (wa.status === 'READY') {
-    waStatusText.textContent = wa.user?.pushname ? `Connected (${wa.user.pushname})` : 'Connected';
-    waStatusText.className = 'font-medium text-emerald-700 dark:text-emerald-400';
-    waStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-600';
+    waLabel = wa.user?.pushname ? `Connected (${wa.user.pushname})` : 'Connected';
+    waTextClass = 'font-medium text-emerald-700 dark:text-emerald-400';
+    waDotClass = 'w-2 h-2 rounded-full bg-emerald-600 shrink-0';
     if (!qrModal.classList.contains('hidden')) {
       qrModal.classList.add('hidden');
       showToast('WhatsApp connected and ready.', 'success');
     }
   } else if (wa.status === 'QR_READY') {
-    waStatusText.textContent = 'Scan QR required';
-    waStatusText.className = 'font-medium text-amber-700 dark:text-amber-400';
-    waStatusDot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
+    waLabel = 'Scan QR required';
+    waTextClass = 'font-medium text-amber-700 dark:text-amber-400';
+    waDotClass = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0';
     if (wa.qrDataUrl) {
       qrImageElement.src = wa.qrDataUrl;
       qrImageElement.classList.remove('hidden');
@@ -314,9 +365,9 @@ function updateWhatsAppUI(wa) {
     }
   } else if (wa.status === 'AUTHENTICATED') {
     const pct = Number.isFinite(Number(wa.loadingPercent)) ? ` (${wa.loadingPercent}%)` : '';
-    waStatusText.textContent = `Authenticating${pct}...`;
-    waStatusText.className = 'font-medium text-[#1B365D] dark:text-blue-400';
-    waStatusDot.className = 'w-2 h-2 rounded-full bg-[#1B365D] dark:bg-blue-400 animate-pulse';
+    waLabel = `Authenticating${pct}...`;
+    waTextClass = 'font-medium text-[#1B365D] dark:text-blue-400';
+    waDotClass = 'w-2 h-2 rounded-full bg-[#1B365D] dark:bg-blue-400 animate-pulse shrink-0';
     if (qrImageElement && qrPlaceholder) {
       qrImageElement.classList.add('hidden');
       qrPlaceholder.classList.remove('hidden');
@@ -324,9 +375,9 @@ function updateWhatsAppUI(wa) {
       if (p) p.textContent = `QR scanned! Syncing WhatsApp${pct}... Please wait.`;
     }
   } else if (wa.status === 'INITIALIZING') {
-    waStatusText.textContent = 'Starting...';
-    waStatusText.className = 'font-medium text-amber-700 dark:text-amber-400';
-    waStatusDot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
+    waLabel = 'Starting...';
+    waTextClass = 'font-medium text-amber-700 dark:text-amber-400';
+    waDotClass = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0';
     if (qrImageElement && qrPlaceholder) {
       qrImageElement.classList.add('hidden');
       qrPlaceholder.classList.remove('hidden');
@@ -334,14 +385,23 @@ function updateWhatsAppUI(wa) {
       if (p) p.textContent = 'Generating QR code...';
     }
   } else if (wa.status === 'ERROR' || wa.status === 'DISCONNECTED') {
-    waStatusText.textContent = 'Click to reconnect';
-    waStatusText.className = 'font-medium text-red-700 dark:text-red-400';
-    waStatusDot.className = 'w-2 h-2 rounded-full bg-red-600';
-  } else {
-    waStatusText.textContent = wa.status || 'Starting...';
-    waStatusText.className = 'font-medium text-[var(--text-muted)]';
-    waStatusDot.className = 'w-2 h-2 rounded-full bg-gray-400';
+    waLabel = 'Click to reconnect';
+    waTextClass = 'font-medium text-red-700 dark:text-red-400';
+    waDotClass = 'w-2 h-2 rounded-full bg-red-600 shrink-0';
   }
+
+  [waStatusText, mobileWaStatusText].forEach(el => {
+    if (!el) return;
+    el.textContent = waLabel;
+    const widthClass = el === waStatusText
+      ? 'inline-block align-bottom truncate max-w-[145px] xl:max-w-[190px]'
+      : 'truncate';
+    el.className = `${waTextClass} ${widthClass}`;
+    el.title = waLabel;
+  });
+  [waStatusDot, mobileWaStatusDot, mobileQuickWaDot].forEach(el => {
+    if (el) el.className = waDotClass;
+  });
 }
 
 function normalizeBranchLabel(str) {
@@ -740,7 +800,7 @@ async function loadBranchesManager() {
     const res = await fetch('/api/branches').then(r => r.json());
     if (res.success && Array.isArray(res.branches)) {
       currentBranches = res.branches;
-      navBranchCountBadge.textContent = currentBranches.length;
+      syncBranchBadgeCount(currentBranches.length);
       renderBranchesList(currentBranches);
       updateBranchFilterPills();
     }
@@ -1256,6 +1316,29 @@ document.addEventListener('DOMContentLoaded', () => {
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener('click', toggleTheme);
   }
+  if (mobileThemeToggleBtn) {
+    mobileThemeToggleBtn.addEventListener('click', () => {
+      toggleTheme();
+      setMobileMenuOpen(false);
+    });
+  }
+
+  // Responsive Hamburger Drawer Controls
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = mobileNavDrawer && !mobileNavDrawer.classList.contains('hidden');
+      setMobileMenuOpen(!isOpen);
+    });
+  }
+  document.addEventListener('click', (e) => {
+    if (!mobileNavDrawer || mobileNavDrawer.classList.contains('hidden')) return;
+    if (mobileNavDrawer.contains(e.target) || (mobileMenuBtn && mobileMenuBtn.contains(e.target))) return;
+    setMobileMenuOpen(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setMobileMenuOpen(false);
+  });
 
   // Workspace tabs
   if (tabBtnToday) tabBtnToday.addEventListener('click', () => switchWorkspaceTab('today'));
@@ -1309,12 +1392,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Branch Modal Triggers
-  if (openBranchesModalBtn) {
-    openBranchesModalBtn.addEventListener('click', () => {
-      loadBranchesManager();
-      branchesModal.classList.remove('hidden');
-    });
-  }
+  const openBranchesManager = () => {
+    setMobileMenuOpen(false);
+    loadBranchesManager();
+    branchesModal.classList.remove('hidden');
+  };
+  if (openBranchesModalBtn) openBranchesModalBtn.addEventListener('click', openBranchesManager);
+  if (mobileBranchesModalBtn) mobileBranchesModalBtn.addEventListener('click', openBranchesManager);
   if (closeBranchesModalBtn) {
     closeBranchesModalBtn.addEventListener('click', () => branchesModal.classList.add('hidden'));
   }
@@ -1332,10 +1416,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Settings Modal Triggers
-  openSettingsModalBtn.addEventListener('click', () => {
+  const openSettingsManager = () => {
+    setMobileMenuOpen(false);
     loadSettingsIntoModal();
     settingsModal.classList.remove('hidden');
-  });
+  };
+  openSettingsModalBtn.addEventListener('click', openSettingsManager);
+  if (mobileSettingsModalBtn) mobileSettingsModalBtn.addEventListener('click', openSettingsManager);
   closeSettingsModalBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
   cancelSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
   saveSettingsBtn.addEventListener('click', saveSettingsFromModal);
@@ -1399,7 +1486,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (resetSessionBtn) {
     resetSessionBtn.addEventListener('click', resetWhatsAppSession);
   }
-  whatsappStatusBtn.addEventListener('click', async () => {
+  const openWhatsAppStatusModal = async () => {
+    setMobileMenuOpen(false);
     const wa = currentStatus.whatsapp || {};
     if (wa.status === 'READY') {
       showToast(wa.user?.phone ? `WhatsApp connected (+${wa.user.phone})` : 'WhatsApp session is active.', 'success');
@@ -1433,15 +1521,21 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error refreshing WhatsApp session:', err);
       }
     }
-  });
+  };
+  whatsappStatusBtn.addEventListener('click', openWhatsAppStatusModal);
+  if (mobileQuickWaBtn) mobileQuickWaBtn.addEventListener('click', openWhatsAppStatusModal);
+  if (mobileWhatsappStatusBtn) mobileWhatsappStatusBtn.addEventListener('click', openWhatsAppStatusModal);
   closeQrModalBtn.addEventListener('click', () => qrModal.classList.add('hidden'));
 
   // Template Modal
-  openTemplateModalBtn.addEventListener('click', () => {
+  const openTemplateManager = () => {
+    setMobileMenuOpen(false);
     templateTextarea.value = currentTemplate;
     updateTemplatePreview();
     templateModal.classList.remove('hidden');
-  });
+  };
+  openTemplateModalBtn.addEventListener('click', openTemplateManager);
+  if (mobileTemplateModalBtn) mobileTemplateModalBtn.addEventListener('click', openTemplateManager);
   closeTemplateModalBtn.addEventListener('click', () => templateModal.classList.add('hidden'));
   cancelTemplateBtn.addEventListener('click', () => templateModal.classList.add('hidden'));
 
@@ -1485,6 +1579,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Manual Send Modal
   if (openManualSendModalBtn) openManualSendModalBtn.addEventListener('click', openManualSendModal);
   if (navManualSendBtn) navManualSendBtn.addEventListener('click', openManualSendModal);
+  if (mobileManualSendBtn) {
+    mobileManualSendBtn.addEventListener('click', () => {
+      setMobileMenuOpen(false);
+      openManualSendModal();
+    });
+  }
   if (closeManualSendModalBtn) closeManualSendModalBtn.addEventListener('click', closeManualSendModal);
   if (cancelManualSendBtn) cancelManualSendBtn.addEventListener('click', closeManualSendModal);
   if (manualInputPhone) manualInputPhone.addEventListener('input', updateManualPhoneValidation);

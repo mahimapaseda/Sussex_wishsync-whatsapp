@@ -150,70 +150,162 @@
 
   <!-- Top Application Toolbar -->
   <header class="sticky top-0 z-30 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)]">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
       <!-- App Identity -->
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="h-10 w-10 rounded-lg border border-[var(--border-hairline)] bg-white p-1 flex items-center justify-center shrink-0">
+      <div class="flex items-center gap-2.5 min-w-0 shrink-0">
+        <div class="h-9 w-9 sm:h-10 sm:w-10 rounded-lg border border-[var(--border-hairline)] bg-white p-1 flex items-center justify-center shrink-0">
           <img src="/sussex-logo.jpg" alt="Sussex College Network" class="w-full h-full object-contain">
         </div>
         <div class="min-w-0">
           <div class="flex items-center gap-2">
-            <h1 class="text-base font-bold tracking-tight text-[var(--text-primary)]">WishSync</h1>
-            <span class="hidden sm:inline-block text-xs text-[var(--text-muted)] font-normal border-l border-[var(--border-hairline)] pl-2">
+            <h1 class="text-base font-bold tracking-tight text-[var(--text-primary)] whitespace-nowrap">WishSync</h1>
+            <span class="hidden sm:inline-block text-[11px] sm:text-xs text-[var(--text-muted)] font-medium border-l border-[var(--border-hairline)] pl-2 whitespace-nowrap">
               Sussex College Network
             </span>
           </div>
-          <p class="text-xs text-[var(--text-muted)] truncate">
+          <p class="text-[11px] sm:text-xs text-[var(--text-muted)] whitespace-nowrap">
             <span id="headerDateDisplay">Loading date...</span>
-            <span class="mx-1">·</span>
-            <span>Asia/Colombo</span>
+            <span class="hidden xl:inline mx-1">·</span>
+            <span class="hidden xl:inline">Asia/Colombo</span>
           </p>
         </div>
       </div>
 
-      <!-- Status & Utility Controls -->
-      <div class="flex items-center gap-2 flex-wrap justify-end">
-        <!-- Sheets Status -->
-        <div id="sheetsStatusPill" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-toolbar)] text-xs">
-          <i class="fa-solid fa-table text-[var(--text-muted)] text-[11px]"></i>
-          <span class="text-[var(--text-muted)]">Sheets:</span>
-          <span id="sheetsStatusText" class="font-medium text-amber-700 dark:text-amber-400">Connecting...</span>
+      <!-- Right Side: Status Badges, Desktop Nav Actions & Mobile Hamburger -->
+      <div class="flex items-center justify-end gap-2 flex-1 min-w-0">
+        <!-- Live Connection Status Pills (Tablet & Desktop) -->
+        <div class="hidden md:flex items-center gap-1.5 min-w-0">
+          <!-- Sheets Status -->
+          <div id="sheetsStatusPill" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-toolbar)] text-xs whitespace-nowrap min-w-0">
+            <i class="fa-solid fa-table text-[var(--text-muted)] text-[11px] shrink-0"></i>
+            <span class="hidden xl:inline text-[var(--text-muted)] shrink-0">Sheets:</span>
+            <span id="sheetsStatusText" class="inline-block align-bottom font-medium text-amber-700 dark:text-amber-400 truncate max-w-[140px] xl:max-w-[170px]">Connecting...</span>
+          </div>
+
+          <!-- WhatsApp Status -->
+          <button id="whatsappStatusBtn" type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-toolbar)] hover:border-[var(--border-strong)] text-xs transition whitespace-nowrap min-w-0" title="Manage WhatsApp pairing">
+            <span id="waStatusDot" class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+            <span class="hidden xl:inline text-[var(--text-muted)] shrink-0">WhatsApp:</span>
+            <span id="waStatusText" class="inline-block align-bottom font-medium text-amber-700 dark:text-amber-400 truncate max-w-[145px] xl:max-w-[190px]">Initializing...</span>
+          </button>
         </div>
 
-        <!-- WhatsApp Status -->
-        <button id="whatsappStatusBtn" type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-toolbar)] hover:border-[var(--border-strong)] text-xs transition" title="Manage WhatsApp pairing">
-          <span id="waStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
-          <span class="text-[var(--text-muted)]">WhatsApp:</span>
-          <span id="waStatusText" class="font-medium text-amber-700 dark:text-amber-400">Initializing...</span>
-        </button>
+        <!-- Desktop Inline Navigation (1024px+) -->
+        <nav aria-label="Primary actions" class="hidden lg:flex items-center gap-1.5 shrink-0">
+          <div class="h-5 w-px bg-[var(--border-hairline)] mx-0.5 shrink-0"></div>
 
-        <div class="hidden md:block h-5 w-px bg-[var(--border-hairline)] mx-0.5"></div>
+          <button id="navManualSendBtn" type="button" class="btn-neutral px-2 xl:px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition" title="Send a wish to any mobile number">
+            <i class="fa-solid fa-paper-plane text-[11px] text-[var(--text-muted)]"></i>
+            <span>Manual Send</span>
+          </button>
 
-        <button id="navManualSendBtn" type="button" class="btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="Send a wish to any mobile number">
-          <i class="fa-solid fa-paper-plane text-[11px] text-[var(--text-muted)]"></i>
-          <span class="hidden sm:inline">Manual Send</span>
-        </button>
+          <button id="openTemplateModalBtn" type="button" class="btn-neutral px-2 xl:px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition" title="Edit birthday message template">
+            <i class="fa-regular fa-pen-to-square text-[11px] text-[var(--text-muted)]"></i>
+            <span>Template</span>
+          </button>
 
-        <button id="openTemplateModalBtn" type="button" class="btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="Edit birthday message template">
-          <i class="fa-regular fa-pen-to-square text-[11px] text-[var(--text-muted)]"></i>
-          <span class="hidden sm:inline">Template</span>
-        </button>
+          <button id="openBranchesModalBtn" type="button" class="btn-neutral px-2 xl:px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition" title="Manage branch Google Sheets">
+            <i class="fa-solid fa-building-columns text-[11px] text-[var(--text-muted)]"></i>
+            <span>Branches</span>
+            <span id="navBranchCountBadge" class="px-1.5 py-0.5 text-[11px] font-semibold rounded bg-[var(--bg-toolbar)] border border-[var(--border-hairline)] tabular-nums">0</span>
+          </button>
 
-        <button id="openBranchesModalBtn" type="button" class="btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="Manage branch Google Sheets">
-          <i class="fa-solid fa-building-columns text-[11px] text-[var(--text-muted)]"></i>
-          <span>Branches</span>
-          <span id="navBranchCountBadge" class="px-1.5 py-0.5 text-[11px] font-semibold rounded bg-[var(--bg-toolbar)] border border-[var(--border-hairline)] tabular-nums">0</span>
-        </button>
+          <button id="openSettingsModalBtn" type="button" class="btn-neutral px-2 xl:px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition" title="System settings and Google account">
+            <i class="fa-solid fa-gear text-[11px] text-[var(--text-muted)]"></i>
+            <span>Settings</span>
+          </button>
 
-        <button id="openSettingsModalBtn" type="button" class="btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="System settings and Google account">
-          <i class="fa-solid fa-gear text-[11px] text-[var(--text-muted)]"></i>
-          <span class="hidden sm:inline">Settings</span>
-        </button>
+          <button id="themeToggleBtn" type="button" class="btn-neutral px-2 xl:px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition" title="Switch light / dark appearance">
+            <i id="themeToggleIcon" class="fa-solid fa-moon text-[11px] text-[var(--text-muted)]"></i>
+            <span id="themeToggleText">Light</span>
+          </button>
+        </nav>
 
-        <button id="themeToggleBtn" type="button" class="btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="Switch light / dark appearance">
-          <i id="themeToggleIcon" class="fa-solid fa-moon text-[11px] text-[var(--text-muted)]"></i>
-          <span id="themeToggleText" class="hidden sm:inline">Light</span>
-        </button>
+        <!-- Responsive Hamburger Toggle Button (< 1024px) -->
+        <div class="flex lg:hidden items-center gap-1.5 shrink-0">
+          <button id="mobileQuickWaBtn" type="button" class="md:hidden btn-neutral px-2 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="WhatsApp status & pairing">
+            <span id="mobileQuickWaDot" class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+            <i class="fa-brands fa-whatsapp text-sm text-[var(--text-secondary)]"></i>
+          </button>
+          <button
+            id="mobileMenuBtn"
+            type="button"
+            class="btn-neutral w-9 h-9 rounded-md flex items-center justify-center transition"
+            aria-expanded="false"
+            aria-controls="mobileNavDrawer"
+            aria-label="Toggle navigation menu"
+            title="Menu"
+          >
+            <i id="mobileMenuIcon" class="fa-solid fa-bars text-sm text-[var(--text-primary)]"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Responsive Hamburger Navigation Drawer (< 1024px) -->
+    <div id="mobileNavDrawer" class="hidden lg:hidden border-t border-[var(--border-hairline)] bg-[var(--bg-panel)] shadow-lg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 space-y-3">
+        <!-- Connection Status Overview -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-toolbar)] text-xs">
+            <span class="flex items-center gap-2 text-[var(--text-muted)] shrink-0">
+              <i class="fa-solid fa-table text-[11px]"></i>
+              <span>Google Sheets</span>
+            </span>
+            <span id="mobileSheetsStatusText" class="font-medium text-amber-700 dark:text-amber-400 truncate">Connecting...</span>
+          </div>
+
+          <button id="mobileWhatsappStatusBtn" type="button" class="flex items-center justify-between gap-2 px-3 py-2 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-toolbar)] hover:border-[var(--border-strong)] text-xs transition text-left">
+            <span class="flex items-center gap-2 text-[var(--text-muted)] shrink-0">
+              <span id="mobileWaStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span>WhatsApp</span>
+            </span>
+            <span id="mobileWaStatusText" class="font-medium text-amber-700 dark:text-amber-400 truncate">Initializing...</span>
+          </button>
+        </div>
+
+        <!-- Mobile/Tablet Navigation Items -->
+        <nav aria-label="Mobile navigation" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button id="mobileManualSendBtn" type="button" class="btn-neutral w-full px-3 py-2.5 rounded-md text-xs font-medium flex items-center justify-between transition">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-paper-plane text-[11px] text-[var(--text-muted)]"></i>
+              <span>Manual Send</span>
+            </span>
+            <i class="fa-solid fa-chevron-right text-[10px] text-[var(--text-muted)]"></i>
+          </button>
+
+          <button id="mobileTemplateModalBtn" type="button" class="btn-neutral w-full px-3 py-2.5 rounded-md text-xs font-medium flex items-center justify-between transition">
+            <span class="flex items-center gap-2">
+              <i class="fa-regular fa-pen-to-square text-[11px] text-[var(--text-muted)]"></i>
+              <span>Birthday Template</span>
+            </span>
+            <i class="fa-solid fa-chevron-right text-[10px] text-[var(--text-muted)]"></i>
+          </button>
+
+          <button id="mobileBranchesModalBtn" type="button" class="btn-neutral w-full px-3 py-2.5 rounded-md text-xs font-medium flex items-center justify-between transition">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-building-columns text-[11px] text-[var(--text-muted)]"></i>
+              <span>Branch Google Sheets</span>
+            </span>
+            <span id="mobileBranchCountBadge" class="px-1.5 py-0.5 text-[11px] font-semibold rounded bg-[var(--bg-toolbar)] border border-[var(--border-hairline)] tabular-nums">0</span>
+          </button>
+
+          <button id="mobileSettingsModalBtn" type="button" class="btn-neutral w-full px-3 py-2.5 rounded-md text-xs font-medium flex items-center justify-between transition">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-gear text-[11px] text-[var(--text-muted)]"></i>
+              <span>Settings &amp; Google Account</span>
+            </span>
+            <i class="fa-solid fa-chevron-right text-[10px] text-[var(--text-muted)]"></i>
+          </button>
+
+          <button id="mobileThemeToggleBtn" type="button" class="btn-neutral w-full sm:col-span-2 px-3 py-2.5 rounded-md text-xs font-medium flex items-center justify-between transition">
+            <span class="flex items-center gap-2">
+              <i id="mobileThemeToggleIcon" class="fa-solid fa-moon text-[11px] text-[var(--text-muted)]"></i>
+              <span>Appearance Mode</span>
+            </span>
+            <span id="mobileThemeToggleText" class="text-[var(--text-muted)] font-semibold">Light</span>
+          </button>
+        </nav>
       </div>
     </div>
   </header>
@@ -283,7 +375,7 @@
           <span>Manual Number</span>
         </button>
 
-        <button id="sendAllBtn" type="button" class="btn-primary px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-2 transition disabled:opacity-45 disabled:cursor-not-allowed">
+        <button id="sendAllBtn" type="button" class="btn-primary w-full sm:w-auto justify-center px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-2 transition disabled:opacity-45 disabled:cursor-not-allowed">
           <i class="fa-brands fa-whatsapp text-sm"></i>
           <span>Send All Pending Wishes</span>
         </button>
@@ -319,13 +411,13 @@
       </div>
 
       <!-- Branch Filter Bar (Shown for Today & Upcoming tabs) -->
-      <div id="branchFilterStrip" class="px-4 sm:px-5 py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex flex-wrap items-center justify-between gap-2.5 text-xs">
-        <div class="flex items-center gap-2 min-w-0 flex-1 max-w-md">
+      <div id="branchFilterStrip" class="px-4 sm:px-5 py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2 min-w-0 w-full sm:w-auto sm:flex-1 sm:max-w-md">
           <label for="branchFilterSelect" class="text-[var(--text-muted)] font-medium shrink-0 flex items-center gap-1.5">
             <i class="fa-solid fa-code-branch text-[11px]"></i>
             <span>Branch:</span>
           </label>
-          <div class="relative flex-1 min-w-[200px]">
+          <div class="relative flex-1 min-w-0">
             <select id="branchFilterSelect" class="app-input w-full rounded-md pl-2.5 pr-8 py-1.5 text-xs font-medium appearance-none cursor-pointer truncate">
               <option value="ALL">All Branches (0)</option>
             </select>
@@ -384,7 +476,7 @@
       </div>
 
       <div class="flex items-center gap-2.5">
-        <div class="text-right leading-snug">
+        <div class="text-center sm:text-right leading-snug">
           <span>Software Engineering by <strong class="text-[var(--text-primary)] font-semibold">Mahima Paseda</strong></span>
           <span class="mx-1">·</span>
           <a href="https://www.mahimapaseda.lk" target="_blank" rel="noopener noreferrer" class="text-[#1B365D] dark:text-blue-400 hover:underline font-medium">www.mahimapaseda.lk</a>
