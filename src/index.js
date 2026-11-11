@@ -41,7 +41,7 @@ app.get('/api/status', async (req, res) => {
   const userSettings = settings.loadSettings();
 
   res.json({
-    appName: 'SheetPulse Birthday Wisher',
+    appName: 'WishSync',
     version: pkg.version || '1.0.1',
     today,
     sheets: sheetsTest,
@@ -111,7 +111,7 @@ app.get('/api/ledger/export', (req, res) => {
     }).join('\n');
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="SheetPulse_Sent_Log_${new Date().toISOString().split('T')[0]}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="WishSync_Sent_Log_${new Date().toISOString().split('T')[0]}.csv"`);
     res.send(csvHeader + csvRows);
   } catch (err) {
     res.status(500).send(`Error exporting CSV: ${err.message}`);
@@ -223,7 +223,7 @@ app.get('/auth/google', (req, res) => {
         <body style="font-family: sans-serif; background: #0f172a; color: #fff; padding: 40px; text-align: center;">
           <h2 style="color: #f87171;">Google Sign-In Configuration Required</h2>
           <p>${err.message}</p>
-          <p style="margin-top: 20px;"><a href="/#settings" style="color: #38bdf8; text-decoration: none; border: 1px solid #38bdf8; padding: 8px 16px; rounded: 8px;">Back to SheetPulse Settings</a></p>
+          <p style="margin-top: 20px;"><a href="/#settings" style="color: #1B365D; text-decoration: none; border: 1px solid #CBD5E1; padding: 8px 16px; border-radius: 6px; font-weight: 600;">Back to WishSync Settings</a></p>
         </body>
       </html>
     `);
@@ -245,33 +245,33 @@ app.get('/auth/google/callback', async (req, res) => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Google Sign-In Successful - SheetPulse</title>
+          <title>Google Sign-In Successful — WishSync</title>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { font-family: system-ui, -apple-system, sans-serif; background: #0a0f1d; color: #e2e8f0; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-            .card { background: #131d35; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 28px; padding: 36px; max-width: 440px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
-            .icon { width: 64px; height: 64px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; color: #4ade80; font-size: 32px; margin-bottom: 20px; }
-            h2 { margin: 0 0 10px 0; font-size: 22px; color: #fff; font-weight: 700; }
-            p { margin: 6px 0; font-size: 13px; color: #94a3b8; line-height: 1.5; }
-            .email-badge { display: inline-block; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; font-weight: 600; padding: 6px 14px; border-radius: 12px; margin: 10px 0; }
-            .btn { display: inline-block; margin-top: 24px; background: #2563eb; color: white; padding: 12px 24px; border-radius: 14px; text-decoration: none; font-size: 14px; font-weight: 600; transition: background 0.2s; box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3); }
-            .btn:hover { background: #1d4ed8; }
-            .countdown { font-size: 11px; color: #64748b; margin-top: 14px; }
+            body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #F4F5F7; color: #111827; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .card { background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 32px; max-width: 420px; text-align: center; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); }
+            .icon { width: 48px; height: 48px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: #15803D; font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+            h2 { margin: 0 0 8px 0; font-size: 18px; color: #111827; font-weight: 700; }
+            p { margin: 6px 0; font-size: 13px; color: #4B5563; line-height: 1.5; }
+            .email-badge { display: inline-block; background: #F3F4F6; border: 1px solid #D1D5DB; color: #1B365D; font-weight: 600; padding: 4px 12px; border-radius: 6px; margin: 10px 0; font-size: 13px; }
+            .btn { display: inline-block; margin-top: 20px; background: #1B365D; color: #FFFFFF; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; transition: background 0.15s; }
+            .btn:hover { background: #25477A; }
+            .countdown { font-size: 12px; color: #6B7280; margin-top: 12px; }
           </style>
         </head>
         <body>
           <div class="card">
             <div class="icon">✓</div>
-            <h2>Google Sign-In Successful!</h2>
+            <h2>Google Account Connected</h2>
             <div><span class="email-badge">${result.email}</span></div>
-            <p>Your Google account has been connected securely. Switching back to the SheetPulse software now...</p>
-            <a href="sheetpulse://auth-success" class="btn" id="openAppBtn" onclick="returnToApp()">Switch to SheetPulse</a>
-            <div class="countdown" id="cd">Returning to software in 2s...</div>
+            <p>Your Google account is now authorized. Returning you to the WishSync application.</p>
+            <a href="wishsync://auth-success" class="btn" id="openAppBtn" onclick="returnToApp()">Open WishSync</a>
+            <div class="countdown" id="cd">Switching back to WishSync automatically...</div>
           </div>
           <script>
             function returnToApp() {
-              // Trigger custom protocol to bring SheetPulse Electron software to foreground
-              window.location.href = 'sheetpulse://auth-success';
+              // Trigger custom protocol to bring WishSync Electron software to foreground
+              window.location.href = 'wishsync://auth-success';
               // If opened via window.open, notify and close
               if (window.opener) {
                 try {
@@ -405,7 +405,7 @@ app.get('/api/sheets/test', async (req, res) => {
 const server = app.listen(config.PORT, async () => {
   const url = `http://localhost:${config.PORT}`;
   console.log(`=======================================================`);
-  console.log(`  🎉 SheetPulse Birthday Wisher is RUNNING`);
+  console.log(`  WishSync is running`);
   console.log(`  📍 Local Dashboard: ${url}`);
   console.log(`  🕒 Timezone: ${config.TIMEZONE}`);
   console.log(`  📊 Target Sheet: "${config.SHEET_NAME}"`);
@@ -465,14 +465,14 @@ const server = app.listen(config.PORT, async () => {
 
 // Graceful termination handling
 process.on('SIGINT', () => {
-  console.log('\n[SheetPulse] Shutting down gracefully...');
+  console.log('\n[WishSync] Shutting down gracefully...');
   server.close(() => {
     process.exit(0);
   });
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n[SheetPulse] Received SIGTERM. Shutting down...');
+  console.log('\n[WishSync] Received SIGTERM. Shutting down...');
   server.close(() => {
     process.exit(0);
   });

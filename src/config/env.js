@@ -4,18 +4,18 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const ROOT_DIR = path.resolve(__dirname, '../../');
 
-// In packaged electron mode, user data must be written to %APPDATA%/SheetPulse
+// In packaged electron mode, user data must be written to %APPDATA%/WishSync
 function resolveDataDir() {
   if (process.env.APPDATA) {
-    const appDataSheetPulse = path.join(process.env.APPDATA, 'SheetPulse');
-    if (!fs.existsSync(appDataSheetPulse)) {
+    const appDataWishSync = path.join(process.env.APPDATA, 'WishSync');
+    if (!fs.existsSync(appDataWishSync)) {
       try {
-        fs.mkdirSync(appDataSheetPulse, { recursive: true });
+        fs.mkdirSync(appDataWishSync, { recursive: true });
       } catch (e) {
         // Fallback to local data folder
       }
     }
-    return appDataSheetPulse;
+    return appDataWishSync;
   }
   return path.join(ROOT_DIR, 'data');
 }
@@ -70,7 +70,7 @@ module.exports = {
   SHEET_NAME: process.env.SHEET_NAME || 'INQUIRY DETAILS 2026/27',
   GOOGLE_CREDENTIALS_PATH: path.resolve(ROOT_DIR, process.env.GOOGLE_CREDENTIALS_PATH || 'credentials.json'),
   DATA_SOURCE_FALLBACK: process.env.DATA_SOURCE_FALLBACK === 'true',
-  WHATSAPP_CLIENT_ID: process.env.WHATSAPP_CLIENT_ID || 'sheetpulse-session',
+  WHATSAPP_CLIENT_ID: process.env.WHATSAPP_CLIENT_ID || 'wishsync-session',
   AUTO_SEND_ON_BOOT: process.env.AUTO_SEND_ON_BOOT === 'true',
   AUTO_SEND_DELAY_SECONDS: parseInt(process.env.AUTO_SEND_DELAY_SECONDS, 10) || 10,
   MIN_DISPATCH_DELAY_MS: parseInt(process.env.MIN_DISPATCH_DELAY_MS, 10) || 5000,

@@ -1,34 +1,32 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SheetPulse — Sussex College Network Birthday Engine</title>
+  <title>WishSync — Sussex College Network</title>
   <link rel="icon" type="image/png" href="/favicon.png">
-  
-  <!-- Typography: Cinzel (Collegiate Emblem), Outfit (Display & Stats), Plus Jakarta Sans (UI Body), JetBrains Mono (Codes) -->
+
+  <!-- Typography: Clean Desktop Sans + Monospace for tabular phones/dates -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <!-- Font Awesome 6 Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  
-  <!-- Early Theme Init to avoid flash -->
+
+  <!-- Early Theme Init to avoid flash (Defaults to crisp light desktop look) -->
   <script>
     (function() {
-      const savedTheme = localStorage.getItem('sheetpulse_theme');
-      if (savedTheme === 'light') {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-      } else {
+      const savedTheme = localStorage.getItem('wishsync_theme');
+      if (savedTheme === 'dark') {
         document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
+      } else {
+        document.documentElement.classList.remove('dark');
       }
     })();
   </script>
 
-  <!-- Tailwind CSS with Dark Mode -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -36,31 +34,14 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
-            display: ['"Outfit"', 'sans-serif'],
-            crest: ['"Cinzel"', 'serif'],
+            sans: ['"Inter"', '"Segoe UI"', 'system-ui', '-apple-system', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace']
           },
           colors: {
-            sussex: {
-              navy: '#0A1128',
-              navyDeep: '#060B18',
-              royal: '#1E3A8A',
-              royalLight: '#3B82F6',
-              gold: '#D4AF37',
-              goldLight: '#FDE68A',
-              goldDark: '#997300',
-              emerald: '#059669',
-              emeraldLight: '#10B981',
-              crimson: '#DC2626'
-            },
-            oxford: {
-              950: '#050A12',
-              900: '#0A1220',
-              850: '#0E192C',
-              800: '#14223A',
-              700: '#1C2F50',
-              600: '#2A4370'
+            brand: {
+              DEFAULT: '#1B365D',
+              hover: '#244679',
+              soft: '#EEF2F8'
             }
           }
         }
@@ -70,108 +51,85 @@
 
   <style>
     :root {
-      --bg-page: #F6F8FC;
-      --bg-surface: #FFFFFF;
-      --bg-surface-header: #FFFFFF;
-      --bg-subtle: #EEF2F8;
-      --border-card: #E2E8F0;
-      --border-subtle: #EDF2F7;
-      --text-title: #0A1128;
-      --text-body: #1E293B;
-      --text-muted: #475569;
-      --text-subtle: #64748B;
-      --card-shadow: 0 4px 20px -2px rgba(10, 17, 40, 0.05), 0 1px 3px rgba(10, 17, 40, 0.02);
-      --pill-bg: #FFFFFF;
-      --modal-bg: #FFFFFF;
-      --input-bg: #F8FAFC;
-      --input-border: #CBD5E1;
-      --hero-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 245, 255, 0.8) 100%);
-      --accent-gold-glow: rgba(212, 175, 55, 0.2);
+      --bg-canvas: #F4F5F7;
+      --bg-panel: #FFFFFF;
+      --bg-toolbar: #F9FAFB;
+      --bg-input: #FFFFFF;
+      --border-hairline: #E2E5EA;
+      --border-strong: #CBD2DC;
+      --text-primary: #111827;
+      --text-secondary: #4B5563;
+      --text-muted: #6B7280;
     }
 
     html.dark {
-      --bg-page: #050A12;
-      --bg-surface: rgba(14, 25, 44, 0.82);
-      --bg-surface-header: rgba(18, 32, 56, 0.9);
-      --bg-subtle: #091322;
-      --border-card: rgba(255, 255, 255, 0.08);
-      --border-subtle: rgba(255, 255, 255, 0.05);
-      --text-title: #F8FAFC;
-      --text-body: #E2E8F0;
-      --text-muted: #94A3B8;
-      --text-subtle: #64748B;
-      --card-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6);
-      --pill-bg: #101E34;
-      --modal-bg: #091222;
-      --input-bg: #050A12;
-      --input-border: rgba(255, 255, 255, 0.12);
-      --hero-gradient: linear-gradient(135deg, rgba(14, 25, 44, 0.9) 0%, rgba(9, 17, 30, 0.95) 100%);
-      --accent-gold-glow: rgba(212, 175, 55, 0.25);
+      --bg-canvas: #111318;
+      --bg-panel: #181B22;
+      --bg-toolbar: #1E222B;
+      --bg-input: #13161C;
+      --border-hairline: #282D39;
+      --border-strong: #373E4E;
+      --text-primary: #F3F4F6;
+      --text-secondary: #D1D5DB;
+      --text-muted: #9CA3AF;
     }
 
     body {
-      background-color: var(--bg-page);
-      color: var(--text-body);
-      transition: background-color 0.25s ease, color 0.25s ease;
-      font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 13.5px;
+      line-height: 1.5;
     }
 
-    html.dark body {
-      background-image: 
-        radial-gradient(circle at 50% -5%, rgba(30, 58, 138, 0.25) 0%, rgba(5, 10, 18, 0) 65%),
-        radial-gradient(circle at 95% 15%, rgba(212, 175, 55, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 5% 45%, rgba(5, 150, 105, 0.04) 0%, transparent 45%);
-      background-attachment: fixed;
+    .app-panel {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-hairline);
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
     }
 
-    html.light body {
-      background-image: 
-        radial-gradient(circle at 50% -5%, rgba(219, 234, 254, 0.5) 0%, rgba(246, 248, 252, 0) 65%),
-        radial-gradient(circle at 95% 15%, rgba(253, 230, 138, 0.18) 0%, transparent 40%),
-        radial-gradient(circle at 5% 45%, rgba(16, 185, 129, 0.05) 0%, transparent 45%);
-      background-attachment: fixed;
+    .app-toolbar {
+      background-color: var(--bg-toolbar);
+      border-color: var(--border-hairline);
     }
 
-    .surface-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-card);
-      box-shadow: var(--card-shadow);
-      backdrop-filter: blur(12px);
-      transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    .app-input {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+    }
+    .app-input:focus {
+      outline: none;
+      border-color: #1B365D;
+      box-shadow: 0 0 0 2px rgba(27, 54, 93, 0.14);
+    }
+    html.dark .app-input:focus {
+      border-color: #60A5FA;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.18);
     }
 
-    .surface-header {
-      background: var(--bg-surface-header);
-      border-color: var(--border-subtle);
+    .btn-neutral {
+      background-color: var(--bg-panel);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+    }
+    .btn-neutral:hover {
+      background-color: var(--bg-toolbar);
     }
 
-    .surface-subtle {
-      background: var(--bg-subtle);
-      border-color: var(--border-subtle);
+    .btn-primary {
+      background-color: #1B365D;
+      color: #FFFFFF;
+      border: 1px solid #152A4A;
+    }
+    .btn-primary:hover {
+      background-color: #244679;
     }
 
-    .theme-modal {
-      background: var(--modal-bg) !important;
-      border-color: var(--border-card) !important;
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
     }
 
-    .theme-input {
-      background: var(--input-bg) !important;
-      border-color: var(--input-border) !important;
-      color: var(--text-title) !important;
-    }
-
-    .theme-pill {
-      background: var(--pill-bg) !important;
-      border-color: var(--border-card) !important;
-      color: var(--text-body) !important;
-    }
-
-    .gold-crest-border {
-      box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.3), 0 4px 14px rgba(212, 175, 55, 0.15);
-    }
-
-    /* Scrollbar */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -180,570 +138,464 @@
       background: transparent;
     }
     ::-webkit-scrollbar-thumb {
-      background: rgba(148, 163, 184, 0.3);
+      background: rgba(107, 114, 128, 0.35);
       border-radius: 9999px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: rgba(148, 163, 184, 0.5);
+      background: rgba(107, 114, 128, 0.55);
     }
   </style>
 </head>
-<body class="min-h-screen antialiased selection:bg-amber-400 selection:text-slate-950 font-sans">
+<body class="min-h-screen antialiased flex flex-col">
 
-  <!-- Main Container -->
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-
-    <!-- Top Navigation & Collegiate Crest Header -->
-    <header class="flex flex-col lg:flex-row lg:items-center lg:justify-between pb-5 mb-5 border-b border-slate-200 dark:border-white/5 gap-4">
-      <div class="flex items-center space-x-3.5">
-        <!-- Sussex College Collegiate Crest Seal -->
-        <div class="relative shrink-0">
-          <div class="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 p-[2px] gold-crest-border shadow-md">
-            <div class="h-full w-full rounded-[14px] bg-white flex items-center justify-center overflow-hidden p-1">
-              <img src="/sussex-logo.jpg" alt="Sussex College Network Logo" class="w-full h-full object-contain">
-            </div>
-          </div>
-          <span class="absolute -bottom-1 -right-1 text-[10px] bg-amber-400 text-slate-950 px-1 py-0.2 rounded font-crest font-extrabold shadow">
-            SCN
-          </span>
+  <!-- Top Application Toolbar -->
+  <header class="sticky top-0 z-30 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <!-- App Identity -->
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="h-10 w-10 rounded-lg border border-[var(--border-hairline)] bg-white p-1 flex items-center justify-center shrink-0">
+          <img src="/sussex-logo.jpg" alt="Sussex College Network" class="w-full h-full object-contain">
         </div>
-
-        <div>
-          <div class="flex items-center space-x-2.5 flex-wrap">
-            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-display">SheetPulse</h1>
-            <span class="px-2.5 py-0.5 text-[11px] font-semibold tracking-wider uppercase bg-amber-400/15 text-amber-700 dark:text-amber-300 border border-amber-400/30 rounded-md font-crest">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-bold tracking-tight text-[var(--text-primary)]">WishSync</h1>
+            <span class="hidden sm:inline-block text-xs text-[var(--text-muted)] font-normal border-l border-[var(--border-hairline)] pl-2">
               Sussex College Network
             </span>
-            <span class="hidden sm:inline-block text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-              Academic Year 2026/27
-            </span>
           </div>
-          <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center flex-wrap gap-1.5 mt-0.5">
-            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span id="headerDateDisplay" class="font-medium text-slate-700 dark:text-slate-200">Loading date...</span>
-            <span class="text-slate-300 dark:text-slate-600">•</span>
+          <p class="text-xs text-[var(--text-muted)] truncate">
+            <span id="headerDateDisplay">Loading date...</span>
+            <span class="mx-1">·</span>
             <span>Asia/Colombo</span>
-            <span class="text-slate-300 dark:text-slate-600">•</span>
-            <span class="text-amber-600 dark:text-amber-300 font-medium">Daily Birthday Dispatch Engine</span>
           </p>
         </div>
       </div>
 
-      <!-- Live Service Status Badges, Theme Toggle & Quick Action Controls -->
-      <div class="flex flex-wrap items-center gap-2">
-        <!-- Google Sheets Sync Status -->
-        <div id="sheetsStatusPill" class="theme-pill flex items-center space-x-2 px-3 py-1.5 rounded-xl border text-xs shadow-sm">
-          <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-          <span class="text-slate-500 dark:text-slate-400 font-medium">Sheets:</span>
-          <span id="sheetsStatusText" class="text-amber-600 dark:text-amber-300 font-semibold">Connecting...</span>
+      <!-- Status & Utility Controls -->
+      <div class="flex items-center gap-2 flex-wrap justify-end">
+        <!-- Sheets Status -->
+        <div id="sheetsStatusPill" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-toolbar)] text-xs">
+          <i class="fa-solid fa-table text-[var(--text-muted)] text-[11px]"></i>
+          <span class="text-[var(--text-muted)]">Sheets:</span>
+          <span id="sheetsStatusText" class="font-medium text-amber-700 dark:text-amber-400">Connecting...</span>
         </div>
 
-        <!-- WhatsApp Web Session -->
-        <button id="whatsappStatusBtn" class="theme-pill flex items-center space-x-2 px-3 py-1.5 rounded-xl border text-xs transition shadow-sm hover:border-slate-400 dark:hover:border-slate-600" title="Click to pair or inspect WhatsApp session">
-          <span id="waStatusDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-          <span class="text-slate-500 dark:text-slate-400 font-medium">WhatsApp:</span>
-          <span id="waStatusText" class="text-amber-600 dark:text-amber-300 font-semibold">Initializing...</span>
+        <!-- WhatsApp Status -->
+        <button id="whatsappStatusBtn" type="button" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--border-hairline)] bg-[var(--bg-toolbar)] hover:border-[var(--border-strong)] text-xs transition" title="Manage WhatsApp pairing">
+          <span id="waStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+          <span class="text-[var(--text-muted)]">WhatsApp:</span>
+          <span id="waStatusText" class="font-medium text-amber-700 dark:text-amber-400">Initializing...</span>
         </button>
 
-        <!-- Manual Enter Number Dispatch Button -->
-        <button id="navManualSendBtn" class="theme-pill flex items-center gap-1.5 px-3 py-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl border transition text-xs font-semibold shadow-sm hover:border-amber-400" title="Manually enter phone number and dispatch birthday greeting">
-          <i class="fa-solid fa-mobile-screen-button text-amber-500"></i>
-          <span>Manual Send</span>
+        <div class="hidden md:block h-5 w-px bg-[var(--border-hairline)] mx-0.5"></div>
+
+        <button id="navManualSendBtn" type="button" class="btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="Send a wish to any mobile number">
+          <i class="fa-solid fa-paper-plane text-[11px] text-[var(--text-muted)]"></i>
+          <span class="hidden sm:inline">Manual Send</span>
         </button>
 
-        <!-- Template Editor -->
-        <button id="openTemplateModalBtn" class="theme-pill p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl border transition text-xs shadow-sm" title="Customize Birthday Message Template">
-          <i class="fa-solid fa-feather text-sm"></i>
+        <button id="openTemplateModalBtn" type="button" class="btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="Edit birthday message template">
+          <i class="fa-regular fa-pen-to-square text-[11px] text-[var(--text-muted)]"></i>
+          <span class="hidden sm:inline">Template</span>
         </button>
 
-        <!-- System Settings -->
-        <button id="openSettingsModalBtn" class="theme-pill flex items-center gap-1.5 px-3 py-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl border transition text-xs font-medium shadow-sm" title="Configure Google Cloud OAuth & Anti-Ban timings">
-          <i class="fa-solid fa-sliders text-slate-400"></i>
-          <span>Settings</span>
-        </button>
-
-        <!-- Branches Manager Pill -->
-        <button id="openBranchesModalBtn" class="flex items-center gap-2 px-3.5 py-1.5 text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition text-xs font-semibold shadow-md shadow-blue-600/20" title="Manage Multi-Branch Google Sheets">
-          <i class="fa-solid fa-building-columns text-xs"></i>
+        <button id="openBranchesModalBtn" type="button" class="btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="Manage branch Google Sheets">
+          <i class="fa-solid fa-building-columns text-[11px] text-[var(--text-muted)]"></i>
           <span>Branches</span>
-          <span id="navBranchCountBadge" class="px-1.5 py-0.2 bg-white/20 rounded-md text-[10px] font-bold">0</span>
+          <span id="navBranchCountBadge" class="px-1.5 py-0.5 text-[11px] font-semibold rounded bg-[var(--bg-toolbar)] border border-[var(--border-hairline)] tabular-nums">0</span>
         </button>
 
-        <!-- Dark / Light Mode Toggle Button -->
-        <button id="themeToggleBtn" class="theme-pill flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition text-xs font-semibold shadow-sm hover:border-amber-400" title="Toggle Dark / Light Mode">
-          <i id="themeToggleIcon" class="fa-solid fa-moon text-amber-500"></i>
-          <span id="themeToggleText">Dark</span>
+        <button id="openSettingsModalBtn" type="button" class="btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="System settings and Google account">
+          <i class="fa-solid fa-gear text-[11px] text-[var(--text-muted)]"></i>
+          <span class="hidden sm:inline">Settings</span>
+        </button>
+
+        <button id="themeToggleBtn" type="button" class="btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition" title="Switch light / dark appearance">
+          <i id="themeToggleIcon" class="fa-solid fa-moon text-[11px] text-[var(--text-muted)]"></i>
+          <span id="themeToggleText" class="hidden sm:inline">Light</span>
         </button>
       </div>
-    </header>
+    </div>
+  </header>
 
-    <!-- Auto-Send Countdown Banner (Windows Startup Trigger) -->
-    <div id="countdownBanner" class="hidden mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-oxford-850 to-oxford-900 border border-emerald-500/40 shadow-xl shadow-emerald-950/30">
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div class="flex items-center space-x-3.5">
-          <div class="h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-base border border-emerald-500/30 shrink-0 font-display" id="countdownSecondsBadge">
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 space-y-4">
+
+    <!-- Auto-Send Boot Countdown Strip -->
+    <div id="countdownBanner" class="hidden app-panel rounded-lg p-4 border-l-4 border-l-emerald-600">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div id="countdownSecondsBadge" class="px-2.5 py-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-mono font-semibold text-sm tabular-nums shrink-0">
             10s
           </div>
           <div>
-            <h3 class="text-sm font-semibold text-emerald-300 flex items-center gap-2">
-              <i class="fa-solid fa-paper-plane text-emerald-400 animate-bounce"></i>
-              Automatic Windows Boot Dispatch in Progress
-            </h3>
-            <p class="text-xs text-slate-400 mt-0.5">
-              Personalized birthday wishes will automatically send to <span id="countdownTargetCount" class="font-bold text-white">0</span> student(s).
+            <h3 class="text-sm font-semibold text-[var(--text-primary)]">Automatic startup dispatch scheduled</h3>
+            <p class="text-xs text-[var(--text-muted)]">
+              Sending birthday wishes to <strong id="countdownTargetCount" class="text-[var(--text-primary)]">0</strong> student(s) when countdown finishes.
             </p>
           </div>
         </div>
-        <div class="flex items-center space-x-2.5 w-full sm:w-auto">
-          <button id="cancelCountdownBtn" class="flex-1 sm:flex-none px-3.5 py-1.5 text-xs font-semibold text-red-400 hover:text-white hover:bg-red-500/20 border border-red-500/30 rounded-xl transition">
-            <i class="fa-solid fa-ban mr-1"></i> Cancel
+        <div class="flex items-center gap-2 shrink-0">
+          <button id="cancelCountdownBtn" type="button" class="btn-neutral px-3 py-1.5 rounded-md text-xs font-medium text-red-600 dark:text-red-400">
+            Cancel
           </button>
-          <button id="dispatchNowBtn" class="flex-1 sm:flex-none px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-md shadow-emerald-600/20 transition">
-            <i class="fa-solid fa-bolt mr-1"></i> Send Now
+          <button id="dispatchNowBtn" type="button" class="px-3.5 py-1.5 rounded-md text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-600 transition">
+            Send Now
           </button>
         </div>
       </div>
-      <!-- Countdown Progress Bar -->
-      <div class="w-full bg-slate-900 rounded-full h-1 mt-3 overflow-hidden">
-        <div id="countdownProgressBar" class="bg-emerald-400 h-1 rounded-full transition-all duration-1000" style="width: 100%"></div>
+      <div class="w-full bg-[var(--bg-toolbar)] rounded-full h-1.5 mt-3 overflow-hidden border border-[var(--border-hairline)]">
+        <div id="countdownProgressBar" class="bg-emerald-600 h-1.5 rounded-full transition-all duration-1000" style="width: 100%"></div>
       </div>
     </div>
 
-    <!-- Collegiate Executive Morning Dispatch Deck -->
-    <div class="surface-card rounded-3xl p-5 sm:p-6 mb-6 relative overflow-hidden">
-      <!-- Background Heraldic Watermark Glow -->
-      <div class="absolute -right-8 -bottom-10 opacity-[0.03] dark:opacity-[0.05] pointer-events-none text-9xl text-amber-400">
-        <i class="fa-solid fa-award"></i>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-        <!-- Left Section: Today's Celebrations Proclamation & Dispatch Actions -->
-        <div class="lg:col-span-7 space-y-4">
-          <div class="flex items-center space-x-2">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-400/15 text-amber-700 dark:text-amber-300 border border-amber-400/30">
-              <i class="fa-solid fa-cake-candles text-amber-500"></i>
-              <span>Today's Birthday Roster</span>
-            </span>
-            <span class="text-xs text-slate-400 dark:text-slate-500">Sussex College Network</span>
-          </div>
-
-          <div class="flex items-baseline space-x-3">
-            <span id="statTodayCount" class="text-5xl sm:text-6xl font-extrabold text-slate-900 dark:text-white font-display tracking-tight">0</span>
-            <div>
-              <p class="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200 font-display">Student Birthdays Today</p>
-              <p class="text-xs text-slate-500 dark:text-slate-400">Celebrating across active Sussex branches</p>
-            </div>
-          </div>
-
-          <!-- Dual Dispatch Actions -->
-          <div class="flex items-center flex-wrap gap-2.5 pt-1">
-            <button id="sendAllBtn" class="px-5 py-2.5 text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-600/25 hover:shadow-emerald-600/35 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed font-display">
-              <i class="fa-solid fa-paper-plane text-white"></i>
-              <span>Send All Wishes Now</span>
-            </button>
-
-            <button id="refreshDataBtn" class="theme-pill px-4 py-2.5 text-xs font-semibold rounded-xl border transition flex items-center gap-2 shadow-sm hover:border-slate-400 dark:hover:border-slate-600">
-              <i class="fa-solid fa-arrows-rotate text-blue-500"></i>
-              <span>Sync Google Sheets</span>
-            </button>
-
-            <button id="openManualSendModalBtn" class="theme-pill px-4 py-2.5 text-xs font-semibold rounded-xl border transition flex items-center gap-2 shadow-sm hover:border-amber-400">
-              <i class="fa-solid fa-phone text-amber-500"></i>
-              <span>Manual Enter Number</span>
-            </button>
-          </div>
+    <!-- Summary Strip & Primary Operations -->
+    <section class="app-panel rounded-lg px-5 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <!-- Structured Tabular Counters -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-0 sm:divide-x sm:divide-[var(--border-hairline)] flex-1">
+        <div class="sm:pr-6">
+          <p class="text-xs text-[var(--text-muted)] font-medium">Birthdays today</p>
+          <p id="statTodayCount" class="text-2xl font-bold text-[var(--text-primary)] tabular-nums mt-0.5">0</p>
         </div>
-
-        <!-- Right Section: Executive Metrics Strip -->
-        <div class="lg:col-span-5 grid grid-cols-3 gap-2.5 sm:gap-3">
-          <!-- Metric 1: Pending Wishes -->
-          <div class="surface-subtle p-3.5 rounded-2xl border text-center relative overflow-hidden">
-            <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-center gap-1">
-              <i class="fa-regular fa-clock text-amber-500"></i>
-              <span>Pending</span>
-            </div>
-            <div id="statPendingCount" class="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-300 font-display">0</div>
-            <p class="text-[10px] text-slate-400 mt-0.5">Awaiting send</p>
-          </div>
-
-          <!-- Metric 2: Delivered Today -->
-          <div class="surface-subtle p-3.5 rounded-2xl border text-center relative overflow-hidden">
-            <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-center gap-1">
-              <i class="fa-solid fa-circle-check text-emerald-500"></i>
-              <span>Delivered</span>
-            </div>
-            <div id="statSentCount" class="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-display">0</div>
-            <p class="text-[10px] text-slate-400 mt-0.5">Sent this year</p>
-          </div>
-
-          <!-- Metric 3: Upcoming 7 Days -->
-          <div class="surface-subtle p-3.5 rounded-2xl border text-center relative overflow-hidden">
-            <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-center gap-1">
-              <i class="fa-regular fa-calendar-days text-blue-500"></i>
-              <span>Next 7 Days</span>
-            </div>
-            <div id="statUpcomingCount" class="text-2xl sm:text-3xl font-extrabold text-blue-600 dark:text-blue-400 font-display">0</div>
-            <p class="text-[10px] text-slate-400 mt-0.5">Coming up</p>
-          </div>
+        <div class="sm:px-6">
+          <p class="text-xs text-[var(--text-muted)] font-medium">Pending</p>
+          <p id="statPendingCount" class="text-2xl font-bold text-amber-700 dark:text-amber-400 tabular-nums mt-0.5">0</p>
+        </div>
+        <div class="sm:px-6">
+          <p class="text-xs text-[var(--text-muted)] font-medium">Delivered today</p>
+          <p id="statSentCount" class="text-2xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums mt-0.5">0</p>
+        </div>
+        <div class="sm:pl-6">
+          <p class="text-xs text-[var(--text-muted)] font-medium">Next 7 days</p>
+          <p id="statUpcomingCount" class="text-2xl font-bold text-[var(--text-primary)] tabular-nums mt-0.5">0</p>
         </div>
       </div>
-    </div>
 
-    <!-- Main Content Flow -->
-    <div class="space-y-6">
+      <!-- Primary Dispatch Toolbar -->
+      <div class="flex flex-wrap items-center gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-[var(--border-hairline)]">
+        <button id="refreshDataBtn" type="button" class="btn-neutral px-3.5 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-arrows-rotate text-[var(--text-muted)]"></i>
+          <span>Sync Google Sheets</span>
+        </button>
 
-      <!-- Today's Birthday Celebration Deck -->
-      <div class="surface-card rounded-3xl overflow-hidden">
-        <div class="surface-header px-6 py-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div class="flex items-center space-x-2.5">
-            <div class="h-8 w-8 rounded-xl bg-amber-400/15 text-amber-600 dark:text-amber-400 flex items-center justify-center text-sm border border-amber-400/25">
-              <i class="fa-solid fa-gift"></i>
-            </div>
-            <div>
-              <h2 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-display">Students Celebrating Today</h2>
-            </div>
-            <span id="todayBadgeCount" class="px-2 py-0.5 text-xs font-bold bg-amber-400/20 text-amber-800 dark:text-amber-300 rounded-full font-mono">0</span>
-          </div>
+        <button id="openManualSendModalBtn" type="button" class="btn-neutral px-3.5 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-phone text-[var(--text-muted)]"></i>
+          <span>Manual Number</span>
+        </button>
 
-          <!-- Network Branch Indicator -->
-          <div class="text-xs text-slate-500 dark:text-slate-400">
-            <i class="fa-solid fa-school text-amber-500/80 mr-1"></i> Sussex Network Branches
-          </div>
+        <button id="sendAllBtn" type="button" class="btn-primary px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-2 transition disabled:opacity-45 disabled:cursor-not-allowed">
+          <i class="fa-brands fa-whatsapp text-sm"></i>
+          <span>Send All Pending Wishes</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Primary Tabbed Data Table Workspace -->
+    <section class="app-panel rounded-lg overflow-hidden">
+      <!-- Navigation Tabs & Right Action -->
+      <div class="app-toolbar px-4 sm:px-5 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="flex items-center gap-1 pt-2 sm:pt-0 overflow-x-auto">
+          <button type="button" id="tabBtnToday" data-tab="today" class="workspace-tab px-3.5 py-3 text-xs font-semibold border-b-2 border-[#1B365D] dark:border-blue-400 text-[#1B365D] dark:text-white flex items-center gap-2 whitespace-nowrap">
+            <span>Today's Roster</span>
+            <span id="todayBadgeCount" class="px-1.5 py-0.5 text-[11px] rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono tabular-nums">0</span>
+          </button>
+
+          <button type="button" id="tabBtnUpcoming" data-tab="upcoming" class="workspace-tab px-3.5 py-3 text-xs font-medium border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-2 whitespace-nowrap">
+            <span>Upcoming (7 Days)</span>
+            <span id="upcomingBadgeCount" class="px-1.5 py-0.5 text-[11px] rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] font-mono tabular-nums">0</span>
+          </button>
+
+          <button type="button" id="tabBtnLedger" data-tab="ledger" class="workspace-tab px-3.5 py-3 text-xs font-medium border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-2 whitespace-nowrap">
+            <span>Delivery Log</span>
+          </button>
         </div>
 
-        <!-- Branch Selector Strip -->
-        <div id="branchFilterStrip" class="surface-subtle px-6 py-2.5 border-b flex items-center gap-2 overflow-x-auto text-xs">
-          <span class="text-slate-500 dark:text-slate-400 text-xs font-semibold flex items-center gap-1.5 mr-1 shrink-0">
-            <i class="fa-solid fa-filter text-slate-400 dark:text-slate-500"></i> Branch:
-          </span>
-          <div id="branchFilterPills" class="flex items-center gap-1.5">
-            <button type="button" class="branch-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow-sm" data-branch="ALL">
-              All Branches (<span id="filterAllCount">0</span>)
-            </button>
-          </div>
+        <div class="flex items-center gap-3 pb-2 sm:pb-0">
+          <a href="/api/ledger/export" class="text-xs font-medium text-[var(--text-secondary)] hover:text-[#1B365D] dark:hover:text-blue-400 flex items-center gap-1.5 transition" title="Download full delivery history CSV">
+            <i class="fa-solid fa-file-arrow-down text-[11px]"></i>
+            <span>Export CSV</span>
+          </a>
         </div>
+      </div>
 
-        <!-- Student Birthday List -->
-        <div id="todayBirthdaysList" class="divide-y divide-slate-100 dark:divide-white/5">
-          <div class="p-10 text-center text-slate-500 dark:text-slate-400">
-            <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2"></i>
-            <p class="text-sm font-medium">Fetching and matching birthdays...</p>
+      <!-- Branch Filter Bar (Shown for Today & Upcoming tabs) -->
+      <div id="branchFilterStrip" class="px-4 sm:px-5 py-2.5 border-b border-[var(--border-hairline)] bg-[var(--bg-panel)] flex items-center gap-2 overflow-x-auto text-xs">
+        <span class="text-[var(--text-muted)] font-medium shrink-0">Branch filter:</span>
+        <div id="branchFilterPills" class="flex items-center gap-1.5">
+          <button type="button" class="branch-filter-btn px-2.5 py-1 rounded-md text-xs font-semibold bg-[#1B365D] text-white" data-branch="ALL">
+            All Branches (<span id="filterAllCount">0</span>)
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Panel 1: Today's Birthdays -->
+      <div id="tabPanelToday">
+        <div id="todayBirthdaysList">
+          <div class="p-10 text-center text-[var(--text-muted)] text-xs">
+            <i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Loading today's student records...
           </div>
         </div>
       </div>
 
-      <!-- Upcoming 7-Day Birthdays Deck -->
-      <div class="surface-card rounded-3xl overflow-hidden">
-        <div class="surface-header px-6 py-4 border-b flex items-center justify-between">
-          <div class="flex items-center space-x-2.5">
-            <div class="h-8 w-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm border border-blue-500/20">
-              <i class="fa-regular fa-calendar-check"></i>
-            </div>
-            <h2 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-display">Upcoming Birthdays (Next 7 Days)</h2>
-            <span id="upcomingBadgeCount" class="px-2 py-0.5 text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-300 border border-blue-500/20 rounded-full font-mono">0</span>
-          </div>
-        </div>
-        <div id="upcomingBirthdaysList" class="divide-y divide-slate-100 dark:divide-white/5">
+      <!-- Tab Panel 2: Upcoming 7 Days -->
+      <div id="tabPanelUpcoming" class="hidden">
+        <div id="upcomingBirthdaysList">
           <!-- Populated dynamically -->
         </div>
       </div>
 
-      <!-- Local Delivery Ledger Drawer (`sent_log.json`) -->
-      <div class="surface-card rounded-3xl overflow-hidden">
-        <div class="surface-header px-6 py-4 border-b flex items-center justify-between">
-          <div class="flex items-center space-x-2.5">
-            <div class="h-8 w-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center text-sm border border-slate-200 dark:border-white/5">
-              <i class="fa-solid fa-clipboard-check"></i>
-            </div>
-            <h2 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-display">Local Delivery Ledger</h2>
+      <!-- Tab Panel 3: Delivery Log -->
+      <div id="tabPanelLedger" class="hidden">
+        <div id="ledgerContainer">
+          <div class="px-5 py-3 border-b border-[var(--border-hairline)] flex items-center justify-between bg-[var(--bg-toolbar)]">
+            <span class="text-xs text-[var(--text-muted)]">Saved delivery records from <code class="font-mono">sent_log.json</code></span>
+            <button id="toggleLedgerBtn" type="button" class="btn-neutral px-2.5 py-1 rounded-md text-xs font-medium">
+              Refresh Log
+            </button>
           </div>
-          <div class="flex items-center space-x-3">
-            <a href="/api/ledger/export" class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1.5 transition font-semibold" title="Export sent wishes history as CSV file">
-              <i class="fa-solid fa-file-arrow-down"></i> Export CSV
-            </a>
-            <button id="toggleLedgerBtn" class="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition font-medium">Show Details</button>
-          </div>
-        </div>
-        <div id="ledgerContainer" class="p-4 hidden">
-          <div id="ledgerList" class="space-y-2 text-xs text-slate-600 dark:text-slate-300 max-h-60 overflow-y-auto font-mono">
+          <div id="ledgerList" class="divide-y divide-[var(--border-hairline)] max-h-[460px] overflow-y-auto">
             <!-- Populated dynamically -->
           </div>
         </div>
       </div>
+    </section>
 
-    </div>
+  </main>
 
-    <!-- Page Footer -->
-    <footer class="mt-10 pt-5 pb-2 border-t border-slate-200 dark:border-white/5 text-xs text-slate-500 flex flex-col md:flex-row items-center justify-between gap-4">
-      <div class="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 text-center sm:text-left">
-        <span class="font-crest font-bold text-amber-600 dark:text-amber-400">SUSSEX COLLEGE NETWORK</span>
-        <span class="hidden sm:inline">•</span>
-        <span>SheetPulse Automated Birthday Engine</span>
-        <span class="hidden sm:inline">•</span>
-        <span class="text-[11px] text-slate-400">Asia/Colombo Timezone</span>
+  <!-- Application Footer Bar -->
+  <footer class="border-t border-[var(--border-hairline)] bg-[var(--bg-panel)] mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[var(--text-muted)]">
+      <div class="flex items-center gap-2 text-center sm:text-left">
+        <span class="font-semibold text-[var(--text-primary)]">WishSync</span>
+        <span>·</span>
+        <span>Sussex College Network</span>
+        <span class="hidden sm:inline">·</span>
+        <span class="hidden sm:inline">Asia/Colombo</span>
       </div>
 
-      <!-- Software Engineering Credit & QR -->
-      <div class="flex items-center gap-3 theme-pill px-3 py-1.5 rounded-2xl border shadow-sm">
-        <div class="text-right leading-tight">
-          <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Software Engineering by</p>
-          <p class="text-xs font-bold text-slate-800 dark:text-slate-100">
-            Mahima Paseda
-            <span class="text-slate-300 dark:text-slate-600 mx-1">•</span>
-            <a href="https://www.mahimapaseda.lk" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">www.mahimapaseda.lk</a>
-          </p>
+      <div class="flex items-center gap-2.5">
+        <div class="text-right leading-snug">
+          <span>Software Engineering by <strong class="text-[var(--text-primary)] font-semibold">Mahima Paseda</strong></span>
+          <span class="mx-1">·</span>
+          <a href="https://www.mahimapaseda.lk" target="_blank" rel="noopener noreferrer" class="text-[#1B365D] dark:text-blue-400 hover:underline font-medium">www.mahimapaseda.lk</a>
         </div>
-        <button id="openDeveloperModalBtn" type="button" title="Scan QR to visit www.mahimapaseda.lk" class="w-10 h-10 bg-white rounded-xl p-1 border border-slate-200 shadow-sm hover:scale-105 transition shrink-0 flex items-center justify-center">
-          <img src="/mahimapaseda-qr.png" alt="Mahima Paseda Website QR Code" class="w-full h-full object-contain">
+        <button id="openDeveloperModalBtn" type="button" title="View developer QR code (www.mahimapaseda.lk)" class="h-8 w-8 rounded border border-[var(--border-strong)] bg-white p-0.5 hover:opacity-85 transition shrink-0 flex items-center justify-center">
+          <img src="/mahimapaseda-qr.png" alt="Mahima Paseda QR Code" class="w-full h-full object-contain">
         </button>
       </div>
-    </footer>
-
-  </div>
+    </div>
+  </footer>
 
   <!-- Multi-Branch Management Modal -->
-  <div id="branchesModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-    <div class="theme-modal border rounded-3xl max-w-4xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+  <div id="branchesModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 hidden">
+    <div class="app-panel rounded-xl max-w-4xl w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
       <!-- Modal Header -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 mb-6 border-b border-slate-200 dark:border-white/10 gap-4">
-        <div class="flex items-center space-x-3.5">
-          <div class="h-11 w-11 rounded-2xl bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center border border-blue-500/20 shrink-0">
-            <i class="fa-solid fa-building-columns text-lg"></i>
-          </div>
-          <div>
-            <h3 class="text-lg font-bold text-slate-900 dark:text-white font-display">Branch Google Sheets Manager</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Manage Google Sheet links, tabs, and custom wish templates for each Sussex branch.</p>
-          </div>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 mb-5 border-b border-[var(--border-hairline)] gap-3">
+        <div>
+          <h3 class="text-base font-bold text-[var(--text-primary)]">Branch Google Sheets</h3>
+          <p class="text-xs text-[var(--text-muted)] mt-0.5">Configure spreadsheet URLs, tab names, and optional per-branch templates.</p>
         </div>
 
         <div class="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
-          <button id="addNewBranchBtn" type="button" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md shadow-blue-600/20 transition flex items-center gap-1.5">
-            <i class="fa-solid fa-plus"></i> Add New Branch Sheet
+          <button id="addNewBranchBtn" type="button" class="btn-primary px-3.5 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-plus"></i> Add Branch Sheet
           </button>
-          <button id="closeBranchesModalBtn" type="button" title="Close" aria-label="Close" class="h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
+          <button id="closeBranchesModalBtn" type="button" title="Close" aria-label="Close" class="h-8 w-8 rounded-full flex items-center justify-center btn-neutral hover:text-red-600 dark:hover:text-red-400 transition text-sm">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
       </div>
 
-      <!-- Add / Edit Branch Drawer -->
-      <div id="branchFormDrawer" class="hidden mb-6 p-5 rounded-2xl surface-subtle border shadow-xl space-y-3.5">
-        <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-white/10">
-          <h4 id="branchFormTitle" class="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2">
-            <i class="fa-solid fa-plus-circle"></i> Add New Branch Sheet
-          </h4>
-          <button id="cancelBranchFormBtn" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs">
-            <i class="fa-solid fa-xmark"></i> Cancel
+      <!-- Add / Edit Branch Form -->
+      <div id="branchFormDrawer" class="hidden mb-5 p-4 rounded-lg app-toolbar border border-[var(--border-hairline)] space-y-3.5">
+        <div class="flex items-center justify-between pb-2 border-b border-[var(--border-hairline)]">
+          <h4 id="branchFormTitle" class="text-xs font-bold text-[var(--text-primary)]">Add New Branch Sheet</h4>
+          <button id="cancelBranchFormBtn" type="button" class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+            Cancel
           </button>
         </div>
 
         <input type="hidden" id="editBranchId" value="">
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Branch Name:</label>
-            <input type="text" id="branchInputName" placeholder="e.g. Ambalangoda, Galle, Ampara" class="theme-input w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500">
+            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Branch name</label>
+            <input type="text" id="branchInputName" placeholder="e.g. Ambalangoda, Galle, Ampara" class="app-input w-full rounded-md px-3 py-2 text-xs">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Sheet Tab Name:</label>
-            <input type="text" id="branchInputTab" placeholder="e.g. INQUIRY DETAILS 2026/27" class="theme-input w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500">
+            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Sheet tab name</label>
+            <input type="text" id="branchInputTab" placeholder="e.g. INQUIRY DETAILS 2026/27" class="app-input w-full rounded-md px-3 py-2 text-xs">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Google Sheet URL or Spreadsheet ID:</label>
-          <input type="text" id="branchInputUrl" placeholder="https://docs.google.com/spreadsheets/d/1PX2Zdu.../edit" class="theme-input w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono focus:outline-none focus:border-blue-500">
-          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Paste the full browser link of your Google Sheet. The ID will be parsed automatically.</p>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Google Sheet URL or Spreadsheet ID</label>
+          <input type="text" id="branchInputUrl" placeholder="https://docs.google.com/spreadsheets/d/.../edit" class="app-input w-full rounded-md px-3 py-2 text-xs font-mono">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Branch Custom Wish Template (Optional):</label>
-          <input type="text" id="branchInputTemplate" placeholder="Leave blank to use default template, or enter custom wish" class="theme-input w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500">
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Custom wish template (optional)</label>
+          <input type="text" id="branchInputTemplate" placeholder="Leave blank to use default wish template" class="app-input w-full rounded-md px-3 py-2 text-xs">
         </div>
 
-        <div class="flex justify-end space-x-2 pt-2">
-          <button id="saveBranchBtn" type="button" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md transition flex items-center gap-1.5">
+        <div class="flex justify-end pt-1">
+          <button id="saveBranchBtn" type="button" class="btn-primary px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition">
             <i class="fa-solid fa-floppy-disk"></i> Save Branch
           </button>
         </div>
       </div>
 
-      <!-- Branch Cards List -->
-      <div id="branchesListContainer" class="space-y-3">
-        <div class="p-8 text-center text-slate-400 text-xs">
-          <i class="fa-solid fa-spinner fa-spin text-xl mb-2 text-blue-500"></i>
-          <p>Loading configured branch sheets...</p>
+      <!-- Branch Rows -->
+      <div id="branchesListContainer" class="space-y-2.5">
+        <div class="p-8 text-center text-[var(--text-muted)] text-xs">
+          <i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Loading branch sheets...
         </div>
       </div>
 
       <!-- Modal Footer -->
-      <div class="mt-6 pt-4 border-t border-slate-200 dark:border-white/10 flex items-center justify-between">
-        <p class="text-xs text-slate-500 dark:text-slate-400">All enabled branch sheets sync simultaneously in Asia/Colombo timezone.</p>
-        <button id="closeBranchesFooterBtn" class="theme-pill px-4 py-2 text-xs font-semibold rounded-xl border transition">
-          Close Manager
+      <div class="mt-5 pt-4 border-t border-[var(--border-hairline)] flex items-center justify-between">
+        <p class="text-xs text-[var(--text-muted)]">All enabled branch sheets sync in Asia/Colombo timezone.</p>
+        <button id="closeBranchesFooterBtn" type="button" class="btn-neutral px-4 py-2 text-xs font-semibold rounded-md transition">
+          Close
         </button>
       </div>
     </div>
   </div>
 
   <!-- System Settings Modal -->
-  <div id="settingsModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-    <div class="theme-modal border rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-      <button id="closeSettingsModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-5 right-5 h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
+  <div id="settingsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 hidden">
+    <div class="app-panel rounded-xl max-w-xl w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+      <button id="closeSettingsModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-5 right-5 h-8 w-8 rounded-full flex items-center justify-center btn-neutral hover:text-red-600 dark:hover:text-red-400 transition text-sm">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
       <!-- Modal Header -->
-      <div class="flex items-center space-x-3.5 mb-6 pb-4 pr-10 border-b border-slate-200 dark:border-white/10">
-        <div class="h-10 w-10 rounded-2xl bg-amber-400/15 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-400/25">
-          <i class="fa-solid fa-gear text-lg"></i>
-        </div>
-        <div>
-          <h3 class="text-lg font-bold text-slate-900 dark:text-white font-display">System Settings</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Manage Google Cloud authentication, dispatch speed, and boot automation.</p>
-        </div>
+      <div class="mb-5 pb-4 pr-10 border-b border-[var(--border-hairline)]">
+        <h3 class="text-base font-bold text-[var(--text-primary)]">Settings</h3>
+        <p class="text-xs text-[var(--text-muted)] mt-0.5">Manage Google account access, startup behavior, and message dispatch pacing.</p>
       </div>
 
-      <div class="space-y-5">
-
-        <!-- 1. Branch Sheets Hub Shortcut -->
-        <div class="surface-subtle p-4 rounded-2xl border border-blue-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-          <div class="flex items-start space-x-3.5">
-            <div class="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center border border-blue-500/20 shrink-0 mt-0.5">
-              <i class="fa-solid fa-network-wired"></i>
+      <div class="space-y-4">
+        <!-- 1. Branch Sheets Link -->
+        <div class="app-toolbar p-4 rounded-lg border border-[var(--border-hairline)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <h4 class="text-xs font-bold text-[var(--text-primary)]">Branch Google Sheets</h4>
+              <span id="settingsBranchCountBadge" class="px-2 py-0.5 text-[11px] font-medium rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-secondary)]">0 Branches</span>
             </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <h4 class="text-sm font-bold text-slate-900 dark:text-white">Branch Google Sheets</h4>
-                <span id="settingsBranchCountBadge" class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30">0 Branches</span>
-              </div>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Configure individual Google Sheet URLs and tabs for Ambalangoda, Galle, Ampara, etc.
-              </p>
-            </div>
+            <p class="text-xs text-[var(--text-muted)] mt-0.5">Edit Google Sheet links and tabs for each Sussex branch.</p>
           </div>
-          <button id="settingsOpenBranchesBtn" type="button" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md transition flex items-center gap-1.5 whitespace-nowrap self-start sm:self-auto">
-            <i class="fa-solid fa-sliders"></i> Manage Branches
+          <button id="settingsOpenBranchesBtn" type="button" class="btn-primary px-3.5 py-2 rounded-md text-xs font-semibold whitespace-nowrap self-start sm:self-auto transition">
+            Manage Branches
           </button>
         </div>
 
-        <!-- 2. Google Cloud Authentication -->
-        <div class="surface-subtle p-4 rounded-2xl border space-y-3.5">
+        <!-- 2. Google Account Sign-In -->
+        <div class="app-toolbar p-4 rounded-lg border border-[var(--border-hairline)] space-y-3">
           <div class="flex items-center justify-between">
-            <h4 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <i class="fa-brands fa-google text-red-500"></i>
-              Google Cloud Authentication
-            </h4>
-            <span id="googleAuthStatusPill" class="theme-pill px-2.5 py-0.5 text-[10px] font-semibold rounded-full border">Checking...</span>
+            <h4 class="text-xs font-bold text-[var(--text-primary)]">Google Account</h4>
+            <span id="googleAuthStatusPill" class="px-2 py-0.5 text-[11px] font-medium rounded border border-[var(--border-hairline)] bg-[var(--bg-panel)] text-[var(--text-muted)]">Checking...</span>
           </div>
 
-          <!-- Sign-In Card -->
-          <div id="googleSignInCard" class="surface-card p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div class="flex items-center space-x-3">
-              <div class="h-9 w-9 rounded-xl bg-slate-100 dark:bg-white text-slate-900 flex items-center justify-center font-bold shadow">
-                <i class="fa-brands fa-google text-lg text-red-500"></i>
+          <div id="googleSignInCard" class="bg-[var(--bg-panel)] p-3.5 rounded-md border border-[var(--border-hairline)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="h-8 w-8 rounded-md bg-[var(--bg-toolbar)] border border-[var(--border-hairline)] flex items-center justify-center shrink-0">
+                <i class="fa-brands fa-google text-red-600 text-sm"></i>
               </div>
-              <div>
-                <h5 id="googleUserDisplayTitle" class="text-xs font-bold text-slate-900 dark:text-white">Not Signed In to Google</h5>
-                <p id="googleUserDisplaySubtitle" class="text-[11px] text-slate-500 dark:text-slate-400">Sign in with your Google account to access private branch sheets securely.</p>
+              <div class="min-w-0">
+                <h5 id="googleUserDisplayTitle" class="text-xs font-semibold text-[var(--text-primary)] truncate">Not signed in</h5>
+                <p id="googleUserDisplaySubtitle" class="text-[11px] text-[var(--text-muted)]">Sign in to read private Sussex branch spreadsheets.</p>
               </div>
             </div>
 
-            <div class="flex items-center space-x-2">
-              <a id="googleSignInBtn" href="/auth/google" target="_blank" class="px-3.5 py-2 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:opacity-90 font-semibold text-xs shadow-md transition flex items-center gap-2">
-                <i class="fa-brands fa-google text-red-500"></i> Sign in with Google
+            <div class="flex items-center gap-2 shrink-0">
+              <a id="googleSignInBtn" href="/auth/google" target="_blank" class="btn-primary px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition">
+                <i class="fa-brands fa-google"></i> Sign in with Google
               </a>
-              <button id="googleSignOutBtn" type="button" class="hidden px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-semibold border border-red-500/30 transition">
+              <button id="googleSignOutBtn" type="button" class="hidden btn-neutral px-3 py-1.5 rounded-md text-xs font-semibold text-red-600 dark:text-red-400">
                 Sign Out
               </button>
             </div>
           </div>
         </div>
 
-        <!-- 3. Startup & Anti-Ban Automation -->
-        <div class="surface-subtle p-4 rounded-2xl border space-y-3.5">
-          <h4 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <i class="fa-solid fa-shield-halved text-emerald-500"></i>
-            Startup & Anti-Ban Pacing
-          </h4>
+        <!-- 3. Startup & Pacing -->
+        <div class="app-toolbar p-4 rounded-lg border border-[var(--border-hairline)] space-y-3.5">
+          <h4 class="text-xs font-bold text-[var(--text-primary)]">Startup &amp; Dispatch Pacing</h4>
 
-          <div class="flex items-center justify-between py-1">
+          <div class="flex items-center justify-between gap-4">
             <div>
-              <label class="text-xs font-semibold text-slate-900 dark:text-white block">Auto-Send on Boot Countdown</label>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400">Starts a visual countdown when Windows boots before dispatching wishes.</p>
+              <label for="settingAutoSendOnBoot" class="text-xs font-semibold text-[var(--text-primary)] block">Auto-send after Windows boot</label>
+              <p class="text-[11px] text-[var(--text-muted)]">Displays a brief countdown before automatically sending pending wishes at startup.</p>
             </div>
-            <label class="relative inline-flex items-center cursor-pointer">
+            <label class="relative inline-flex items-center cursor-pointer shrink-0">
               <input type="checkbox" id="settingAutoSendOnBoot" class="sr-only peer">
-              <div class="w-11 h-6 bg-slate-300 dark:bg-oxford-950 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 border border-slate-300 dark:border-white/10"></div>
+              <div class="w-10 h-5 bg-gray-300 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-5 peer-checked:bg-[#1B365D] dark:peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
             </label>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 border-t border-slate-200 dark:border-white/5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-[var(--border-hairline)]">
             <div>
-              <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Countdown Delay (seconds):</label>
-              <input type="number" id="settingCountdownSeconds" min="5" max="120" value="10" class="theme-input w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500">
+              <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Countdown delay (seconds)</label>
+              <input type="number" id="settingCountdownSeconds" min="5" max="120" value="10" class="app-input w-full rounded-md px-3 py-1.5 text-xs tabular-nums">
             </div>
 
             <div>
-              <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Anti-Ban Random Delay Range (seconds):</label>
-              <div class="flex items-center space-x-2">
-                <input type="number" id="settingMinDelay" min="1" max="60" value="5" class="theme-input w-full border rounded-xl px-2.5 py-2 text-xs text-center focus:outline-none focus:border-blue-500">
-                <span class="text-slate-400 text-xs">to</span>
-                <input type="number" id="settingMaxDelay" min="2" max="120" value="12" class="theme-input w-full border rounded-xl px-2.5 py-2 text-xs text-center focus:outline-none focus:border-blue-500">
+              <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Delay between messages (seconds)</label>
+              <div class="flex items-center gap-2">
+                <input type="number" id="settingMinDelay" min="1" max="60" value="5" class="app-input w-full rounded-md px-2.5 py-1.5 text-xs text-center tabular-nums">
+                <span class="text-xs text-[var(--text-muted)]">to</span>
+                <input type="number" id="settingMaxDelay" min="2" max="120" value="12" class="app-input w-full rounded-md px-2.5 py-1.5 text-xs text-center tabular-nums">
               </div>
             </div>
           </div>
         </div>
-
       </div>
 
       <!-- Modal Footer -->
-      <div class="mt-6 pt-4 border-t border-slate-200 dark:border-white/10 flex justify-end space-x-3">
-        <button id="cancelSettingsBtn" class="theme-pill px-4 py-2 text-xs font-semibold rounded-xl border transition">
+      <div class="mt-5 pt-4 border-t border-[var(--border-hairline)] flex justify-end gap-2.5">
+        <button id="cancelSettingsBtn" type="button" class="btn-neutral px-4 py-2 text-xs font-semibold rounded-md transition">
           Cancel
         </button>
-        <button id="saveSettingsBtn" class="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-md shadow-blue-600/20 transition flex items-center gap-1.5">
-          <i class="fa-solid fa-floppy-disk"></i> Save & Apply Settings
+        <button id="saveSettingsBtn" type="button" class="btn-primary px-4 py-2 text-xs font-semibold rounded-md flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-floppy-disk"></i> Save Changes
         </button>
       </div>
     </div>
   </div>
 
   <!-- WhatsApp Pairing QR Code Modal -->
-  <div id="qrModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-    <div class="theme-modal border rounded-3xl max-w-md w-full p-6 shadow-2xl relative text-center">
-      <button id="closeQrModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
+  <div id="qrModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 hidden">
+    <div class="app-panel rounded-xl max-w-md w-full p-6 shadow-xl relative text-center">
+      <button id="closeQrModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center btn-neutral hover:text-red-600 dark:hover:text-red-400 transition text-sm">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
-      <div class="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-3 border border-emerald-500/20">
-        <i class="fa-brands fa-whatsapp text-2xl"></i>
-      </div>
-      <h3 class="text-lg font-bold text-slate-900 dark:text-white font-display">Link Personal WhatsApp</h3>
-      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Scan this QR code with WhatsApp on your mobile to authorize dispatch.</p>
+      <h3 class="text-base font-bold text-[var(--text-primary)] mt-1">Connect WhatsApp</h3>
+      <p class="text-xs text-[var(--text-muted)] mt-1">Scan this QR code with WhatsApp on your mobile phone to authorize sending.</p>
 
-      <div class="bg-white p-4 rounded-2xl flex items-center justify-center mx-auto w-64 h-64 my-5 shadow-xl border border-slate-200">
+      <div class="bg-white p-3.5 rounded-lg flex items-center justify-center mx-auto w-60 h-60 my-5 border border-gray-200">
         <img id="qrImageElement" src="" alt="WhatsApp QR Code" class="w-full h-full object-contain">
-        <div id="qrPlaceholder" class="text-slate-500 text-center text-xs">
-          <i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-emerald-600"></i>
-          <p>Generating session QR code...</p>
+        <div id="qrPlaceholder" class="text-gray-500 text-center text-xs">
+          <i class="fa-solid fa-spinner fa-spin text-xl mb-2 text-[#1B365D]"></i>
+          <p>Generating QR code...</p>
         </div>
       </div>
 
-      <div class="surface-subtle p-3.5 rounded-xl border text-xs text-slate-600 dark:text-slate-300 space-y-1 text-left mb-4">
-        <p class="font-semibold text-slate-900 dark:text-white">How to link in 3 steps:</p>
-        <ol class="list-decimal list-inside space-y-0.5 text-slate-500 dark:text-slate-400">
+      <div class="app-toolbar p-3.5 rounded-lg border border-[var(--border-hairline)] text-xs text-[var(--text-secondary)] space-y-1 text-left mb-4">
+        <p class="font-semibold text-[var(--text-primary)]">Steps to link:</p>
+        <ol class="list-decimal list-inside space-y-0.5 text-[var(--text-muted)]">
           <li>Open WhatsApp on your phone</li>
-          <li>Tap <strong class="text-slate-700 dark:text-slate-200">Settings</strong> &gt; <strong class="text-slate-700 dark:text-slate-200">Linked Devices</strong></li>
-          <li>Tap <strong class="text-slate-700 dark:text-slate-200">Link a Device</strong> and point camera at the screen</li>
+          <li>Go to <strong class="text-[var(--text-primary)]">Settings &gt; Linked Devices</strong></li>
+          <li>Tap <strong class="text-[var(--text-primary)]">Link a Device</strong> and scan the code above</li>
         </ol>
       </div>
 
-      <div class="flex justify-between items-center pt-3 border-t border-slate-200 dark:border-white/10 text-xs">
-        <button id="resetSessionBtn" class="text-red-500 hover:text-red-600 flex items-center gap-1.5 transition font-semibold">
+      <div class="flex justify-between items-center pt-3 border-t border-[var(--border-hairline)] text-xs">
+        <button id="resetSessionBtn" type="button" class="text-red-600 dark:text-red-400 hover:underline flex items-center gap-1.5 font-semibold">
           <i class="fa-solid fa-arrow-rotate-left"></i> Reset Session
         </button>
-        <button id="doneQrModalBtn" class="theme-pill px-4 py-1.5 rounded-xl border transition font-semibold">
+        <button id="doneQrModalBtn" type="button" class="btn-neutral px-4 py-1.5 rounded-md font-semibold">
           Close
         </button>
       </div>
@@ -751,180 +603,138 @@
   </div>
 
   <!-- Birthday Wish Template Modal -->
-  <div id="templateModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-    <div class="theme-modal border rounded-3xl max-w-lg w-full p-6 shadow-2xl relative">
-      <button id="closeTemplateModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
+  <div id="templateModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 hidden">
+    <div class="app-panel rounded-xl max-w-lg w-full p-6 shadow-xl relative">
+      <button id="closeTemplateModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center btn-neutral hover:text-red-600 dark:hover:text-red-400 transition text-sm">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
       <div class="mb-4 pr-10">
-        <h3 class="text-lg font-bold text-slate-900 dark:text-white font-display flex items-center gap-2">
-          <i class="fa-solid fa-envelope-open-text text-amber-500"></i>
-          Birthday Message Template
-        </h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Personalize the automated WhatsApp wish. Click chips to insert dynamic tokens.</p>
+        <h3 class="text-base font-bold text-[var(--text-primary)]">Birthday Message Template</h3>
+        <p class="text-xs text-[var(--text-muted)] mt-0.5">Edit the default WhatsApp message. Insert placeholders below to personalize per student.</p>
       </div>
 
-      <!-- Variable Token Chips -->
-      <div class="flex flex-wrap gap-2 mb-3">
-        <button type="button" class="insert-tag-btn theme-pill px-2.5 py-1 text-xs rounded-lg border text-amber-600 dark:text-amber-300 hover:border-amber-400 transition" data-tag="{name}">+ {name}</button>
-        <button type="button" class="insert-tag-btn theme-pill px-2.5 py-1 text-xs rounded-lg border text-amber-600 dark:text-amber-300 hover:border-amber-400 transition" data-tag="{first_name}">+ {first_name}</button>
-        <button type="button" class="insert-tag-btn theme-pill px-2.5 py-1 text-xs rounded-lg border text-amber-600 dark:text-amber-300 hover:border-amber-400 transition" data-tag="{branch}">+ {branch}</button>
-        <button type="button" class="insert-tag-btn theme-pill px-2.5 py-1 text-xs rounded-lg border text-amber-600 dark:text-amber-300 hover:border-amber-400 transition" data-tag="{age}">+ {age}</button>
+      <!-- Placeholder Chips -->
+      <div class="flex flex-wrap gap-1.5 mb-2.5">
+        <button type="button" class="insert-tag-btn btn-neutral px-2.5 py-1 text-xs rounded-md font-mono transition" data-tag="{name}">+ {name}</button>
+        <button type="button" class="insert-tag-btn btn-neutral px-2.5 py-1 text-xs rounded-md font-mono transition" data-tag="{first_name}">+ {first_name}</button>
+        <button type="button" class="insert-tag-btn btn-neutral px-2.5 py-1 text-xs rounded-md font-mono transition" data-tag="{branch}">+ {branch}</button>
+        <button type="button" class="insert-tag-btn btn-neutral px-2.5 py-1 text-xs rounded-md font-mono transition" data-tag="{age}">+ {age}</button>
       </div>
 
-      <textarea id="templateTextarea" rows="4" class="theme-input w-full border rounded-2xl p-3 text-xs focus:outline-none focus:border-amber-500 font-sans"></textarea>
+      <textarea id="templateTextarea" rows="5" class="app-input w-full rounded-md p-3 text-xs leading-relaxed"></textarea>
 
-      <!-- Attached Birthday Greeting Card Image -->
-      <div id="templateAttachedImageCard" class="mt-3 p-3 rounded-2xl surface-subtle border flex items-center justify-between gap-3">
-        <div class="flex items-center space-x-3">
-          <img id="templateAttachedImgTag" src="/assets/birthday-card.jpeg" alt="Birthday Greeting Card" class="h-14 w-14 object-cover rounded-xl border border-amber-400/30 shadow-sm" onerror="this.parentElement.parentElement.classList.add('hidden')">
+      <!-- Attached Birthday Card Image -->
+      <div id="templateAttachedImageCard" class="mt-3 p-3 rounded-lg app-toolbar border border-[var(--border-hairline)] flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <img id="templateAttachedImgTag" src="/assets/birthday-card.jpeg" alt="Birthday Card" class="h-12 w-12 object-cover rounded border border-[var(--border-hairline)]" onerror="this.parentElement.parentElement.classList.add('hidden')">
           <div>
-            <h5 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-              <i class="fa-solid fa-image text-emerald-500"></i>
-              Attached Birthday Card Image
-            </h5>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Automatically sent with this wish as its image caption on WhatsApp.</p>
+            <h5 class="text-xs font-semibold text-[var(--text-primary)]">Attached Greeting Card</h5>
+            <p class="text-[11px] text-[var(--text-muted)]">Sent along with this message text as the image caption.</p>
           </div>
         </div>
-        <span class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 shrink-0">
+        <span class="px-2 py-0.5 text-[11px] font-medium rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
           Attached
         </span>
       </div>
 
-      <!-- Live Preview Box -->
-      <div class="mt-3 p-3 rounded-2xl surface-subtle border">
-        <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Live Sample Preview:</p>
-        <p id="templatePreviewText" class="text-xs text-amber-700 dark:text-amber-200 italic"></p>
+      <!-- Sample Preview -->
+      <div class="mt-3 p-3 rounded-lg app-toolbar border border-[var(--border-hairline)]">
+        <p class="text-[11px] font-semibold text-[var(--text-muted)] mb-1">Preview:</p>
+        <p id="templatePreviewText" class="text-xs text-[var(--text-primary)] whitespace-pre-line"></p>
       </div>
 
-      <div class="mt-6 flex justify-end space-x-3">
-        <button id="cancelTemplateBtn" class="theme-pill px-4 py-2 text-xs font-semibold rounded-xl border transition">Cancel</button>
-        <button id="saveTemplateBtn" class="px-5 py-2 text-xs font-semibold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl shadow-md transition font-display">Save Template</button>
+      <div class="mt-5 flex justify-end gap-2.5">
+        <button id="cancelTemplateBtn" type="button" class="btn-neutral px-4 py-2 text-xs font-semibold rounded-md transition">Cancel</button>
+        <button id="saveTemplateBtn" type="button" class="btn-primary px-4 py-2 text-xs font-semibold rounded-md transition">Save Template</button>
       </div>
     </div>
   </div>
 
-  <!-- Manual Phone Number Birthday Dispatch Modal -->
-  <div id="manualSendModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-    <div class="theme-modal border rounded-3xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-      <button id="closeManualSendModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
+  <!-- Manual Phone Number Dispatch Modal -->
+  <div id="manualSendModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 hidden">
+    <div class="app-panel rounded-xl max-w-lg w-full p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+      <button id="closeManualSendModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center btn-neutral hover:text-red-600 dark:hover:text-red-400 transition text-sm">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
-      <div class="flex items-center space-x-3.5 mb-5 pb-4 pr-10 border-b border-slate-200 dark:border-white/10">
-        <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold text-lg shadow-md font-display shrink-0">
-          <i class="fa-solid fa-paper-plane"></i>
-        </div>
-        <div>
-          <h3 class="text-lg font-bold text-slate-900 dark:text-white font-display">Manual Birthday Wish Dispatch</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Enter any mobile number to send the official Sussex birthday greeting & card image.</p>
-        </div>
+      <div class="mb-4 pb-3.5 pr-10 border-b border-[var(--border-hairline)]">
+        <h3 class="text-base font-bold text-[var(--text-primary)]">Manual Birthday Wish</h3>
+        <p class="text-xs text-[var(--text-muted)] mt-0.5">Send the greeting card and birthday message to any mobile number.</p>
       </div>
 
-      <form id="manualSendForm" class="space-y-4">
-        <!-- Phone Number Input with live validation -->
+      <form id="manualSendForm" class="space-y-3.5">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-            <span>Phone Number (WhatsApp): <span class="text-red-500">*</span></span>
-            <span id="manualPhoneStatusBadge" class="text-[10px] font-mono text-slate-400">e.g. 077 123 4567</span>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1 flex items-center justify-between">
+            <span>WhatsApp mobile number <span class="text-red-600">*</span></span>
+            <span id="manualPhoneStatusBadge" class="text-[11px] font-mono text-[var(--text-muted)]">e.g. 077 123 4567</span>
           </label>
-          <div class="relative">
-            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-xs">
-              <i class="fa-solid fa-phone"></i>
-            </div>
-            <input 
-              type="text" 
-              id="manualInputPhone" 
-              placeholder="0771234567 or +94 77 123 4567" 
-              class="theme-input w-full border rounded-xl pl-9 pr-3 py-2.5 text-xs font-mono focus:outline-none focus:border-amber-500 font-bold"
-              required
-              autocomplete="off"
-            >
-          </div>
-          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Accepts any Sri Lankan format: <code class="text-amber-600 dark:text-amber-300 font-mono">07XXXXXXXX</code>, <code class="text-amber-600 dark:text-amber-300 font-mono">947XXXXXXXX</code>, or international.</p>
+          <input
+            type="text"
+            id="manualInputPhone"
+            placeholder="0771234567 or +94 77 123 4567"
+            class="app-input w-full rounded-md px-3 py-2 text-xs font-mono"
+            required
+            autocomplete="off"
+          >
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <!-- Recipient Name (Optional) -->
           <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Recipient Name (Optional):
-            </label>
-            <input 
-              type="text" 
-              id="manualInputName" 
-              placeholder="e.g. Student Name" 
-              class="theme-input w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500"
-            >
+            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Recipient name (optional)</label>
+            <input type="text" id="manualInputName" placeholder="e.g. Student Name" class="app-input w-full rounded-md px-3 py-2 text-xs">
           </div>
-
-          <!-- Branch Selection -->
           <div>
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Branch:
-            </label>
-            <select id="manualInputBranch" class="theme-input w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-amber-500">
+            <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Branch</label>
+            <select id="manualInputBranch" class="app-input w-full rounded-md px-3 py-2 text-xs">
               <option value="Sussex College Network">Sussex College Network</option>
             </select>
           </div>
         </div>
 
-        <!-- Attached Image Card Preview -->
-        <div class="p-3 rounded-2xl surface-subtle border flex items-center justify-between gap-3">
-          <div class="flex items-center space-x-3">
-            <img src="/assets/birthday-card.jpeg" alt="Greeting Card" class="h-12 w-12 object-cover rounded-xl border border-amber-400/30 shadow-sm">
+        <div class="p-3 rounded-lg app-toolbar border border-[var(--border-hairline)] flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <img src="/assets/birthday-card.jpeg" alt="Greeting Card" class="h-11 w-11 object-cover rounded border border-[var(--border-hairline)]">
             <div>
-              <h5 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                <i class="fa-solid fa-image text-emerald-500"></i>
-                Attached Greeting Card
-              </h5>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400">Image will automatically send with this message as caption.</p>
+              <h5 class="text-xs font-semibold text-[var(--text-primary)]">Attached Greeting Card</h5>
+              <p class="text-[11px] text-[var(--text-muted)]">Sent automatically with your message.</p>
             </div>
           </div>
-          <span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 shrink-0">
+          <span class="px-2 py-0.5 text-[11px] font-medium rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
             Attached
           </span>
         </div>
 
-        <!-- Message Preview / Customizer -->
         <div>
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-            <span>Message Text (Caption):</span>
-            <button type="button" id="manualResetTemplateBtn" class="text-[10px] text-amber-600 dark:text-amber-400 hover:underline">Reset to Default</button>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1 flex items-center justify-between">
+            <span>Message caption</span>
+            <button type="button" id="manualResetTemplateBtn" class="text-[11px] text-[#1B365D] dark:text-blue-400 hover:underline font-medium">Reset to default</button>
           </label>
-          <textarea 
-            id="manualInputMessage" 
-            rows="5" 
-            class="theme-input w-full border rounded-2xl p-3 text-xs focus:outline-none focus:border-amber-500 font-sans leading-relaxed"
-          ></textarea>
+          <textarea id="manualInputMessage" rows="5" class="app-input w-full rounded-md p-3 text-xs leading-relaxed"></textarea>
         </div>
 
-        <!-- Modal Actions -->
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-white/10">
-          <!-- Fallback Desktop App Link -->
-          <a 
-            id="manualDesktopAppLink" 
-            href="#" 
-            target="_blank" 
-            class="w-full sm:w-auto text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-500 flex items-center justify-center gap-1.5 py-1.5"
-            title="Open in Windows WhatsApp Desktop App directly"
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[var(--border-hairline)]">
+          <a
+            id="manualDesktopAppLink"
+            href="#"
+            target="_blank"
+            class="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-1.5"
           >
-            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-            <span>Open in Desktop App</span>
+            <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i>
+            <span>Open in WhatsApp Desktop</span>
           </a>
 
-          <div class="flex items-center space-x-2.5 w-full sm:w-auto justify-end">
-            <button type="button" id="cancelManualSendBtn" class="theme-pill px-4 py-2 text-xs font-semibold rounded-xl border transition flex-1 sm:flex-none">
+          <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <button type="button" id="cancelManualSendBtn" class="btn-neutral px-4 py-2 text-xs font-semibold rounded-md">
               Cancel
             </button>
-            <button 
-              type="submit" 
-              id="submitManualSendBtn" 
-              class="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 flex-1 sm:flex-none font-display disabled:opacity-50"
+            <button
+              type="submit"
+              id="submitManualSendBtn"
+              class="px-4 py-2 text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-600 rounded-md transition flex items-center gap-1.5 disabled:opacity-50"
             >
-              <i class="fa-brands fa-whatsapp text-sm"></i>
-              <span>Send Birthday Wish</span>
+              <i class="fa-brands fa-whatsapp"></i>
+              <span>Send Wish</span>
             </button>
           </div>
         </div>
@@ -932,41 +742,38 @@
     </div>
   </div>
 
-  <!-- Developer / Software Engineering Attribution Modal -->
-  <div id="developerModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
-    <div class="theme-modal border rounded-3xl max-w-sm w-full p-6 shadow-2xl relative text-center">
-      <button id="closeDeveloperModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center bg-slate-200/80 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400 border border-slate-300/60 dark:border-white/15 transition text-sm">
+  <!-- Developer Attribution & QR Modal -->
+  <div id="developerModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 hidden">
+    <div class="app-panel rounded-xl max-w-sm w-full p-6 shadow-xl relative text-center">
+      <button id="closeDeveloperModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center btn-neutral hover:text-red-600 dark:hover:text-red-400 transition text-sm">
         <i class="fa-solid fa-xmark"></i>
       </button>
 
-      <div class="h-11 w-11 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto mb-3 border border-blue-500/20">
-        <i class="fa-solid fa-code text-lg"></i>
-      </div>
-      <p class="text-[11px] uppercase tracking-widest text-slate-400 font-semibold">Software Engineering by</p>
-      <h3 class="text-xl font-bold text-slate-900 dark:text-white font-display mt-0.5">Mahima Paseda</h3>
+      <p class="text-xs text-[var(--text-muted)] mt-1">Software Engineering by</p>
+      <h3 class="text-lg font-bold text-[var(--text-primary)] mt-0.5">Mahima Paseda</h3>
 
-      <div class="bg-white p-4 rounded-2xl flex items-center justify-center mx-auto w-56 h-56 my-5 shadow-xl border border-slate-200">
+      <div class="bg-white p-3.5 rounded-lg flex items-center justify-center mx-auto w-52 h-52 my-4 border border-gray-200">
         <img src="/mahimapaseda-qr.png" alt="Mahima Paseda QR Code" class="w-full h-full object-contain">
       </div>
 
-      <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Scan the QR code or click below to visit website & support:</p>
+      <p class="text-xs text-[var(--text-muted)] mb-4">Scan the QR code or visit website:</p>
 
-      <div class="flex items-center justify-center gap-2.5">
-        <a href="https://www.mahimapaseda.lk" target="_blank" rel="noopener noreferrer" class="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-md shadow-blue-600/20 transition flex items-center gap-1.5">
+      <div class="flex items-center justify-center gap-2">
+        <a href="https://www.mahimapaseda.lk" target="_blank" rel="noopener noreferrer" class="btn-primary px-4 py-2 text-xs font-semibold rounded-md flex items-center gap-1.5 transition">
           <i class="fa-solid fa-globe"></i>
           <span>www.mahimapaseda.lk</span>
         </a>
-        <button id="doneDeveloperModalBtn" type="button" class="theme-pill px-4 py-2 text-xs font-semibold rounded-xl border transition">
+        <button id="doneDeveloperModalBtn" type="button" class="btn-neutral px-4 py-2 text-xs font-semibold rounded-md">
           Close
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Notification Toast Container -->
-  <div id="toastContainer" class="fixed bottom-5 right-5 space-y-2 z-50"></div>
+  <!-- Notification Toasts -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm w-full px-4 sm:px-0"></div>
 
-  <!-- Application Script -->
-  <script src="/app.js"></script>
+  <!-- Main Client Script -->
+  <script src="app.js"></script>
 </body>
 </html>

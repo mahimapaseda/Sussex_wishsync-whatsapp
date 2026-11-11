@@ -1,4 +1,4 @@
-// SheetPulse Birthday Wisher Frontend Client
+// WishSync Frontend Client — Sussex College Network
 
 let currentData = {
   today: [],
@@ -15,6 +15,7 @@ let currentStatus = {
 
 let currentBranches = [];
 let selectedBranchFilter = 'ALL';
+let activeWorkspaceTab = 'today';
 let currentTemplate = '';
 let countdownInterval = null;
 let countdownRemaining = 10;
@@ -39,6 +40,15 @@ const todayBirthdaysList = document.getElementById('todayBirthdaysList');
 const upcomingBirthdaysList = document.getElementById('upcomingBirthdaysList');
 const refreshDataBtn = document.getElementById('refreshDataBtn');
 const sendAllBtn = document.getElementById('sendAllBtn');
+
+// Workspace Tabs
+const tabBtnToday = document.getElementById('tabBtnToday');
+const tabBtnUpcoming = document.getElementById('tabBtnUpcoming');
+const tabBtnLedger = document.getElementById('tabBtnLedger');
+const tabPanelToday = document.getElementById('tabPanelToday');
+const tabPanelUpcoming = document.getElementById('tabPanelUpcoming');
+const tabPanelLedger = document.getElementById('tabPanelLedger');
+const branchFilterStrip = document.getElementById('branchFilterStrip');
 
 // Countdown Banner Elements
 const countdownBanner = document.getElementById('countdownBanner');
@@ -72,6 +82,8 @@ const branchesListContainer = document.getElementById('branchesListContainer');
 const navBranchCountBadge = document.getElementById('navBranchCountBadge');
 const branchFilterPills = document.getElementById('branchFilterPills');
 const filterAllCount = document.getElementById('filterAllCount');
+
+// Settings Modal Elements
 const settingsModal = document.getElementById('settingsModal');
 const openSettingsModalBtn = document.getElementById('openSettingsModalBtn');
 const closeSettingsModalBtn = document.getElementById('closeSettingsModalBtn');
@@ -90,6 +102,8 @@ const googleUserDisplayTitle = document.getElementById('googleUserDisplayTitle')
 const googleUserDisplaySubtitle = document.getElementById('googleUserDisplaySubtitle');
 const googleSignInBtn = document.getElementById('googleSignInBtn');
 const googleSignOutBtn = document.getElementById('googleSignOutBtn');
+
+// WhatsApp QR Modal Elements
 const qrModal = document.getElementById('qrModal');
 const closeQrModalBtn = document.getElementById('closeQrModalBtn');
 const doneQrModalBtn = document.getElementById('doneQrModalBtn');
@@ -97,6 +111,7 @@ const resetSessionBtn = document.getElementById('resetSessionBtn');
 const qrImageElement = document.getElementById('qrImageElement');
 const qrPlaceholder = document.getElementById('qrPlaceholder');
 
+// Template Modal Elements
 const templateModal = document.getElementById('templateModal');
 const openTemplateModalBtn = document.getElementById('openTemplateModalBtn');
 const closeTemplateModalBtn = document.getElementById('closeTemplateModalBtn');
@@ -122,41 +137,82 @@ const manualResetTemplateBtn = document.getElementById('manualResetTemplateBtn')
 const manualDesktopAppLink = document.getElementById('manualDesktopAppLink');
 const submitManualSendBtn = document.getElementById('submitManualSendBtn');
 
-// Theme Management: Light & Dark Mode
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Theme Management (Light default desktop palette, optional Dark mode)
 function updateThemeUI(theme) {
-  if (theme === 'light') {
-    document.documentElement.classList.remove('dark');
-    document.documentElement.classList.add('light');
-    if (themeToggleIcon) themeToggleIcon.className = 'fa-solid fa-sun text-amber-500';
-    if (themeToggleText) themeToggleText.textContent = 'Light';
-  } else {
-    document.documentElement.classList.remove('light');
+  if (theme === 'dark') {
     document.documentElement.classList.add('dark');
-    if (themeToggleIcon) themeToggleIcon.className = 'fa-solid fa-moon text-amber-400';
+    if (themeToggleIcon) themeToggleIcon.className = 'fa-solid fa-sun text-[11px] text-amber-400';
     if (themeToggleText) themeToggleText.textContent = 'Dark';
+  } else {
+    document.documentElement.classList.remove('dark');
+    if (themeToggleIcon) themeToggleIcon.className = 'fa-solid fa-moon text-[11px] text-[var(--text-muted)]';
+    if (themeToggleText) themeToggleText.textContent = 'Light';
   }
 }
 
 function toggleTheme() {
   const isDark = document.documentElement.classList.contains('dark');
   const newTheme = isDark ? 'light' : 'dark';
-  localStorage.setItem('sheetpulse_theme', newTheme);
+  localStorage.setItem('wishsync_theme', newTheme);
   updateThemeUI(newTheme);
-  showToast(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode`, 'info');
+  showToast(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} appearance`, 'info');
 }
 
-// Utility: Show Toast Notification
+// Workspace Tab Switching
+function switchWorkspaceTab(tabName) {
+  activeWorkspaceTab = tabName;
+
+  const tabs = [
+    { name: 'today', btn: tabBtnToday, panel: tabPanelToday },
+    { name: 'upcoming', btn: tabBtnUpcoming, panel: tabPanelUpcoming },
+    { name: 'ledger', btn: tabBtnLedger, panel: tabPanelLedger }
+  ];
+
+  tabs.forEach(t => {
+    const isActive = t.name === tabName;
+    if (t.panel) {
+      t.panel.classList.toggle('hidden', !isActive);
+    }
+    if (t.btn) {
+      t.btn.className = isActive
+        ? 'workspace-tab px-3.5 py-3 text-xs font-semibold border-b-2 border-[#1B365D] dark:border-blue-400 text-[#1B365D] dark:text-white flex items-center gap-2 whitespace-nowrap'
+        : 'workspace-tab px-3.5 py-3 text-xs font-medium border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center gap-2 whitespace-nowrap';
+    }
+  });
+
+  if (branchFilterStrip) {
+    branchFilterStrip.classList.toggle('hidden', tabName === 'ledger');
+  }
+
+  if (tabName === 'ledger') {
+    loadLedgerRecords();
+  }
+}
+
+// Utility: Toast Notification
 function showToast(message, type = 'info') {
   const toast = document.createElement('div');
-  const bg = type === 'success' ? 'bg-emerald-600 border-emerald-500' :
-             type === 'error' ? 'bg-red-600 border-red-500' :
-             type === 'warning' ? 'bg-amber-600 border-amber-500' :
-             'bg-slate-800 border-slate-700';
+  const styles = type === 'success'
+    ? 'bg-emerald-700 border-emerald-800 text-white'
+    : type === 'error'
+    ? 'bg-red-700 border-red-800 text-white'
+    : type === 'warning'
+    ? 'bg-amber-600 border-amber-700 text-white'
+    : 'bg-[#1B365D] border-[#152A4A] text-white';
 
-  toast.className = `p-3 rounded-xl text-white text-xs shadow-xl border flex items-center space-x-2 transition-all transform duration-300 opacity-0 translate-y-2 ${bg}`;
+  toast.className = `px-3.5 py-2.5 rounded-md text-xs shadow-lg border flex items-center gap-2 transition-all transform duration-200 opacity-0 translate-y-2 ${styles}`;
   toast.innerHTML = `
-    <i class="fa-solid ${type === 'success' ? 'fa-check' : type === 'error' ? 'fa-triangle-exclamation' : 'fa-info'} text-sm"></i>
-    <span>${message}</span>
+    <i class="fa-solid ${type === 'success' ? 'fa-check' : type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info'} text-xs shrink-0"></i>
+    <span>${escapeHtml(message)}</span>
   `;
 
   toastContainer.appendChild(toast);
@@ -166,7 +222,7 @@ function showToast(message, type = 'info') {
 
   setTimeout(() => {
     toast.classList.add('opacity-0', 'translate-y-2');
-    setTimeout(() => toast.remove(), 300);
+    setTimeout(() => toast.remove(), 220);
   }, 4000);
 }
 
@@ -190,7 +246,10 @@ async function fetchAllState() {
     updateBranchFilterPills();
     updateTemplateUI(templateRes);
 
-    // Check if auto-send countdown should start
+    if (activeWorkspaceTab === 'ledger') {
+      loadLedgerRecords();
+    }
+
     if (statusRes.autoSendActive && !countdownInterval && birthdaysRes.stats.pendingTodayCount > 0) {
       startCountdown(statusRes.autoSendDelaySeconds || 10, birthdaysRes.stats.pendingTodayCount);
     }
@@ -212,64 +271,63 @@ function updateStatusUI(data) {
   const sheets = data.sheets || {};
   if (sheets.status === 'CONNECTED') {
     sheetsStatusText.textContent = `Connected (${sheets.count || 0} rows)`;
-    sheetsStatusText.className = 'text-emerald-400 font-semibold';
+    sheetsStatusText.className = 'font-medium text-emerald-700 dark:text-emerald-400';
   } else if (sheets.status === 'NOT_CONFIGURED') {
-    sheetsStatusText.textContent = 'Not Linked (Click Settings)';
-    sheetsStatusText.className = 'text-slate-400 font-semibold';
-    sheetsStatusText.title = 'Add your Google Sheet link in Settings';
+    sheetsStatusText.textContent = 'Not linked';
+    sheetsStatusText.className = 'font-medium text-[var(--text-muted)]';
+    sheetsStatusText.title = 'Add your Google Sheet link in Branches';
   } else {
-    sheetsStatusText.textContent = 'Disconnected / Error';
-    sheetsStatusText.className = 'text-red-400 font-semibold';
+    sheetsStatusText.textContent = 'Disconnected';
+    sheetsStatusText.className = 'font-medium text-red-700 dark:text-red-400';
     sheetsStatusText.title = sheets.message || sheets.warning || 'Connection error';
   }
 
-  // WhatsApp Status
   updateWhatsAppUI(data.whatsapp);
 }
 
-// Dedicated WhatsApp UI updater (called on full fetch or fast polling)
+// Dedicated WhatsApp UI Updater
 function updateWhatsAppUI(wa) {
   if (!wa) return;
   if (!currentStatus) currentStatus = {};
   currentStatus.whatsapp = wa;
 
   if (wa.status === 'READY') {
-    waStatusText.textContent = wa.user?.pushname ? `Ready (${wa.user.pushname})` : 'Connected';
-    waStatusText.className = 'text-emerald-400 font-semibold';
-    waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+    waStatusText.textContent = wa.user?.pushname ? `Connected (${wa.user.pushname})` : 'Connected';
+    waStatusText.className = 'font-medium text-emerald-700 dark:text-emerald-400';
+    waStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-600';
     if (!qrModal.classList.contains('hidden')) {
       qrModal.classList.add('hidden');
-      showToast('WhatsApp successfully linked and ready!', 'success');
+      showToast('WhatsApp connected and ready.', 'success');
     }
   } else if (wa.status === 'QR_READY') {
-    waStatusText.textContent = 'Scan QR Needed';
-    waStatusText.className = 'text-amber-400 font-semibold';
-    waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+    waStatusText.textContent = 'Scan QR required';
+    waStatusText.className = 'font-medium text-amber-700 dark:text-amber-400';
+    waStatusDot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
     if (wa.qrDataUrl) {
       qrImageElement.src = wa.qrDataUrl;
       qrImageElement.classList.remove('hidden');
       qrPlaceholder.classList.add('hidden');
     }
   } else if (wa.status === 'AUTHENTICATED') {
-    waStatusText.textContent = 'Authenticated...';
-    waStatusText.className = 'text-blue-400 font-semibold';
-    waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse';
+    waStatusText.textContent = 'Authenticating...';
+    waStatusText.className = 'font-medium text-[#1B365D] dark:text-blue-400';
+    waStatusDot.className = 'w-2 h-2 rounded-full bg-[#1B365D] dark:bg-blue-400 animate-pulse';
   } else if (wa.status === 'INITIALIZING') {
-    waStatusText.textContent = 'Connecting...';
-    waStatusText.className = 'text-amber-400 font-semibold';
-    waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+    waStatusText.textContent = 'Starting...';
+    waStatusText.className = 'font-medium text-amber-700 dark:text-amber-400';
+    waStatusDot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
   } else if (wa.status === 'ERROR' || wa.status === 'DISCONNECTED') {
-    waStatusText.textContent = 'Tap to Reconnect';
-    waStatusText.className = 'text-rose-400 font-semibold';
-    waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse';
+    waStatusText.textContent = 'Click to reconnect';
+    waStatusText.className = 'font-medium text-red-700 dark:text-red-400';
+    waStatusDot.className = 'w-2 h-2 rounded-full bg-red-600';
   } else {
     waStatusText.textContent = wa.status || 'Starting...';
-    waStatusText.className = 'text-slate-400 font-semibold';
-    waStatusDot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500 animate-pulse';
+    waStatusText.className = 'font-medium text-[var(--text-muted)]';
+    waStatusDot.className = 'w-2 h-2 rounded-full bg-gray-400';
   }
 }
 
-// Update Branch Filter Pills on Dashboard
+// Update Branch Filter Pills
 function updateBranchFilterPills() {
   if (!branchFilterPills) return;
 
@@ -279,16 +337,15 @@ function updateBranchFilterPills() {
   const normalize = str => (str || '').toString().toLowerCase().replace(/\s+/g, ' ').trim();
 
   const allBtnClass = selectedBranchFilter === 'ALL'
-    ? 'bg-blue-600 text-white shadow-sm'
-    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-white/5';
+    ? 'bg-[#1B365D] text-white border-[#152A4A]'
+    : 'btn-neutral text-[var(--text-secondary)]';
 
   const branchPillsHtml = [
-    `<button type="button" class="branch-filter-btn px-3 py-1 rounded-lg text-xs font-semibold ${allBtnClass}" data-branch="ALL">All Branches (${totalToday})</button>`
+    `<button type="button" class="branch-filter-btn px-2.5 py-1 rounded-md text-xs font-medium border ${allBtnClass}" data-branch="ALL">All Branches (${totalToday})</button>`
   ];
 
   currentBranches.forEach(b => {
     const normBranchName = normalize(b.name);
-    // Count today's birthdays for this branch
     const branchCount = (currentData.today || []).filter(s => {
       if (!s) return false;
       if (s.branchId && s.branchId === b.id) return true;
@@ -300,22 +357,21 @@ function updateBranchFilterPills() {
     }).length;
 
     const isActive = selectedBranchFilter === b.id || normalize(selectedBranchFilter) === normBranchName;
-    const btnClass = isActive 
-      ? 'bg-blue-600 text-white shadow-sm' 
-      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-white/5';
+    const btnClass = isActive
+      ? 'bg-[#1B365D] text-white border-[#152A4A]'
+      : 'btn-neutral text-[var(--text-secondary)]';
 
     branchPillsHtml.push(`
-      <button type="button" class="branch-filter-btn px-3 py-1 rounded-lg text-xs font-semibold ${btnClass} flex items-center gap-1.5" data-branch="${b.id}">
-        <span class="w-1.5 h-1.5 rounded-full ${b.enabled ? 'bg-emerald-400' : 'bg-slate-500'}"></span>
-        <span>${b.name}</span>
-        <span class="px-1.5 py-0.2 bg-black/10 dark:bg-black/30 rounded-md text-[10px] font-bold">${branchCount}</span>
+      <button type="button" class="branch-filter-btn px-2.5 py-1 rounded-md text-xs font-medium border ${btnClass} flex items-center gap-1.5" data-branch="${escapeHtml(b.id)}">
+        <span class="w-1.5 h-1.5 rounded-full ${b.enabled ? 'bg-emerald-500' : 'bg-gray-400'}"></span>
+        <span>${escapeHtml(b.name)}</span>
+        <span class="font-mono text-[11px] opacity-80">(${branchCount})</span>
       </button>
     `);
   });
 
   branchFilterPills.innerHTML = branchPillsHtml.join('');
 
-  // Wire click events
   document.querySelectorAll('.branch-filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       selectedBranchFilter = btn.getAttribute('data-branch');
@@ -325,11 +381,10 @@ function updateBranchFilterPills() {
   });
 }
 
-// Update Today's and Upcoming Birthdays List
+// Render Today & Upcoming Student Tables
 function updateBirthdaysUI(data) {
   currentData = data;
 
-  // Filter students based on selected branch filter
   let displayToday = data.today || [];
   let displayUpcoming = data.upcoming || [];
 
@@ -369,98 +424,93 @@ function updateBirthdaysUI(data) {
 
   sendAllBtn.disabled = pendingCount === 0 || isDispatching;
 
-  // Render Today's List
+  // Render Today's Table
   if (displayToday.length === 0) {
     todayBirthdaysList.innerHTML = `
-      <div class="p-12 text-center text-slate-500 dark:text-slate-400">
-        <div class="h-14 w-14 rounded-2xl bg-amber-400/10 text-amber-500 dark:text-amber-400 flex items-center justify-center text-2xl mx-auto mb-3 border border-amber-400/20">
-          <i class="fa-solid fa-calendar-check"></i>
-        </div>
-        <p class="text-sm font-bold text-slate-800 dark:text-slate-200 font-display">No Student Birthdays Today ${selectedBranchFilter !== 'ALL' ? 'in this branch' : 'Across Active Branches'}</p>
-        <p class="text-xs text-slate-500 dark:text-slate-500 mt-1 max-w-md mx-auto">All branches are synced in Asia/Colombo timezone. Review the 7-day forecast below for upcoming celebrations.</p>
+      <div class="p-10 text-center text-[var(--text-muted)]">
+        <p class="text-sm font-semibold text-[var(--text-primary)]">No birthdays today ${selectedBranchFilter !== 'ALL' ? 'for this branch' : 'across active branches'}</p>
+        <p class="text-xs mt-1">All enabled sheets are synced in Asia/Colombo timezone. Check the Upcoming tab for the next 7 days.</p>
       </div>
     `;
   } else {
-    todayBirthdaysList.innerHTML = displayToday.map(student => {
+    const rowsHtml = displayToday.map(student => {
       const isSent = student.status === 'SENT_TODAY';
-      const branchLower = (student.branch || '').toLowerCase();
-      let branchBadgeClass = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
-      if (branchLower.includes('ambalangoda')) {
-        branchBadgeClass = 'bg-amber-400/15 text-amber-700 dark:text-amber-300 border-amber-400/30';
-      } else if (branchLower.includes('galle')) {
-        branchBadgeClass = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
-      } else if (branchLower.includes('ampara')) {
-        branchBadgeClass = 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30';
-      }
-
       const statusBadge = isSent
-        ? '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25"><i class="fa-solid fa-circle-check text-emerald-500 dark:text-emerald-400"></i> Wish Delivered</span>'
-        : '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400/15 text-amber-700 dark:text-amber-300 border border-amber-400/30"><i class="fa-regular fa-clock text-amber-500 dark:text-amber-400"></i> Pending Wish</span>';
+        ? '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Delivered</span>'
+        : '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Pending</span>';
 
-      const initial = student.name ? student.name.charAt(0).toUpperCase() : '?';
+      const previewMsg = formatPreview(student);
 
       return `
-        <div class="p-4 sm:p-5 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-start space-x-3.5 flex-1 min-w-0">
-            <div class="relative shrink-0 mt-0.5">
-              <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold text-base shadow-md font-display">
-                ${initial}
-              </div>
-              <span class="absolute -top-1.5 -right-1.5 text-xs text-amber-300 drop-shadow">👑</span>
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center flex-wrap gap-2">
-                <h4 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-display truncate">${student.name}</h4>
-                <span class="px-2.5 py-0.5 text-[10px] font-semibold rounded-md border ${branchBadgeClass}">${student.branch}</span>
-              </div>
-              <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
-                <span class="text-slate-700 dark:text-slate-300 font-mono"><i class="fa-solid fa-phone text-[10px] text-slate-400 dark:text-slate-500 mr-1.5"></i>${student.phoneDisplay}</span>
-                <span class="text-slate-300 dark:text-slate-600">•</span>
-                <span class="text-amber-600 dark:text-amber-300 font-medium"><i class="fa-solid fa-cake-candles text-[10px] text-amber-500 dark:text-amber-400 mr-1.5"></i>Turning <strong class="text-slate-900 dark:text-white">${student.age || 'N/A'}</strong></span>
-                <span class="text-slate-300 dark:text-slate-600">•</span>
-                <span>Born: <strong class="text-slate-700 dark:text-slate-300">${student.dobFormatted}</strong></span>
-              </div>
-              <!-- Live Personalized Message Preview Snippet -->
-              <div class="mt-2.5 px-3 py-1.5 rounded-xl bg-amber-500/[0.04] dark:bg-black/25 border border-amber-500/10 dark:border-white/5 text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-2">
-                <i class="fa-solid fa-quote-left text-amber-500/60 text-[10px] shrink-0"></i>
-                <span class="truncate italic">${formatPreview(student)}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex items-center space-x-2.5 self-end md:self-center shrink-0">
+        <tr class="hover:bg-[var(--bg-toolbar)] transition">
+          <td class="px-4 py-3 align-top">
+            <div class="font-semibold text-[var(--text-primary)]">${escapeHtml(student.name)}</div>
+            <div class="text-xs text-[var(--text-muted)] mt-0.5 max-w-md truncate" title="${escapeHtml(previewMsg)}">${escapeHtml(previewMsg)}</div>
+          </td>
+          <td class="px-4 py-3 align-top whitespace-nowrap">
+            <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-[var(--bg-toolbar)] border border-[var(--border-hairline)] text-[var(--text-secondary)]">
+              ${escapeHtml(student.branch)}
+            </span>
+          </td>
+          <td class="px-4 py-3 align-top whitespace-nowrap text-xs">
+            <div class="font-mono text-[var(--text-primary)] tabular-nums">${escapeHtml(student.dobFormatted)}</div>
+            <div class="text-[var(--text-muted)] mt-0.5">Turning ${escapeHtml(student.age || 'N/A')}</div>
+          </td>
+          <td class="px-4 py-3 align-top whitespace-nowrap font-mono text-xs text-[var(--text-primary)] tabular-nums">
+            ${escapeHtml(student.phoneDisplay)}
+          </td>
+          <td class="px-4 py-3 align-top whitespace-nowrap">
             ${statusBadge}
-
-            <!-- Direct Automated WhatsApp Dispatch Button -->
-            <button 
-              class="send-single-btn px-4 py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20 transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-              data-id="${student.id}"
-              data-phone="${student.phone}"
-              data-name="${student.name}"
-              ${isSent || isDispatching ? 'disabled' : ''}
-              title="Send personalized birthday message via WhatsApp"
-            >
-              <i class="fa-brands fa-whatsapp text-white text-sm"></i>
-              ${isSent ? 'Sent' : 'Send Wish'}
-            </button>
-
-            <!-- Native Desktop App URI Link Fallback -->
-            <a 
-              href="whatsapp://send?phone=${student.phone}&text=${encodeURIComponent(formatPreview(student))}"
-              class="theme-pill p-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 rounded-xl border transition text-xs"
-              title="Open chat in Windows WhatsApp Desktop App"
-            >
-              <i class="fa-solid fa-arrow-up-right-from-square"></i>
-            </a>
-          </div>
-        </div>
+          </td>
+          <td class="px-4 py-3 align-top whitespace-nowrap text-right">
+            <div class="inline-flex items-center gap-1.5">
+              <button
+                type="button"
+                class="send-single-btn px-3 py-1.5 text-xs font-semibold rounded-md bg-emerald-700 hover:bg-emerald-600 text-white transition flex items-center gap-1.5 disabled:opacity-45 disabled:cursor-not-allowed"
+                data-id="${escapeHtml(student.id)}"
+                data-phone="${escapeHtml(student.phone)}"
+                data-name="${escapeHtml(student.name)}"
+                ${isSent || isDispatching ? 'disabled' : ''}
+                title="Send birthday card and message via WhatsApp"
+              >
+                <i class="fa-brands fa-whatsapp"></i>
+                <span>${isSent ? 'Sent' : 'Send Wish'}</span>
+              </button>
+              <a
+                href="whatsapp://send?phone=${encodeURIComponent(student.phone)}&text=${encodeURIComponent(previewMsg)}"
+                class="btn-neutral p-1.5 rounded-md text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                title="Open in WhatsApp Desktop"
+              >
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
       `;
     }).join('');
 
-    // Attach event listeners to single send buttons
+    todayBirthdaysList.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-[var(--border-hairline)] bg-[var(--bg-toolbar)] text-[11px] font-semibold text-[var(--text-muted)]">
+              <th class="px-4 py-2.5">Student</th>
+              <th class="px-4 py-2.5">Branch</th>
+              <th class="px-4 py-2.5">Date of Birth</th>
+              <th class="px-4 py-2.5">WhatsApp</th>
+              <th class="px-4 py-2.5">Status</th>
+              <th class="px-4 py-2.5 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[var(--border-hairline)] text-xs">
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+    `;
+
     document.querySelectorAll('.send-single-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+      btn.addEventListener('click', async () => {
         const studentId = btn.getAttribute('data-id');
         const targetStudent = currentData.today.find(s => s.id === studentId);
         if (targetStudent) {
@@ -470,32 +520,53 @@ function updateBirthdaysUI(data) {
     });
   }
 
-  // Render Upcoming List
-  if (data.upcoming.length === 0) {
+  // Render Upcoming 7 Days Table
+  if (displayUpcoming.length === 0) {
     upcomingBirthdaysList.innerHTML = `
-      <div class="p-6 text-center text-slate-500 dark:text-slate-400 text-xs">
-        No upcoming birthdays recorded in the next 7 days across active branches.
+      <div class="p-10 text-center text-[var(--text-muted)] text-xs">
+        No upcoming birthdays in the next 7 days${selectedBranchFilter !== 'ALL' ? ' for this branch' : ' across active branches'}.
       </div>
     `;
   } else {
-    upcomingBirthdaysList.innerHTML = data.upcoming.map(student => {
+    const upRows = displayUpcoming.map(student => {
       const inDaysText = student.daysUntil === 1 ? 'Tomorrow' : `In ${student.daysUntil} days`;
       return `
-        <div class="p-3.5 px-6 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div class="flex items-center space-x-3">
-            <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
-            <div>
-              <span class="font-bold text-slate-900 dark:text-white font-display">${student.name}</span>
-              <span class="text-slate-500 dark:text-slate-400 ml-1.5 font-medium">(${student.branch})</span>
-            </div>
-          </div>
-          <div class="flex items-center space-x-4 text-slate-500 dark:text-slate-400 self-end sm:self-auto shrink-0">
-            <span>DOB: <strong class="text-slate-700 dark:text-slate-300 font-mono">${student.dobFormatted}</strong> (Turning <strong class="text-slate-900 dark:text-white">${student.age || 'N/A'}</strong>)</span>
-            <span class="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-300 font-semibold border border-blue-500/20 text-[11px] font-mono">${inDaysText}</span>
-          </div>
-        </div>
+        <tr class="hover:bg-[var(--bg-toolbar)] transition">
+          <td class="px-4 py-3 font-semibold text-[var(--text-primary)]">${escapeHtml(student.name)}</td>
+          <td class="px-4 py-3 whitespace-nowrap">
+            <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-[var(--bg-toolbar)] border border-[var(--border-hairline)] text-[var(--text-secondary)]">
+              ${escapeHtml(student.branch)}
+            </span>
+          </td>
+          <td class="px-4 py-3 whitespace-nowrap font-mono text-[var(--text-primary)] tabular-nums">${escapeHtml(student.dobFormatted)}</td>
+          <td class="px-4 py-3 whitespace-nowrap text-[var(--text-secondary)]">Turning ${escapeHtml(student.age || 'N/A')}</td>
+          <td class="px-4 py-3 whitespace-nowrap text-right">
+            <span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-[var(--bg-toolbar)] border border-[var(--border-hairline)] text-[#1B365D] dark:text-blue-300 font-mono">
+              ${inDaysText}
+            </span>
+          </td>
+        </tr>
       `;
     }).join('');
+
+    upcomingBirthdaysList.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-[var(--border-hairline)] bg-[var(--bg-toolbar)] text-[11px] font-semibold text-[var(--text-muted)]">
+              <th class="px-4 py-2.5">Student</th>
+              <th class="px-4 py-2.5">Branch</th>
+              <th class="px-4 py-2.5">Date of Birth</th>
+              <th class="px-4 py-2.5">Upcoming Age</th>
+              <th class="px-4 py-2.5 text-right">Schedule</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[var(--border-hairline)] text-xs">
+            ${upRows}
+          </tbody>
+        </table>
+      </div>
+    `;
   }
 }
 
@@ -523,7 +594,7 @@ function updateTemplatePreview() {
   templatePreviewText.textContent = formatPreview();
 }
 
-// Auto-Send 10-Second Countdown
+// Auto-Send Countdown
 function startCountdown(seconds = 10, targetCount = 0) {
   if (countdownInterval) clearInterval(countdownInterval);
 
@@ -555,7 +626,7 @@ function cancelCountdown() {
     clearInterval(countdownInterval);
     countdownInterval = null;
     countdownBanner.classList.add('hidden');
-    showToast('Auto-send countdown cancelled by user.', 'warning');
+    showToast('Automatic dispatch cancelled.', 'warning');
   }
 }
 
@@ -563,7 +634,7 @@ function cancelCountdown() {
 async function dispatchSingle(student, btnElement) {
   if (isDispatching) return;
   btnElement.disabled = true;
-  btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Sending...';
+  btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Sending...</span>';
 
   try {
     const res = await fetch('/api/send', {
@@ -580,17 +651,17 @@ async function dispatchSingle(student, btnElement) {
     }).then(r => r.json());
 
     if (res.success) {
-      showToast(`Birthday wish sent to ${student.name}! 🎂`, 'success');
+      showToast(`Birthday wish sent to ${student.name}.`, 'success');
       fetchAllState();
     } else {
       showToast(res.error || 'Failed to send message', 'error');
       btnElement.disabled = false;
-      btnElement.innerHTML = '<i class="fa-brands fa-whatsapp text-emerald-400"></i> Retry';
+      btnElement.innerHTML = '<i class="fa-brands fa-whatsapp"></i><span>Retry</span>';
     }
   } catch (err) {
     showToast(err.message, 'error');
     btnElement.disabled = false;
-    btnElement.innerHTML = '<i class="fa-brands fa-whatsapp text-emerald-400"></i> Retry';
+    btnElement.innerHTML = '<i class="fa-brands fa-whatsapp"></i><span>Retry</span>';
   }
 }
 
@@ -604,9 +675,9 @@ async function dispatchBatchAll() {
 
   isDispatching = true;
   sendAllBtn.disabled = true;
-  sendAllBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending Batch...';
+  sendAllBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Sending Batch...</span>';
 
-  showToast(`Dispatching wishes to ${pendingStudents.length} student(s) with anti-ban pacing...`, 'info');
+  showToast(`Sending wishes to ${pendingStudents.length} student(s)...`, 'info');
 
   try {
     const res = await fetch('/api/send-batch', {
@@ -627,27 +698,16 @@ async function dispatchBatchAll() {
   } finally {
     isDispatching = false;
     sendAllBtn.disabled = false;
-    sendAllBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send All Wishes Now';
+    sendAllBtn.innerHTML = '<i class="fa-brands fa-whatsapp text-sm"></i><span>Send All Pending Wishes</span>';
     fetchAllState();
   }
 }
 
-// Helper: Extract Spreadsheet ID from URL
-function extractSpreadsheetIdFromUrl(url) {
-  if (!url) return '';
-  const match = String(url).trim().match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  return match && match[1] ? match[1] : String(url).trim();
-}
-
-// ==========================================
 // Multi-Branch Management Panel Logic
-// ==========================================
-
 async function loadBranchesManager() {
   branchesListContainer.innerHTML = `
-    <div class="p-8 text-center text-slate-500 text-xs">
-      <i class="fa-solid fa-spinner fa-spin text-xl mb-2 text-blue-400"></i>
-      <p>Loading configured branch sheets...</p>
+    <div class="p-8 text-center text-[var(--text-muted)] text-xs">
+      <i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Loading branch sheets...
     </div>
   `;
 
@@ -660,19 +720,18 @@ async function loadBranchesManager() {
       updateBranchFilterPills();
     }
   } catch (err) {
-    branchesListContainer.innerHTML = `<div class="p-4 text-center text-red-400 text-xs">Error loading branches: ${err.message}</div>`;
+    branchesListContainer.innerHTML = `<div class="p-4 text-center text-red-600 text-xs">Error loading branches: ${escapeHtml(err.message)}</div>`;
   }
 }
 
 function renderBranchesList(branches) {
   if (branches.length === 0) {
     branchesListContainer.innerHTML = `
-      <div class="p-8 rounded-2xl bg-slate-950/60 border border-slate-800 text-center text-slate-400 text-xs space-y-2">
-        <i class="fa-solid fa-network-wired text-3xl text-slate-600 mb-1"></i>
-        <p class="font-bold text-white text-sm">No Branch Sheets Added Yet</p>
-        <p class="text-slate-500 max-w-md mx-auto">Add each of your Sussex branches (Ambalangoda, Galle, etc.) with their respective Google Sheet links.</p>
-        <button id="emptyAddBranchBtn" type="button" class="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold shadow-md transition">
-          + Add Your First Branch Sheet
+      <div class="p-8 rounded-lg app-toolbar border border-[var(--border-hairline)] text-center text-xs space-y-2">
+        <p class="font-semibold text-[var(--text-primary)] text-sm">No branch sheets configured</p>
+        <p class="text-[var(--text-muted)] max-w-md mx-auto">Add your Sussex branches along with their Google Sheet links and worksheet tab names.</p>
+        <button id="emptyAddBranchBtn" type="button" class="btn-primary mt-2 px-4 py-2 rounded-md font-semibold">
+          + Add Branch Sheet
         </button>
       </div>
     `;
@@ -683,69 +742,59 @@ function renderBranchesList(branches) {
 
   branchesListContainer.innerHTML = branches.map(b => {
     const isEnabled = b.enabled !== false;
-    const shortUrl = b.spreadsheetUrl ? (b.spreadsheetUrl.length > 50 ? b.spreadsheetUrl.substring(0, 47) + '...' : b.spreadsheetUrl) : b.spreadsheetId;
+    const shortUrl = b.spreadsheetUrl ? (b.spreadsheetUrl.length > 52 ? b.spreadsheetUrl.substring(0, 49) + '...' : b.spreadsheetUrl) : b.spreadsheetId;
 
     return `
-      <div class="p-4 rounded-2xl surface-subtle border ${isEnabled ? 'border-slate-200 dark:border-white/10 hover:border-blue-500/40' : 'border-slate-200/40 dark:border-white/5 opacity-60'} transition flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex items-start space-x-3.5">
-          <div class="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/20 shrink-0 mt-0.5">
-            <i class="fa-solid fa-building-columns"></i>
+      <div class="p-3.5 rounded-lg app-toolbar border border-[var(--border-hairline)] ${isEnabled ? '' : 'opacity-65'} flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h4 class="text-xs font-bold text-[var(--text-primary)] truncate">${escapeHtml(b.name)}</h4>
+            <span class="px-2 py-0.5 text-[11px] font-medium rounded ${isEnabled ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-muted)]'}">
+              ${isEnabled ? 'Active' : 'Disabled'}
+            </span>
           </div>
-          <div>
-            <div class="flex items-center space-x-2">
-              <h4 class="text-sm font-bold text-slate-900 dark:text-white font-display">${b.name}</h4>
-              <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md ${isEnabled ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}">
-                ${isEnabled ? 'Active' : 'Disabled'}
-              </span>
-            </div>
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
-              <span><i class="fa-solid fa-table text-slate-400 dark:text-slate-500 mr-1 text-[11px]"></i>Tab: <strong class="text-slate-700 dark:text-slate-300">${b.sheetName}</strong></span>
-              <span>•</span>
-              <a href="${b.spreadsheetUrl || '#'}" target="_blank" class="text-blue-500 dark:text-blue-400 hover:underline flex items-center gap-1 font-mono text-[11px]" title="${b.spreadsheetUrl}">
-                <i class="fa-solid fa-link text-[10px]"></i> ${shortUrl}
-              </a>
-            </div>
-            ${b.customTemplate ? `<p class="text-[11px] text-purple-600 dark:text-purple-300 italic mt-1">Custom template: "${b.customTemplate.substring(0, 45)}..."</p>` : ''}
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)] mt-1">
+            <span>Tab: <strong class="text-[var(--text-secondary)]">${escapeHtml(b.sheetName)}</strong></span>
+            <span>·</span>
+            <a href="${escapeHtml(b.spreadsheetUrl || '#')}" target="_blank" class="text-[#1B365D] dark:text-blue-400 hover:underline font-mono text-[11px]" title="${escapeHtml(b.spreadsheetUrl)}">
+              ${escapeHtml(shortUrl)}
+            </a>
           </div>
+          ${b.customTemplate ? `<p class="text-[11px] text-[var(--text-muted)] mt-1">Custom template: "${escapeHtml(b.customTemplate.substring(0, 50))}..."</p>` : ''}
         </div>
 
-        <!-- Branch Actions -->
-        <div class="flex items-center space-x-2.5 self-end md:self-center shrink-0">
-          <!-- Toggle Enabled Switch -->
-          <button 
-            type="button" 
-            class="toggle-branch-btn px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${isEnabled ? 'theme-pill' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'}"
-            data-id="${b.id}"
+        <div class="flex items-center gap-2 self-end md:self-center shrink-0">
+          <button
+            type="button"
+            class="toggle-branch-btn btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium transition"
+            data-id="${escapeHtml(b.id)}"
             data-enabled="${isEnabled}"
           >
             ${isEnabled ? 'Disable' : 'Enable'}
           </button>
 
-          <!-- Test Connection Button -->
-          <button 
-            type="button" 
-            class="test-branch-btn theme-pill px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 hover:border-blue-400"
-            data-id="${b.id}"
+          <button
+            type="button"
+            class="test-branch-btn btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1.5"
+            data-id="${escapeHtml(b.id)}"
           >
-            <i class="fa-solid fa-plug text-blue-500 dark:text-blue-400 text-[11px]"></i> Test
+            <i class="fa-solid fa-plug text-[11px] text-[var(--text-muted)]"></i> Test
           </button>
 
-          <!-- Edit Button -->
-          <button 
-            type="button" 
-            class="edit-branch-btn theme-pill p-2 rounded-xl text-xs"
-            data-id="${b.id}"
-            title="Edit Branch Settings"
+          <button
+            type="button"
+            class="edit-branch-btn btn-neutral p-1.5 rounded-md text-xs"
+            data-id="${escapeHtml(b.id)}"
+            title="Edit Branch"
           >
             <i class="fa-solid fa-pen"></i>
           </button>
 
-          <!-- Delete Button -->
-          <button 
-            type="button" 
-            class="delete-branch-btn theme-pill p-2 text-red-500 dark:text-red-400 hover:bg-red-500/10 rounded-xl text-xs"
-            data-id="${b.id}"
-            data-name="${b.name}"
+          <button
+            type="button"
+            class="delete-branch-btn btn-neutral p-1.5 text-red-600 dark:text-red-400 rounded-md text-xs"
+            data-id="${escapeHtml(b.id)}"
+            data-name="${escapeHtml(b.name)}"
             title="Delete Branch"
           >
             <i class="fa-solid fa-trash-can"></i>
@@ -755,7 +804,6 @@ function renderBranchesList(branches) {
     `;
   }).join('');
 
-  // Wire Branch Card Event Listeners
   document.querySelectorAll('.toggle-branch-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
@@ -783,7 +831,7 @@ function renderBranchesList(branches) {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
       const name = btn.getAttribute('data-name');
-      if (confirm(`Are you sure you want to remove "${name}" branch sheet?`)) {
+      if (confirm(`Remove "${name}" branch sheet from WishSync?`)) {
         await deleteBranchById(id);
       }
     });
@@ -793,10 +841,10 @@ function renderBranchesList(branches) {
 function openAddBranchForm() {
   editBranchId.value = '';
   branchInputName.value = '';
-  branchInputTab.value = 'INQUIRY DETAILS 202627';
+  branchInputTab.value = 'INQUIRY DETAILS 2026/27';
   branchInputUrl.value = '';
   branchInputTemplate.value = '';
-  branchFormTitle.innerHTML = '<i class="fa-solid fa-plus-circle"></i> Add New Branch Sheet';
+  branchFormTitle.textContent = 'Add New Branch Sheet';
   branchFormDrawer.classList.remove('hidden');
   branchInputName.focus();
 }
@@ -804,10 +852,10 @@ function openAddBranchForm() {
 function openEditBranchForm(branch) {
   editBranchId.value = branch.id;
   branchInputName.value = branch.name || '';
-  branchInputTab.value = branch.sheetName || 'INQUIRY DETAILS 202627';
+  branchInputTab.value = branch.sheetName || 'INQUIRY DETAILS 2026/27';
   branchInputUrl.value = branch.spreadsheetUrl || branch.spreadsheetId || '';
   branchInputTemplate.value = branch.customTemplate || '';
-  branchFormTitle.innerHTML = `<i class="fa-solid fa-pen"></i> Edit Branch: ${branch.name}`;
+  branchFormTitle.textContent = `Edit Branch: ${branch.name}`;
   branchFormDrawer.classList.remove('hidden');
 }
 
@@ -818,7 +866,7 @@ function closeBranchForm() {
 async function saveBranchRecord() {
   const name = branchInputName.value.trim();
   const url = branchInputUrl.value.trim();
-  const tab = branchInputTab.value.trim() || 'INQUIRY DETAILS 202627';
+  const tab = branchInputTab.value.trim() || 'INQUIRY DETAILS 2026/27';
   const tpl = branchInputTemplate.value.trim();
   const branchId = editBranchId.value;
 
@@ -837,14 +885,12 @@ async function saveBranchRecord() {
   try {
     let res;
     if (branchId) {
-      // Update
       res = await fetch(`/api/branches/${branchId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, spreadsheetUrl: url, sheetName: tab, customTemplate: tpl })
       }).then(r => r.json());
     } else {
-      // Add
       res = await fetch('/api/branches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -853,7 +899,7 @@ async function saveBranchRecord() {
     }
 
     if (res.success) {
-      showToast(`Branch "${name}" saved successfully!`, 'success');
+      showToast(`Branch "${name}" saved.`, 'success');
       closeBranchForm();
       await loadBranchesManager();
       fetchAllState();
@@ -888,26 +934,26 @@ async function toggleBranchEnabled(id, enabled) {
 
 async function testSingleBranchConnection(id, btnElement) {
   btnElement.disabled = true;
-  btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> Testing...';
+  btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Testing...';
 
   try {
     const res = await fetch(`/api/branches/${id}/test`).then(r => r.json());
     if (res.success) {
-      showToast(`✓ Connected! Synced ${res.count} student rows.`, 'success');
-      btnElement.className = 'test-branch-btn px-3 py-1.5 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition flex items-center gap-1.5';
+      showToast(`Connected. Synced ${res.count} student rows.`, 'success');
+      btnElement.className = 'test-branch-btn px-2.5 py-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-medium flex items-center gap-1.5';
       btnElement.innerHTML = `<i class="fa-solid fa-check"></i> ${res.count} rows`;
     } else {
       showToast(res.error || 'Branch connection failed', 'error');
-      btnElement.className = 'test-branch-btn px-3 py-1.5 rounded-xl bg-red-600/20 text-red-400 border border-red-500/30 text-xs font-semibold transition flex items-center gap-1.5';
-      btnElement.innerHTML = `<i class="fa-solid fa-xmark"></i> Failed`;
+      btnElement.className = 'test-branch-btn px-2.5 py-1.5 rounded-md bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 text-xs font-medium flex items-center gap-1.5';
+      btnElement.innerHTML = '<i class="fa-solid fa-xmark"></i> Failed';
     }
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
     setTimeout(() => {
       btnElement.disabled = false;
-      btnElement.className = 'test-branch-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5';
-      btnElement.innerHTML = '<i class="fa-solid fa-plug text-blue-400 text-[11px]"></i> Test';
+      btnElement.className = 'test-branch-btn btn-neutral px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5';
+      btnElement.innerHTML = '<i class="fa-solid fa-plug text-[11px] text-[var(--text-muted)]"></i> Test';
     }, 4000);
   }
 }
@@ -916,7 +962,7 @@ async function deleteBranchById(id) {
   try {
     const res = await fetch(`/api/branches/${id}`, { method: 'DELETE' }).then(r => r.json());
     if (res.success) {
-      showToast('Branch removed successfully', 'info');
+      showToast('Branch removed', 'info');
       await loadBranchesManager();
       fetchAllState();
     }
@@ -946,19 +992,18 @@ async function loadSettingsIntoModal() {
       settingMaxDelay.value = Math.round((s.maxDispatchDelayMs || 12000) / 1000);
     }
 
-    // Update Google OAuth UI
     if (authRes.signedIn && authRes.userEmail) {
-      googleAuthStatusPill.textContent = 'Signed In';
-      googleAuthStatusPill.className = 'px-2.5 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      googleAuthStatusPill.textContent = 'Signed in';
+      googleAuthStatusPill.className = 'px-2 py-0.5 text-[11px] font-medium rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
       googleUserDisplayTitle.textContent = authRes.userEmail;
-      googleUserDisplaySubtitle.textContent = 'Active Google session. Private sheet access enabled.';
+      googleUserDisplaySubtitle.textContent = 'Connected. Private Google Sheets access is active.';
       googleSignInBtn.classList.add('hidden');
       googleSignOutBtn.classList.remove('hidden');
     } else {
-      googleAuthStatusPill.textContent = 'Not Signed In';
-      googleAuthStatusPill.className = 'px-2.5 py-0.5 text-[10px] font-semibold rounded-full bg-slate-800 text-slate-400 border border-slate-700';
-      googleUserDisplayTitle.textContent = 'Not Signed In to Google';
-      googleUserDisplaySubtitle.textContent = 'Sign in with your Google account to access your private sheet without sharing.';
+      googleAuthStatusPill.textContent = 'Not signed in';
+      googleAuthStatusPill.className = 'px-2 py-0.5 text-[11px] font-medium rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-muted)]';
+      googleUserDisplayTitle.textContent = 'Not signed in';
+      googleUserDisplaySubtitle.textContent = 'Sign in to read private Sussex branch spreadsheets.';
       googleSignInBtn.classList.remove('hidden');
       googleSignOutBtn.classList.add('hidden');
     }
@@ -993,7 +1038,7 @@ async function saveSettingsFromModal() {
     }).then(r => r.json());
 
     if (res.success) {
-      showToast('Settings saved successfully!', 'success');
+      showToast('Settings saved.', 'success');
       settingsModal.classList.add('hidden');
       fetchAllState();
     } else {
@@ -1003,13 +1048,13 @@ async function saveSettingsFromModal() {
     showToast(err.message, 'error');
   } finally {
     saveSettingsBtn.disabled = false;
-    saveSettingsBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save & Apply Settings';
+    saveSettingsBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes';
   }
 }
 
 // Reset WhatsApp Session Handler
 async function resetWhatsAppSession() {
-  if (!confirm('Are you sure you want to unlink the current WhatsApp session and generate a new QR code?')) {
+  if (!confirm('Unlink the current WhatsApp session and generate a new QR code?')) {
     return;
   }
 
@@ -1017,7 +1062,7 @@ async function resetWhatsAppSession() {
   try {
     const res = await fetch('/api/whatsapp/reset', { method: 'POST' }).then(r => r.json());
     if (res.success) {
-      showToast(res.message || 'Session reset. Open QR modal to re-pair.', 'success');
+      showToast(res.message || 'Session reset. Scan the new QR code.', 'success');
       qrImageElement.classList.add('hidden');
       qrPlaceholder.classList.remove('hidden');
       fetchAllState();
@@ -1028,39 +1073,33 @@ async function resetWhatsAppSession() {
     showToast(err.message, 'error');
   }
 }
-async function toggleLedger() {
-  if (ledgerContainer.classList.contains('hidden')) {
-    try {
-      const records = await fetch('/api/ledger').then(r => r.json());
-      if (!records || records.length === 0) {
-        ledgerList.innerHTML = '<p class="text-slate-500 italic">No sent records found in sent_log.json yet.</p>';
-      } else {
-        ledgerList.innerHTML = records.map(rec => `
-          <div class="p-2 rounded bg-slate-900 border border-slate-800 flex items-center justify-between">
-            <div>
-              <span class="text-emerald-400 font-semibold">[${rec.dateSent}]</span>
-              <strong class="text-white">${rec.name}</strong> (${rec.phone})
-              <span class="text-slate-500 text-[10px]">via ${rec.method}</span>
-            </div>
-            <span class="text-slate-400 text-[10px]">${new Date(rec.timestamp).toLocaleTimeString()}</span>
+
+// Load Delivery Log (`sent_log.json`)
+async function loadLedgerRecords() {
+  if (!ledgerList) return;
+  try {
+    const records = await fetch('/api/ledger').then(r => r.json());
+    if (!records || records.length === 0) {
+      ledgerList.innerHTML = '<div class="p-8 text-center text-xs text-[var(--text-muted)]">No delivered birthday wishes recorded yet.</div>';
+    } else {
+      ledgerList.innerHTML = records.map(rec => `
+        <div class="px-5 py-3 flex items-center justify-between gap-4 text-xs hover:bg-[var(--bg-toolbar)] transition">
+          <div class="min-w-0">
+            <span class="font-mono text-emerald-700 dark:text-emerald-400 mr-2">[${escapeHtml(rec.dateSent)}]</span>
+            <strong class="text-[var(--text-primary)]">${escapeHtml(rec.name)}</strong>
+            <span class="font-mono text-[var(--text-secondary)] ml-1.5">(${escapeHtml(rec.phone)})</span>
+            <span class="text-[var(--text-muted)] ml-2 text-[11px]">via ${escapeHtml(rec.method)}</span>
           </div>
-        `).join('');
-      }
-      ledgerContainer.classList.remove('hidden');
-      toggleLedgerBtn.textContent = 'Hide Details';
-    } catch (err) {
-      showToast('Failed to load ledger records', 'error');
+          <span class="text-[var(--text-muted)] font-mono text-[11px] shrink-0">${new Date(rec.timestamp).toLocaleTimeString()}</span>
+        </div>
+      `).join('');
     }
-  } else {
-    ledgerContainer.classList.add('hidden');
-    toggleLedgerBtn.textContent = 'Show Details';
+  } catch (err) {
+    showToast('Failed to load delivery log', 'error');
   }
 }
 
-// ==========================================
 // Manual Phone Number Dispatch Logic
-// ==========================================
-
 function sanitizeClientPhone(rawPhone) {
   if (!rawPhone) return { digits: '', formatted: '', isValid: false };
   let digits = String(rawPhone).trim().replace(/\D/g, '');
@@ -1086,16 +1125,15 @@ function updateManualPhoneValidation() {
 
   if (!val) {
     manualPhoneStatusBadge.textContent = 'e.g. 077 123 4567';
-    manualPhoneStatusBadge.className = 'text-[10px] font-mono text-slate-400';
+    manualPhoneStatusBadge.className = 'text-[11px] font-mono text-[var(--text-muted)]';
   } else if (res.isValid) {
-    manualPhoneStatusBadge.textContent = `✓ ${res.formatted}`;
-    manualPhoneStatusBadge.className = 'text-[10px] font-mono text-emerald-500 font-bold';
+    manualPhoneStatusBadge.textContent = `Valid: ${res.formatted}`;
+    manualPhoneStatusBadge.className = 'text-[11px] font-mono text-emerald-700 dark:text-emerald-400 font-semibold';
   } else {
-    manualPhoneStatusBadge.textContent = '✗ Invalid phone format';
-    manualPhoneStatusBadge.className = 'text-[10px] font-mono text-red-400 font-semibold';
+    manualPhoneStatusBadge.textContent = 'Invalid number format';
+    manualPhoneStatusBadge.className = 'text-[11px] font-mono text-red-700 dark:text-red-400 font-semibold';
   }
 
-  // Update desktop app fallback URI link
   const msg = manualInputMessage ? (manualInputMessage.value.trim() || currentTemplate) : currentTemplate;
   if (manualDesktopAppLink) {
     manualDesktopAppLink.href = `whatsapp://send?phone=${res.digits}&text=${encodeURIComponent(msg)}`;
@@ -1105,18 +1143,14 @@ function updateManualPhoneValidation() {
 function openManualSendModal() {
   if (!manualSendModal) return;
 
-  // Populate branches in dropdown
   if (manualInputBranch) {
-    const opts = [
-      '<option value="Sussex College Network">Sussex College Network</option>'
-    ];
+    const opts = ['<option value="Sussex College Network">Sussex College Network</option>'];
     currentBranches.forEach(b => {
-      opts.push(`<option value="${b.name}">${b.name}</option>`);
+      opts.push(`<option value="${escapeHtml(b.name)}">${escapeHtml(b.name)}</option>`);
     });
     manualInputBranch.innerHTML = opts.join('');
   }
 
-  // Set message text
   if (manualInputMessage) {
     manualInputMessage.value = currentTemplate;
   }
@@ -1124,7 +1158,7 @@ function openManualSendModal() {
   manualSendModal.classList.remove('hidden');
   setTimeout(() => {
     if (manualInputPhone) manualInputPhone.focus();
-  }, 60);
+  }, 50);
 }
 
 function closeManualSendModal() {
@@ -1136,7 +1170,7 @@ async function handleManualSendSubmit(e) {
   const phoneRaw = manualInputPhone.value.trim();
   const phoneInfo = sanitizeClientPhone(phoneRaw);
   if (!phoneInfo.isValid) {
-    showToast('Please enter a valid Sri Lankan mobile number (e.g. 07XXXXXXXX) or international number.', 'warning');
+    showToast('Enter a valid Sri Lankan mobile number (e.g. 07XXXXXXXX) or international number.', 'warning');
     manualInputPhone.focus();
     return;
   }
@@ -1149,7 +1183,7 @@ async function handleManualSendSubmit(e) {
 
   submitManualSendBtn.disabled = true;
   const originalBtnText = submitManualSendBtn.innerHTML;
-  submitManualSendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-sm"></i> Sending Wish...';
+  submitManualSendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Sending...</span>';
 
   try {
     const res = await fetch('/api/send', {
@@ -1164,7 +1198,7 @@ async function handleManualSendSubmit(e) {
     }).then(r => r.json());
 
     if (res.success) {
-      showToast(`Birthday wish sent successfully to ${phoneInfo.formatted}! 🎉`, 'success');
+      showToast(`Birthday wish sent to ${phoneInfo.formatted}.`, 'success');
       closeManualSendModal();
       manualInputPhone.value = '';
       manualInputName.value = '';
@@ -1182,17 +1216,20 @@ async function handleManualSendSubmit(e) {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize Theme (Dark / Light)
-  const savedTheme = localStorage.getItem('sheetpulse_theme') || 'dark';
+  const savedTheme = localStorage.getItem('wishsync_theme') || 'light';
   updateThemeUI(savedTheme);
 
   if (themeToggleBtn) {
     themeToggleBtn.addEventListener('click', toggleTheme);
   }
 
+  // Workspace tabs
+  if (tabBtnToday) tabBtnToday.addEventListener('click', () => switchWorkspaceTab('today'));
+  if (tabBtnUpcoming) tabBtnUpcoming.addEventListener('click', () => switchWorkspaceTab('upcoming'));
+  if (tabBtnLedger) tabBtnLedger.addEventListener('click', () => switchWorkspaceTab('ledger'));
+
   fetchAllState();
 
-  // Periodic polling for WhatsApp connection status (fast, lightweight, zero sheet overhead)
   setInterval(async () => {
     try {
       const waRes = await fetch('/api/whatsapp/status').then(r => r.json());
@@ -1200,27 +1237,25 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }, 3000);
 
-  // Sync Data
   refreshDataBtn.addEventListener('click', () => {
-    showToast('Refreshing data from Google Sheets...', 'info');
+    showToast('Syncing Google Sheets...', 'info');
     fetchAllState();
   });
 
-  // Send All
   sendAllBtn.addEventListener('click', () => {
     cancelCountdown();
     dispatchBatchAll();
   });
 
-  // Countdown Buttons
   cancelCountdownBtn.addEventListener('click', cancelCountdown);
   dispatchNowBtn.addEventListener('click', () => {
     cancelCountdown();
     dispatchBatchAll();
   });
 
-  // Toggle Ledger
-  toggleLedgerBtn.addEventListener('click', toggleLedger);
+  if (toggleLedgerBtn) {
+    toggleLedgerBtn.addEventListener('click', loadLedgerRecords);
+  }
 
   // Branch Modal Triggers
   if (openBranchesModalBtn) {
@@ -1257,14 +1292,15 @@ document.addEventListener('DOMContentLoaded', () => {
   if (settingsOpenBranchesBtn) {
     settingsOpenBranchesBtn.addEventListener('click', () => {
       settingsModal.classList.add('hidden');
-      openBranchesModal();
+      loadBranchesManager();
+      branchesModal.classList.remove('hidden');
     });
   }
 
-  // Google Sign In & OAuth Post-Message / Polling Listener
+  // Google Sign-In OAuth Listeners
   window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-      showToast(`Google Sign-In successful (${event.data.email})!`, 'success');
+      showToast(`Google account connected (${event.data.email}).`, 'success');
       loadSettingsIntoModal();
       fetchAllState();
     }
@@ -1272,8 +1308,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (googleSignInBtn) {
     googleSignInBtn.addEventListener('click', () => {
-      // Poll auth status after clicking Sign In so once completed in the external browser,
-      // the software immediately updates and reloads the active user session!
       let checks = 0;
       const pollInterval = setInterval(async () => {
         checks++;
@@ -1281,20 +1315,19 @@ document.addEventListener('DOMContentLoaded', () => {
           const authRes = await fetch('/api/auth/google/status').then(r => r.json());
           if (authRes.signedIn && authRes.userEmail) {
             clearInterval(pollInterval);
-            showToast(`Connected to Google as ${authRes.userEmail}!`, 'success');
+            showToast(`Connected to Google as ${authRes.userEmail}.`, 'success');
             loadSettingsIntoModal();
             fetchAllState();
           }
         } catch (e) {}
-        if (checks > 60) clearInterval(pollInterval); // Stop polling after 2 minutes
+        if (checks > 60) clearInterval(pollInterval);
       }, 2000);
     });
   }
 
-  // Google Sign Out Button
   if (googleSignOutBtn) {
     googleSignOutBtn.addEventListener('click', async () => {
-      if (!confirm('Are you sure you want to sign out from your Google Account?')) return;
+      if (!confirm('Sign out from your Google Account?')) return;
       try {
         const res = await fetch('/api/auth/google/signout', { method: 'POST' }).then(r => r.json());
         if (res.success) {
@@ -1308,7 +1341,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // QR Modal Buttons
+  // QR Modal
   if (doneQrModalBtn) {
     doneQrModalBtn.addEventListener('click', () => qrModal.classList.add('hidden'));
   }
@@ -1318,11 +1351,10 @@ document.addEventListener('DOMContentLoaded', () => {
   whatsappStatusBtn.addEventListener('click', async () => {
     const wa = currentStatus.whatsapp || {};
     if (wa.status === 'READY') {
-      showToast(wa.user?.phone ? `WhatsApp is connected (+${wa.user.phone})` : 'WhatsApp session is active and ready!', 'success');
+      showToast(wa.user?.phone ? `WhatsApp connected (+${wa.user.phone})` : 'WhatsApp session is active.', 'success');
       return;
     }
 
-    // Open QR modal right away
     qrModal.classList.remove('hidden');
 
     if (wa.status === 'QR_READY' && wa.qrDataUrl) {
@@ -1330,7 +1362,6 @@ document.addEventListener('DOMContentLoaded', () => {
       qrImageElement.classList.remove('hidden');
       qrPlaceholder.classList.add('hidden');
     } else {
-      // Display spinner placeholder and request clean pairing reset if in ERROR or stuck
       qrImageElement.classList.add('hidden');
       qrPlaceholder.classList.remove('hidden');
       try {
@@ -1384,32 +1415,20 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.success) {
         currentTemplate = newTemplate;
         templateModal.classList.add('hidden');
-        showToast('Birthday message template saved successfully!', 'success');
+        showToast('Birthday message template saved.', 'success');
       }
     } catch (err) {
       showToast('Failed to save template', 'error');
     }
   });
 
-  // Manual Send Modal Triggers & Form
-  if (openManualSendModalBtn) {
-    openManualSendModalBtn.addEventListener('click', openManualSendModal);
-  }
-  if (navManualSendBtn) {
-    navManualSendBtn.addEventListener('click', openManualSendModal);
-  }
-  if (closeManualSendModalBtn) {
-    closeManualSendModalBtn.addEventListener('click', closeManualSendModal);
-  }
-  if (cancelManualSendBtn) {
-    cancelManualSendBtn.addEventListener('click', closeManualSendModal);
-  }
-  if (manualInputPhone) {
-    manualInputPhone.addEventListener('input', updateManualPhoneValidation);
-  }
-  if (manualInputMessage) {
-    manualInputMessage.addEventListener('input', updateManualPhoneValidation);
-  }
+  // Manual Send Modal
+  if (openManualSendModalBtn) openManualSendModalBtn.addEventListener('click', openManualSendModal);
+  if (navManualSendBtn) navManualSendBtn.addEventListener('click', openManualSendModal);
+  if (closeManualSendModalBtn) closeManualSendModalBtn.addEventListener('click', closeManualSendModal);
+  if (cancelManualSendBtn) cancelManualSendBtn.addEventListener('click', closeManualSendModal);
+  if (manualInputPhone) manualInputPhone.addEventListener('input', updateManualPhoneValidation);
+  if (manualInputMessage) manualInputMessage.addEventListener('input', updateManualPhoneValidation);
   if (manualResetTemplateBtn) {
     manualResetTemplateBtn.addEventListener('click', () => {
       manualInputMessage.value = currentTemplate;
@@ -1420,6 +1439,7 @@ document.addEventListener('DOMContentLoaded', () => {
     manualSendForm.addEventListener('submit', handleManualSendSubmit);
   }
 
+  // Developer Modal
   const developerModal = document.getElementById('developerModal');
   const openDeveloperModalBtn = document.getElementById('openDeveloperModalBtn');
   const closeDeveloperModalBtn = document.getElementById('closeDeveloperModalBtn');
@@ -1428,21 +1448,27 @@ document.addEventListener('DOMContentLoaded', () => {
   if (developerModal) {
     const closeDeveloperModal = () => developerModal.classList.add('hidden');
     if (openDeveloperModalBtn) {
-      openDeveloperModalBtn.addEventListener('click', () => {
-        developerModal.classList.remove('hidden');
+      openDeveloperModalBtn.addEventListener('click', () => developerModal.classList.remove('hidden'));
+    }
+    if (closeDeveloperModalBtn) closeDeveloperModalBtn.addEventListener('click', closeDeveloperModal);
+    if (doneDeveloperModalBtn) doneDeveloperModalBtn.addEventListener('click', closeDeveloperModal);
+  }
+
+  // Close open dialogs on backdrop click or Escape key
+  [branchesModal, settingsModal, qrModal, templateModal, manualSendModal, developerModal].forEach(modal => {
+    if (!modal) return;
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.add('hidden');
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      [branchesModal, settingsModal, qrModal, templateModal, manualSendModal, developerModal].forEach(modal => {
+        if (modal && !modal.classList.contains('hidden')) {
+          modal.classList.add('hidden');
+        }
       });
     }
-    if (closeDeveloperModalBtn) {
-      closeDeveloperModalBtn.addEventListener('click', closeDeveloperModal);
-    }
-    if (doneDeveloperModalBtn) {
-      doneDeveloperModalBtn.addEventListener('click', closeDeveloperModal);
-    }
-    developerModal.addEventListener('click', (e) => {
-      if (e.target === developerModal) {
-        closeDeveloperModal();
-      }
-    });
-  }
+  });
 });
-

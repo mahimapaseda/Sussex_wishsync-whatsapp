@@ -1,7 +1,7 @@
 {
-  "name": "sheet-pulse-bday",
+  "name": "wishsync",
   "version": "1.0.1",
-  "description": "Automated Birthday Wisher for Google Sheets & WhatsApp with Windows Startup integration",
+  "description": "WishSync — Automated Birthday Dispatch Software for Google Sheets & WhatsApp",
   "main": "electron/main.js",
   "type": "commonjs",
   "scripts": {
@@ -37,8 +37,8 @@
     "electron-builder": "^26.18.0"
   },
   "build": {
-    "appId": "lk.sussex.sheetpulse",
-    "productName": "SheetPulse",
+    "appId": "lk.sussex.wishsync",
+    "productName": "WishSync",
     "asar": true,
     "directories": {
       "output": "dist"
@@ -72,8 +72,8 @@
       "icon": "build/icon.ico",
       "requestedExecutionLevel": "asInvoker",
       "protocols": {
-        "name": "SheetPulse Protocol",
-        "schemes": ["sheetpulse"]
+        "name": "WishSync Protocol",
+        "schemes": ["wishsync"]
       }
     },
     "nsis": {
@@ -81,7 +81,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "SheetPulse",
+      "shortcutName": "WishSync",
       "runAfterFinish": true
     }
   }

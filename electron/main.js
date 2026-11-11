@@ -31,7 +31,7 @@ function startBackendServer() {
   try {
     process.env.OPEN_BROWSER_ON_BOOT = 'false'; // prevent duplicate system browser opens
     require('../src/index.js');
-    console.log('[Electron] Embedded SheetPulse Express server active on port ' + PORT);
+    console.log('[Electron] Embedded WishSync Express server active on port ' + PORT);
   } catch (err) {
     console.error('[Electron] Failed to start embedded backend:', err);
   }
@@ -59,9 +59,9 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'SheetPulse - Sussex College Network Birthday Wisher',
+    title: 'WishSync — Sussex College Network',
     icon: iconPath,
-    backgroundColor: '#0a0f1d',
+    backgroundColor: '#F4F5F7',
     show: false, // Don't show until ready-to-show
     webPreferences: {
       nodeIntegration: false,
@@ -88,8 +88,8 @@ function createWindow() {
       mainWindow.hide();
       if (tray) {
         tray.displayBalloon?.({
-          title: 'SheetPulse Active in Background',
-          content: 'SheetPulse is still running to dispatch scheduled birthday wishes.'
+          title: 'WishSync Active in Background',
+          content: 'WishSync is still running to dispatch scheduled birthday wishes.'
         });
       }
     }
@@ -114,11 +114,11 @@ function createTray() {
   if (!iconPath) return;
 
   tray = new Tray(iconPath);
-  tray.setToolTip('SheetPulse - Sussex Birthday Wisher (Running)');
+  tray.setToolTip('WishSync — Sussex College Network');
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Open SheetPulse Dashboard',
+      label: 'Open WishSync',
       click: () => createWindow()
     },
     {
@@ -153,7 +153,7 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: 'Quit SheetPulse',
+      label: 'Quit WishSync',
       click: () => {
         isQuitting = true;
         app.quit();
@@ -175,20 +175,20 @@ function setupAutoStart() {
         openAsHidden: true,
         args: ['--hidden']
       });
-      console.log('[Electron] Registered SheetPulse for automatic Windows boot startup.');
+      console.log('[Electron] Registered WishSync for automatic Windows boot startup.');
     }
   } catch (err) {
     console.warn('[Electron] Auto-start registration warning:', err.message);
   }
 }
 
-// Register custom protocol so browser can bring SheetPulse to foreground after OAuth
+// Register custom protocol so browser can bring WishSync to foreground after OAuth
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient('sheetpulse', process.execPath, [path.resolve(process.argv[1])]);
+    app.setAsDefaultProtocolClient('wishsync', process.execPath, [path.resolve(process.argv[1])]);
   }
 } else {
-  app.setAsDefaultProtocolClient('sheetpulse');
+  app.setAsDefaultProtocolClient('wishsync');
 }
 
 // App lifecycle

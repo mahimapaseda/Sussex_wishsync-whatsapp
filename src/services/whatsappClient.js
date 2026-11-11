@@ -117,8 +117,8 @@ function initializeWhatsAppClient() {
         clientId: config.WHATSAPP_CLIENT_ID,
         dataPath: authDataPath
       }),
-      deviceName: 'SheetPulse',
-      browserName: 'SheetPulse',
+      deviceName: 'WishSync',
+      browserName: 'WishSync',
       puppeteer: {
         headless: true,
         executablePath: chromePath,
