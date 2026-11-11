@@ -60,7 +60,8 @@ app.get('/api/status', async (req, res) => {
 // 2. Fetch Birthdays API
 app.get('/api/birthdays', async (req, res) => {
   try {
-    const sheetData = await googleSheets.fetchStudentsFromSheet();
+    const forceRefresh = req.query.refresh === '1';
+    const sheetData = await googleSheets.fetchStudentsFromSheet(forceRefresh);
     const processed = birthdayMatcher.processStudentRecords(sheetData.students);
 
     res.json({
@@ -401,22 +402,88 @@ app.get('/api/sheets/test', async (req, res) => {
   res.json(result);
 });
 
+const isStartupBoot = process.env.STARTUP_BOOT === 'true';
+
+/**
+ * Sleep helper for startup pacing on low-spec PCs.
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Handles headless auto-dispatch when Windows boots with WishSync in system tray (--hidden).
+ */
+async function runHeadlessBootAutoDispatch() {
+  if (autoSendBootTriggered) return;
+
+  const userSettings = settings.loadSettings();
+  if (!userSettings.autoSendOnBoot) return;
+
+  console.log('[Startup] Boot auto-dispatch monitor active (waiting for WhatsApp readiness)...');
+  const maxAttempts = 48; // up to ~4 minutes
+  for (let i = 0; i < maxAttempts; i++) {
+    if (autoSendBootTriggered) return;
+    const waStatus = whatsappClient.getStatus();
+    if (waStatus.status === 'READY') {
+      const delaySec = parseInt(userSettings.autoSendDelaySeconds, 10) || 10;
+      console.log(`[Startup] WhatsApp ready. Waiting ${delaySec}s before checking birthday roster...`);
+      await sleep(delaySec * 1000);
+      if (autoSendBootTriggered) return;
+
+      try {
+        const sheetData = await googleSheets.fetchStudentsFromSheet(true);
+        const processed = birthdayMatcher.processStudentRecords(sheetData.students);
+        const pending = processed.today.filter(s => s.status === 'PENDING_TODAY');
+
+        autoSendBootTriggered = true;
+        if (pending.length > 0) {
+          console.log(`[Startup] Found ${pending.length} pending birthday(s). Starting automatic background dispatch...`);
+          const result = await whatsappClient.dispatchBatch(pending, userSettings.template);
+          global.wishSyncTrayNotify?.(
+            'WishSync Startup Dispatch Complete',
+            `Sent ${result.successful} wish(es), ${result.skipped} skipped, ${result.failed} failed.`
+          );
+        } else {
+          console.log('[Startup] No pending birthdays found today.');
+        }
+      } catch (err) {
+        console.error('[Startup] Headless boot dispatch error:', err.message);
+      }
+      return;
+    }
+    await sleep(5000);
+  }
+}
+
 // 8. Launch Server and Orchestrate Startup
 const server = app.listen(config.PORT, async () => {
   const url = `http://localhost:${config.PORT}`;
   console.log(`=======================================================`);
   console.log(`  WishSync is running`);
-  console.log(`  📍 Local Dashboard: ${url}`);
-  console.log(`  🕒 Timezone: ${config.TIMEZONE}`);
-  console.log(`  📊 Target Sheet: "${config.SHEET_NAME}"`);
+  console.log(`  Local Dashboard: ${url}`);
+  console.log(`  Timezone: ${config.TIMEZONE}`);
+  console.log(`  Target Sheet: "${config.SHEET_NAME}"`);
   console.log(`=======================================================`);
 
-  // Start WhatsApp client in the background
-  try {
-    whatsappClient.initializeWhatsAppClient();
-  } catch (err) {
-    console.error('[WhatsApp] Background initialization notice:', err.message);
+  // Stagger headless Chromium startup when booting with Windows so 4GB RAM PCs stay responsive
+  const initDelayMs = isStartupBoot ? 15000 : 0;
+  if (initDelayMs > 0) {
+    console.log(`[Startup] Windows boot mode detected — delaying WhatsApp engine ${initDelayMs / 1000}s to reduce boot load...`);
   }
+
+  setTimeout(() => {
+    try {
+      whatsappClient.initializeWhatsAppClient();
+      if (isStartupBoot) {
+        runHeadlessBootAutoDispatch().catch(err => {
+          console.error('[Startup] Auto-dispatch monitor error:', err.message);
+        });
+      }
+    } catch (err) {
+      console.error('[WhatsApp] Background initialization notice:', err.message);
+    }
+  }, initDelayMs);
 
   // Periodic Midnight / Date-Change Scheduler (runs every 15 minutes)
   let lastCheckedDate = birthdayMatcher.getCurrentDateInTimezone().dateString;

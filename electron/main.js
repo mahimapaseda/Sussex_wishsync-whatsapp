@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, session, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -9,29 +9,46 @@ if (!gotTheLock) {
   process.exit(0);
 }
 
-// Low-memory switches for Electron Chromium instance
+// Low-memory Chromium flags tuned for 4GB RAM Windows PCs
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-software-rasterizer');
 app.commandLine.appendSwitch('disable-background-networking');
+app.commandLine.appendSwitch('disable-extensions');
+app.commandLine.appendSwitch('disable-sync');
+app.commandLine.appendSwitch('disable-translate');
+app.commandLine.appendSwitch('mute-audio');
+app.commandLine.appendSwitch('aggressive-cache-discard');
+app.commandLine.appendSwitch('disk-cache-size', '10485760');
+app.commandLine.appendSwitch('media-cache-size', '5242880');
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,AudioServiceOutOfProcess,MediaRouter,OptimizationHints');
 app.commandLine.appendSwitch('renderer-process-limit', '1');
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=256');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=128 --optimize-for-size');
 
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
+let shownTrayNotice = false;
 
 // Determine if started hidden (e.g. from Windows boot auto-run)
 const isStartMinimized = process.argv.includes('--hidden') || process.argv.includes('--minimized');
 
 // Start Express Backend directly inside the Node main runtime
 const PORT = process.env.PORT || 3847;
-let serverInstance = null;
+
+global.wishSyncTrayNotify = (title, content) => {
+  if (tray) {
+    try {
+      tray.displayBalloon?.({ title, content });
+    } catch (e) {}
+  }
+};
 
 function startBackendServer() {
   try {
     process.env.OPEN_BROWSER_ON_BOOT = 'false'; // prevent duplicate system browser opens
+    process.env.STARTUP_BOOT = isStartMinimized ? 'true' : 'false';
     require('../src/index.js');
-    console.log('[Electron] Embedded WishSync Express server active on port ' + PORT);
+    console.log('[Electron] Embedded WishSync Express server active on port ' + PORT + (isStartMinimized ? ' (Windows boot standby)' : ''));
   } catch (err) {
     console.error('[Electron] Failed to start embedded backend:', err);
   }
@@ -81,22 +98,20 @@ function createWindow() {
     }
   });
 
-  // Intercept window close (X) and minimize to Tray instead to maintain daily automation
-  mainWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-      if (tray) {
-        tray.displayBalloon?.({
-          title: 'WishSync Active in Background',
-          content: 'WishSync is still running to dispatch scheduled birthday wishes.'
-        });
-      }
+  // Release UI Chromium renderer RAM completely when window is closed, keeping tray + WhatsApp engine alive
+  mainWindow.on('close', () => {
+    if (!isQuitting && tray && !shownTrayNotice) {
+      shownTrayNotice = true;
+      tray.displayBalloon?.({
+        title: 'WishSync Running in Tray',
+        content: 'Window closed to save RAM. WishSync remains active in the background.'
+      });
     }
   });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    session.defaultSession.clearCache().catch(() => {});
   });
 
   // Open external links in default OS browser

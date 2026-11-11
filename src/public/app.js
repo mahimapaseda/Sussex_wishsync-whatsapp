@@ -227,11 +227,12 @@ function showToast(message, type = 'info') {
 }
 
 // Fetch Full Application State
-async function fetchAllState() {
+async function fetchAllState(forceRefresh = false) {
   try {
-    const [statusRes, birthdaysRes, templateRes, branchesRes] = await Promise.all([
+    const birthdaysUrl = forceRefresh ? '/api/birthdays?refresh=1' : '/api/birthdays';
+    const [birthdaysRes, statusRes, templateRes, branchesRes] = await Promise.all([
+      fetch(birthdaysUrl).then(r => r.json()),
       fetch('/api/status').then(r => r.json()),
-      fetch('/api/birthdays').then(r => r.json()),
       fetch('/api/template').then(r => r.json()),
       fetch('/api/branches').then(r => r.json())
     ]);
@@ -1231,15 +1232,16 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchAllState();
 
   setInterval(async () => {
+    if (document.hidden) return;
     try {
       const waRes = await fetch('/api/whatsapp/status').then(r => r.json());
       updateWhatsAppUI(waRes);
     } catch (e) {}
-  }, 3000);
+  }, 5000);
 
   refreshDataBtn.addEventListener('click', () => {
     showToast('Syncing Google Sheets...', 'info');
-    fetchAllState();
+    fetchAllState(true);
   });
 
   sendAllBtn.addEventListener('click', () => {

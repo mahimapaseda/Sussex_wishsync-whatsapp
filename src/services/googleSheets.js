@@ -250,6 +250,7 @@ async function fetchBranchStudents(branch, sheetsClientWrapper) {
 
 let cachedSheetResult = null;
 let lastFetchTime = 0;
+let inflightFetchPromise = null;
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes in-memory cache to prevent Google Sheets rate-limiting
 
 /**
@@ -260,74 +261,86 @@ async function fetchStudentsFromSheet(forceRefresh = false) {
     return cachedSheetResult;
   }
 
-  const currentSettings = settings.loadSettings();
-  const sheetsClientWrapper = getSheetsClient();
-
-  if (!sheetsClientWrapper) {
-    return {
-      source: 'GOOGLE_SHEETS',
-      status: 'AUTH_REQUIRED',
-      students: [],
-      branchesReport: [],
-      warning: 'Please sign in with Google or configure credentials.json in Settings.'
-    };
+  if (!forceRefresh && inflightFetchPromise) {
+    return inflightFetchPromise;
   }
 
-  // Get active branches
-  const activeBranches = (currentSettings.branches || []).filter(b => b.enabled !== false && b.spreadsheetId);
+  inflightFetchPromise = (async () => {
+    const currentSettings = settings.loadSettings();
+    const sheetsClientWrapper = getSheetsClient();
 
-  if (activeBranches.length === 0) {
-    return {
-      source: 'GOOGLE_SHEETS',
-      status: 'NOT_CONFIGURED',
-      students: [],
-      branchesReport: [],
-      totalBranches: (currentSettings.branches || []).length,
-      connectedBranches: 0,
-      warning: 'No active branch sheets found. Click "Branches" to add your Google Sheets.'
-    };
-  }
+    if (!sheetsClientWrapper) {
+      return {
+        source: 'GOOGLE_SHEETS',
+        status: 'AUTH_REQUIRED',
+        students: [],
+        branchesReport: [],
+        warning: 'Please sign in with Google or configure credentials.json in Settings.'
+      };
+    }
 
-  // Fetch all active branch sheets in parallel
-  console.log(`[GoogleSheets] Syncing ${activeBranches.length} active branch sheet(s)...`);
-  const branchPromises = activeBranches.map(branch => fetchBranchStudents(branch, sheetsClientWrapper));
-  const settled = await Promise.all(branchPromises);
+    // Get active branches
+    const activeBranches = (currentSettings.branches || []).filter(b => b.enabled !== false && b.spreadsheetId);
 
-  const aggregatedStudents = [];
-  const branchesReport = [];
+    if (activeBranches.length === 0) {
+      return {
+        source: 'GOOGLE_SHEETS',
+        status: 'NOT_CONFIGURED',
+        students: [],
+        branchesReport: [],
+        totalBranches: (currentSettings.branches || []).length,
+        connectedBranches: 0,
+        warning: 'No active branch sheets found. Click "Branches" to add your Google Sheets.'
+      };
+    }
 
-  settled.forEach(report => {
-    branchesReport.push({
-      id: report.branchId,
-      name: report.branchName,
-      status: report.status,
-      count: report.count || 0,
-      sheetTitle: report.sheetTitle || 'N/A',
-      error: report.error || null
+    // Fetch all active branch sheets in parallel
+    console.log(`[GoogleSheets] Syncing ${activeBranches.length} active branch sheet(s)...`);
+    const branchPromises = activeBranches.map(branch => fetchBranchStudents(branch, sheetsClientWrapper));
+    const settled = await Promise.all(branchPromises);
+
+    const aggregatedStudents = [];
+    const branchesReport = [];
+
+    settled.forEach(report => {
+      branchesReport.push({
+        id: report.branchId,
+        name: report.branchName,
+        status: report.status,
+        count: report.count || 0,
+        sheetTitle: report.sheetTitle || 'N/A',
+        error: report.error || null
+      });
+
+      if (report.students && report.students.length > 0) {
+        aggregatedStudents.push(...report.students);
+      }
     });
 
-    if (report.students && report.students.length > 0) {
-      aggregatedStudents.push(...report.students);
-    }
-  });
+    const connectedCount = branchesReport.filter(r => r.status === 'CONNECTED').length;
+    console.log(`[GoogleSheets] Multi-branch sync complete: ${aggregatedStudents.length} total students from ${connectedCount}/${activeBranches.length} branch(es).`);
 
-  const connectedCount = branchesReport.filter(r => r.status === 'CONNECTED').length;
-  console.log(`[GoogleSheets] Multi-branch sync complete: ${aggregatedStudents.length} total students from ${connectedCount}/${activeBranches.length} branch(es).`);
+    const result = {
+      source: 'GOOGLE_SHEETS',
+      status: connectedCount > 0 ? 'CONNECTED' : 'ERROR',
+      authType: sheetsClientWrapper.authType,
+      totalBranches: activeBranches.length,
+      connectedBranches: connectedCount,
+      branchesReport,
+      students: aggregatedStudents,
+      message: `Synced ${aggregatedStudents.length} students across ${connectedCount} branch sheet(s).`
+    };
 
-  const result = {
-    source: 'GOOGLE_SHEETS',
-    status: connectedCount > 0 ? 'CONNECTED' : 'ERROR',
-    authType: sheetsClientWrapper.authType,
-    totalBranches: activeBranches.length,
-    connectedBranches: connectedCount,
-    branchesReport,
-    students: aggregatedStudents,
-    message: `Synced ${aggregatedStudents.length} students across ${connectedCount} branch sheet(s).`
-  };
+    cachedSheetResult = result;
+    lastFetchTime = Date.now();
+    return result;
+  })();
 
-  cachedSheetResult = result;
-  lastFetchTime = Date.now();
-  return result;
+  try {
+    return await inflightFetchPromise;
+  } finally {
+    inflightFetchPromise = null;
+  }
 }
 
 /**
