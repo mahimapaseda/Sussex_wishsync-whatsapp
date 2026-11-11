@@ -916,7 +916,7 @@ async function saveBranchRecord() {
       showToast(`Branch "${name}" saved.`, 'success');
       closeBranchForm();
       await loadBranchesManager();
-      fetchAllState();
+      fetchAllState(true);
     } else {
       showToast(res.error || 'Failed to save branch', 'error');
     }
@@ -939,7 +939,7 @@ async function toggleBranchEnabled(id, enabled) {
     if (res.success) {
       showToast(`Branch ${enabled ? 'enabled' : 'disabled'}`, 'info');
       await loadBranchesManager();
-      fetchAllState();
+      fetchAllState(true);
     }
   } catch (err) {
     showToast('Failed to update branch status', 'error');
@@ -978,7 +978,7 @@ async function deleteBranchById(id) {
     if (res.success) {
       showToast('Branch removed', 'info');
       await loadBranchesManager();
-      fetchAllState();
+      fetchAllState(true);
     }
   } catch (err) {
     showToast('Failed to delete branch', 'error');
@@ -1007,12 +1007,21 @@ async function loadSettingsIntoModal() {
     }
 
     if (authRes.signedIn && authRes.userEmail) {
-      googleAuthStatusPill.textContent = 'Signed in';
-      googleAuthStatusPill.className = 'px-2 py-0.5 text-[11px] font-medium rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
-      googleUserDisplayTitle.textContent = authRes.userEmail;
-      googleUserDisplaySubtitle.textContent = 'Connected. Private Google Sheets access is active.';
-      googleSignInBtn.classList.add('hidden');
-      googleSignOutBtn.classList.remove('hidden');
+      if (authRes.hasSheetsScope === false) {
+        googleAuthStatusPill.textContent = 'Missing Sheets Permission';
+        googleAuthStatusPill.className = 'px-2 py-0.5 text-[11px] font-medium rounded bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
+        googleUserDisplayTitle.textContent = authRes.userEmail;
+        googleUserDisplaySubtitle.textContent = 'Signed in without Spreadsheet access. Sign out and re-sign in, checking "See all your Google Spreadsheets".';
+        googleSignInBtn.classList.remove('hidden');
+        googleSignOutBtn.classList.remove('hidden');
+      } else {
+        googleAuthStatusPill.textContent = 'Signed in';
+        googleAuthStatusPill.className = 'px-2 py-0.5 text-[11px] font-medium rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800';
+        googleUserDisplayTitle.textContent = authRes.userEmail;
+        googleUserDisplaySubtitle.textContent = 'Connected. Private Google Sheets access is active.';
+        googleSignInBtn.classList.add('hidden');
+        googleSignOutBtn.classList.remove('hidden');
+      }
     } else {
       googleAuthStatusPill.textContent = 'Not signed in';
       googleAuthStatusPill.className = 'px-2 py-0.5 text-[11px] font-medium rounded bg-[var(--bg-panel)] border border-[var(--border-hairline)] text-[var(--text-muted)]';

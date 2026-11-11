@@ -237,13 +237,25 @@ async function fetchBranchStudents(branch, sheetsClientWrapper) {
       students
     };
   } catch (err) {
-    console.error(`[GoogleSheets] Error fetching branch "${branch.name}":`, err.message);
+    const rawMsg = err?.response?.data?.error?.message || err.message || 'Unknown Google Sheets error';
+    const statusCode = err?.code || err?.response?.status;
+    let friendlyMsg = rawMsg;
+
+    if (statusCode === 403 || /insufficient.*(permission|scope)|caller does not have permission/i.test(rawMsg)) {
+      if (/scope|insufficient permission/i.test(rawMsg)) {
+        friendlyMsg = `Insufficient Permission (${authType}): Check "See all your Google Spreadsheets" when signing in with Google, or ensure this sheet is shared with ${authType}.`;
+      } else {
+        friendlyMsg = `Permission denied for ${authType}: Please share this Google Sheet (Viewer access) with the signed-in Google account.`;
+      }
+    }
+
+    console.error(`[GoogleSheets] Error fetching branch "${branch.name}":`, friendlyMsg);
     return {
       branchId: branch.id,
       branchName: branch.name,
       status: 'ERROR',
       students: [],
-      error: err.message
+      error: friendlyMsg
     };
   }
 }
@@ -252,6 +264,14 @@ let cachedSheetResult = null;
 let lastFetchTime = 0;
 let inflightFetchPromise = null;
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes in-memory cache to prevent Google Sheets rate-limiting
+
+/**
+ * Clears cached Google Sheets response after branch or auth updates.
+ */
+function clearCache() {
+  cachedSheetResult = null;
+  lastFetchTime = 0;
+}
 
 /**
  * Main aggregator: Fetches student records from all enabled branches.
@@ -394,6 +414,7 @@ module.exports = {
   fetchStudentsFromSheet,
   fetchBranchStudents,
   testGoogleSheetsConnection,
+  clearCache,
   identifyColumnsFromRows,
   getSheetsClient,
   identifyColumns: (headerRow) => {

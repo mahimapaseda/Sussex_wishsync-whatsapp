@@ -8,11 +8,21 @@ const TOKEN_PATH = path.join(config.DATA_DIR, 'google_token.json');
 const REDIRECT_URI = `http://localhost:${config.PORT}/auth/google/callback`;
 
 // Default Google OAuth2 scopes for reading user email and spreadsheets
+const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
 const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile',
-  'https://www.googleapis.com/auth/spreadsheets.readonly'
+  SHEETS_SCOPE
 ];
+
+/**
+ * Checks whether an OAuth token payload includes Google Sheets read permission.
+ */
+function hasSheetsScope(tokens) {
+  if (!tokens || typeof tokens.scope !== 'string') return true;
+  const granted = tokens.scope.split(/\s+/).filter(Boolean);
+  return granted.includes(SHEETS_SCOPE) || granted.includes('https://www.googleapis.com/auth/spreadsheets');
+}
 
 /**
  * Creates and returns configured OAuth2 client.
@@ -62,7 +72,8 @@ function getAuthUrl() {
 
   return oauth2Client.generateAuthUrl({
     access_type: 'offline', // Requests refresh_token
-    prompt: 'consent',     // Ensures refresh_token is returned
+    prompt: 'consent',     // Ensures refresh_token & scope checkboxes are shown
+    include_granted_scopes: true,
     scope: SCOPES
   });
 }
@@ -101,6 +112,12 @@ async function handleCallback(code) {
     console.warn('[GoogleAuth] Could not fetch user profile:', e.message);
   }
 
+  // Reject partial consent if user left "See all your Google Spreadsheets" unchecked
+  if (!hasSheetsScope(tokens)) {
+    console.warn(`[GoogleAuth] Login for ${userEmail} lacked Google Spreadsheets scope.`);
+    return { success: false, missingSheetsScope: true, email: userEmail };
+  }
+
   const tokenData = {
     ...tokens,
     userEmail,
@@ -128,17 +145,20 @@ function getAuthStatus() {
   const hasToken = fs.existsSync(TOKEN_PATH);
 
   let userEmail = currentSettings.googleUserEmail || null;
-  if (hasToken && !userEmail) {
+  let sheetsScopeGranted = false;
+  if (hasToken) {
     try {
       const raw = fs.readFileSync(TOKEN_PATH, 'utf8');
       const data = JSON.parse(raw);
-      userEmail = data.userEmail || null;
+      if (!userEmail) userEmail = data.userEmail || null;
+      sheetsScopeGranted = hasSheetsScope(data);
     } catch (e) {}
   }
 
   return {
     configured: hasClientId && hasSecret,
     signedIn: hasToken && Boolean(userEmail),
+    hasSheetsScope: sheetsScopeGranted,
     userEmail,
     clientIdConfigured: hasClientId,
     clientSecretConfigured: hasSecret

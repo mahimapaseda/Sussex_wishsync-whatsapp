@@ -143,6 +143,7 @@ app.get('/api/branches', (req, res) => {
 app.post('/api/branches', (req, res) => {
   try {
     const newBranch = settings.addBranch(req.body);
+    googleSheets.clearCache();
     res.json({ success: true, branch: newBranch });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -152,6 +153,7 @@ app.post('/api/branches', (req, res) => {
 app.put('/api/branches/:id', (req, res) => {
   try {
     const updated = settings.updateBranch(req.params.id, req.body);
+    googleSheets.clearCache();
     res.json({ success: true, branch: updated });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -161,6 +163,7 @@ app.put('/api/branches/:id', (req, res) => {
 app.delete('/api/branches/:id', (req, res) => {
   try {
     const result = settings.deleteBranch(req.params.id);
+    googleSheets.clearCache();
     res.json(result);
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -171,6 +174,7 @@ app.post('/api/branches/:id/toggle', (req, res) => {
   try {
     const { enabled } = req.body;
     const updated = settings.toggleBranch(req.params.id, enabled);
+    googleSheets.clearCache();
     res.json({ success: true, branch: updated });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -242,6 +246,25 @@ app.get('/auth/google/callback', async (req, res) => {
 
   try {
     const result = await googleAuth.handleCallback(code);
+    googleSheets.clearCache();
+
+    if (result.missingSheetsScope) {
+      return res.status(403).send(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>Google Sheets Permission Required — WishSync</title></head>
+          <body style="font-family: 'Segoe UI', system-ui, sans-serif; background: #F4F5F7; color: #111827; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+            <div style="background: #FFFFFF; border: 1px solid #FECACA; border-radius: 10px; padding: 32px; max-width: 460px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+              <h2 style="margin: 0 0 10px 0; color: #B91C1C; font-size: 18px;">Google Sheets Permission Not Checked</h2>
+              <p style="font-size: 13px; color: #374151; line-height: 1.5;">You signed in as <strong>${result.email}</strong>, but did not tick the <strong>"See all your Google Spreadsheets"</strong> permission checkbox on the Google consent screen.</p>
+              <p style="font-size: 13px; color: #374151; line-height: 1.5; margin-top: 8px;">Please click the button below and make sure <strong>all permission checkboxes are ticked</strong> before continuing.</p>
+              <a href="/auth/google" style="display: inline-block; margin-top: 18px; background: #1B365D; color: #FFFFFF; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600;">Sign in Again &amp; Grant Permission</a>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -302,6 +325,7 @@ app.get('/api/auth/google/status', (req, res) => {
 app.post('/api/auth/google/signout', (req, res) => {
   try {
     const result = googleAuth.signOut();
+    googleSheets.clearCache();
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
