@@ -1,6 +1,6 @@
 {
   "name": "@mahimapaseda/wishsync",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "WishSync — Automated Birthday Dispatch Software for Google Sheets & WhatsApp",
   "main": "electron/main.js",
   "type": "commonjs",
@@ -65,7 +65,8 @@
       "data/settings.json",
       "data/sample_students.csv",
       "data/assets/**/*",
-      "build/**/*",
+      "build/icon.ico",
+      "build/icon.png",
       "package.json"
     ],
     "extraResources": [
