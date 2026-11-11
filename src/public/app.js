@@ -80,8 +80,9 @@ const branchInputUrl = document.getElementById('branchInputUrl');
 const branchInputTemplate = document.getElementById('branchInputTemplate');
 const branchesListContainer = document.getElementById('branchesListContainer');
 const navBranchCountBadge = document.getElementById('navBranchCountBadge');
-const branchFilterPills = document.getElementById('branchFilterPills');
-const filterAllCount = document.getElementById('filterAllCount');
+const branchFilterSelect = document.getElementById('branchFilterSelect');
+const clearBranchFilterBtn = document.getElementById('clearBranchFilterBtn');
+const branchFilterSummary = document.getElementById('branchFilterSummary');
 
 // Settings Modal Elements
 const settingsModal = document.getElementById('settingsModal');
@@ -195,6 +196,8 @@ function switchWorkspaceTab(tabName) {
 
   if (tabName === 'ledger') {
     loadLedgerRecords();
+  } else {
+    updateBranchFilterPills();
   }
 }
 
@@ -341,58 +344,84 @@ function updateWhatsAppUI(wa) {
   }
 }
 
-// Update Branch Filter Pills
+function normalizeBranchLabel(str) {
+  return (str || '').toString().toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function matchesStudentBranch(student, branchFilterValue) {
+  if (!branchFilterValue || branchFilterValue === 'ALL') return true;
+  if (!student) return false;
+  if (student.branchId && student.branchId === branchFilterValue) return true;
+  if (student.id && student.id.startsWith(branchFilterValue)) return true;
+
+  const normStudentBranch = normalizeBranchLabel(student.branch);
+  const targetBranch = currentBranches.find(b => b.id === branchFilterValue);
+  if (targetBranch) {
+    const normTarget = normalizeBranchLabel(targetBranch.name);
+    if (normStudentBranch === normTarget) return true;
+    if (normStudentBranch && normTarget && (normStudentBranch.includes(normTarget) || normTarget.includes(normStudentBranch))) {
+      return true;
+    }
+  }
+
+  const normFilter = normalizeBranchLabel(branchFilterValue);
+  if (normStudentBranch === normFilter) return true;
+  if (normStudentBranch && normFilter && (normStudentBranch.includes(normFilter) || normFilter.includes(normStudentBranch))) {
+    return true;
+  }
+  return false;
+}
+
+// Update Branch Filter Dropdown with counts matching active workspace tab
 function updateBranchFilterPills() {
-  if (!branchFilterPills) return;
+  if (!branchFilterSelect) return;
 
-  const totalToday = currentData.today ? currentData.today.length : 0;
-  if (filterAllCount) filterAllCount.textContent = totalToday;
+  const activeRecords = activeWorkspaceTab === 'upcoming'
+    ? (currentData.upcoming || [])
+    : (currentData.today || []);
+  const totalCount = activeRecords.length;
 
-  const normalize = str => (str || '').toString().toLowerCase().replace(/\s+/g, ' ').trim();
+  const hasSelectedBranch = selectedBranchFilter === 'ALL' || currentBranches.some(
+    b => b.id === selectedBranchFilter || normalizeBranchLabel(b.name) === normalizeBranchLabel(selectedBranchFilter)
+  );
+  if (!hasSelectedBranch) {
+    selectedBranchFilter = 'ALL';
+  }
 
-  const allBtnClass = selectedBranchFilter === 'ALL'
-    ? 'bg-[#1B365D] text-white border-[#152A4A]'
-    : 'btn-neutral text-[var(--text-secondary)]';
-
-  const branchPillsHtml = [
-    `<button type="button" class="branch-filter-btn px-2.5 py-1 rounded-md text-xs font-medium border ${allBtnClass}" data-branch="ALL">All Branches (${totalToday})</button>`
+  const optionsHtml = [
+    `<option value="ALL">All Branches (${totalCount})</option>`
   ];
 
   currentBranches.forEach(b => {
-    const normBranchName = normalize(b.name);
-    const branchCount = (currentData.today || []).filter(s => {
-      if (!s) return false;
-      if (s.branchId && s.branchId === b.id) return true;
-      if (s.id && s.id.startsWith(b.id)) return true;
-      const normStudentBranch = normalize(s.branch);
-      if (normStudentBranch === normBranchName) return true;
-      if (normStudentBranch && normBranchName && (normStudentBranch.includes(normBranchName) || normBranchName.includes(normStudentBranch))) return true;
-      return false;
-    }).length;
-
-    const isActive = selectedBranchFilter === b.id || normalize(selectedBranchFilter) === normBranchName;
-    const btnClass = isActive
-      ? 'bg-[#1B365D] text-white border-[#152A4A]'
-      : 'btn-neutral text-[var(--text-secondary)]';
-
-    branchPillsHtml.push(`
-      <button type="button" class="branch-filter-btn px-2.5 py-1 rounded-md text-xs font-medium border ${btnClass} flex items-center gap-1.5" data-branch="${escapeHtml(b.id)}">
-        <span class="w-1.5 h-1.5 rounded-full ${b.enabled ? 'bg-emerald-500' : 'bg-gray-400'}"></span>
-        <span>${escapeHtml(b.name)}</span>
-        <span class="font-mono text-[11px] opacity-80">(${branchCount})</span>
-      </button>
-    `);
+    const branchCount = activeRecords.filter(s => matchesStudentBranch(s, b.id)).length;
+    const statusPrefix = b.enabled ? '' : '[Paused] ';
+    optionsHtml.push(
+      `<option value="${escapeHtml(b.id)}">${statusPrefix}${escapeHtml(b.name)} (${branchCount})</option>`
+    );
   });
 
-  branchFilterPills.innerHTML = branchPillsHtml.join('');
+  branchFilterSelect.innerHTML = optionsHtml.join('');
 
-  document.querySelectorAll('.branch-filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      selectedBranchFilter = btn.getAttribute('data-branch');
-      updateBranchFilterPills();
-      updateBirthdaysUI(currentData);
-    });
-  });
+  if (selectedBranchFilter !== 'ALL') {
+    const matchedBranch = currentBranches.find(
+      b => b.id === selectedBranchFilter || normalizeBranchLabel(b.name) === normalizeBranchLabel(selectedBranchFilter)
+    );
+    branchFilterSelect.value = matchedBranch ? matchedBranch.id : 'ALL';
+  } else {
+    branchFilterSelect.value = 'ALL';
+  }
+
+  if (clearBranchFilterBtn) {
+    clearBranchFilterBtn.classList.toggle('hidden', selectedBranchFilter === 'ALL');
+  }
+
+  if (branchFilterSummary) {
+    const shownCount = selectedBranchFilter === 'ALL'
+      ? totalCount
+      : activeRecords.filter(s => matchesStudentBranch(s, selectedBranchFilter)).length;
+    const scopeLabel = activeWorkspaceTab === 'upcoming' ? 'upcoming' : "today's";
+    branchFilterSummary.textContent = `Showing ${shownCount} of ${totalCount} ${scopeLabel}`;
+  }
 }
 
 // Render Today & Upcoming Student Tables
@@ -403,26 +432,8 @@ function updateBirthdaysUI(data) {
   let displayUpcoming = data.upcoming || [];
 
   if (selectedBranchFilter !== 'ALL') {
-    const normalize = str => (str || '').toString().toLowerCase().replace(/\s+/g, ' ').trim();
-    const isMatch = s => {
-      if (!s) return false;
-      if (s.branchId && s.branchId === selectedBranchFilter) return true;
-      if (s.id && s.id.startsWith(selectedBranchFilter)) return true;
-      const targetBranch = currentBranches.find(b => b.id === selectedBranchFilter);
-      if (targetBranch) {
-        const normTarget = normalize(targetBranch.name);
-        const normStudentBranch = normalize(s.branch);
-        if (normStudentBranch === normTarget) return true;
-        if (normStudentBranch && normTarget && (normStudentBranch.includes(normTarget) || normTarget.includes(normStudentBranch))) return true;
-      }
-      const normFilter = normalize(selectedBranchFilter);
-      const normStudentBranch = normalize(s.branch);
-      if (normStudentBranch === normFilter) return true;
-      if (normStudentBranch && normFilter && (normStudentBranch.includes(normFilter) || normFilter.includes(normStudentBranch))) return true;
-      return false;
-    };
-    displayToday = displayToday.filter(isMatch);
-    displayUpcoming = displayUpcoming.filter(isMatch);
+    displayToday = displayToday.filter(s => matchesStudentBranch(s, selectedBranchFilter));
+    displayUpcoming = displayUpcoming.filter(s => matchesStudentBranch(s, selectedBranchFilter));
   }
 
   const pendingCount = displayToday.filter(s => s.status === 'PENDING_TODAY').length;
@@ -1250,6 +1261,22 @@ document.addEventListener('DOMContentLoaded', () => {
   if (tabBtnToday) tabBtnToday.addEventListener('click', () => switchWorkspaceTab('today'));
   if (tabBtnUpcoming) tabBtnUpcoming.addEventListener('click', () => switchWorkspaceTab('upcoming'));
   if (tabBtnLedger) tabBtnLedger.addEventListener('click', () => switchWorkspaceTab('ledger'));
+
+  // Branch filter dropdown
+  if (branchFilterSelect) {
+    branchFilterSelect.addEventListener('change', () => {
+      selectedBranchFilter = branchFilterSelect.value || 'ALL';
+      updateBirthdaysUI(currentData);
+      updateBranchFilterPills();
+    });
+  }
+  if (clearBranchFilterBtn) {
+    clearBranchFilterBtn.addEventListener('click', () => {
+      selectedBranchFilter = 'ALL';
+      updateBirthdaysUI(currentData);
+      updateBranchFilterPills();
+    });
+  }
 
   fetchAllState();
 

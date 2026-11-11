@@ -1,6 +1,6 @@
 {
   "name": "@mahimapaseda/wishsync",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "WishSync — Automated Birthday Dispatch Software for Google Sheets & WhatsApp",
   "main": "electron/main.js",
   "type": "commonjs",
@@ -98,7 +98,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "deleteAppDataOnUninstall": true,
+      "deleteAppDataOnUninstall": false,
       "include": "build/installer.nsh",
       "shortcutName": "WishSync",
       "runAfterFinish": true
