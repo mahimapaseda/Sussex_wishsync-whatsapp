@@ -501,11 +501,29 @@ async function resetSession() {
   }
 }
 
+/**
+ * Cleanly closes WhatsApp Puppeteer browser on app exit so no lock files remain.
+ */
+async function shutdown() {
+  if (retryTimeout) {
+    clearTimeout(retryTimeout);
+    retryTimeout = null;
+  }
+  clearAuthWatchdog();
+  if (client) {
+    try {
+      await client.destroy();
+    } catch (e) {}
+    client = null;
+  }
+}
+
 module.exports = {
   initializeWhatsAppClient,
   getStatus,
   sendWishToStudent,
   dispatchBatch,
   generateFallbackLinks,
-  resetSession
+  resetSession,
+  shutdown
 };

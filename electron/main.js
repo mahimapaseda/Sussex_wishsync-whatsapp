@@ -241,6 +241,10 @@ app.on('open-url', (event, url) => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  try {
+    const whatsappClient = require('../src/services/whatsappClient');
+    whatsappClient.shutdown().catch(() => {});
+  } catch (e) {}
 });
 
 app.on('window-all-closed', () => {
