@@ -310,13 +310,26 @@ function updateWhatsAppUI(wa) {
       qrPlaceholder.classList.add('hidden');
     }
   } else if (wa.status === 'AUTHENTICATED') {
-    waStatusText.textContent = 'Authenticating...';
+    const pct = Number.isFinite(Number(wa.loadingPercent)) ? ` (${wa.loadingPercent}%)` : '';
+    waStatusText.textContent = `Authenticating${pct}...`;
     waStatusText.className = 'font-medium text-[#1B365D] dark:text-blue-400';
     waStatusDot.className = 'w-2 h-2 rounded-full bg-[#1B365D] dark:bg-blue-400 animate-pulse';
+    if (qrImageElement && qrPlaceholder) {
+      qrImageElement.classList.add('hidden');
+      qrPlaceholder.classList.remove('hidden');
+      const p = qrPlaceholder.querySelector('p');
+      if (p) p.textContent = `QR scanned! Syncing WhatsApp${pct}... Please wait.`;
+    }
   } else if (wa.status === 'INITIALIZING') {
     waStatusText.textContent = 'Starting...';
     waStatusText.className = 'font-medium text-amber-700 dark:text-amber-400';
     waStatusDot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
+    if (qrImageElement && qrPlaceholder) {
+      qrImageElement.classList.add('hidden');
+      qrPlaceholder.classList.remove('hidden');
+      const p = qrPlaceholder.querySelector('p');
+      if (p) p.textContent = 'Generating QR code...';
+    }
   } else if (wa.status === 'ERROR' || wa.status === 'DISCONNECTED') {
     waStatusText.textContent = 'Click to reconnect';
     waStatusText.className = 'font-medium text-red-700 dark:text-red-400';
@@ -1363,6 +1376,15 @@ document.addEventListener('DOMContentLoaded', () => {
       qrImageElement.src = wa.qrDataUrl;
       qrImageElement.classList.remove('hidden');
       qrPlaceholder.classList.add('hidden');
+    } else if (wa.status === 'AUTHENTICATED' || wa.status === 'INITIALIZING') {
+      qrImageElement.classList.add('hidden');
+      qrPlaceholder.classList.remove('hidden');
+      const p = qrPlaceholder.querySelector('p');
+      if (p) {
+        p.textContent = wa.status === 'AUTHENTICATED'
+          ? 'Syncing WhatsApp session... Please wait or click Reset Session below.'
+          : 'Starting WhatsApp engine...';
+      }
     } else {
       qrImageElement.classList.add('hidden');
       qrPlaceholder.classList.remove('hidden');

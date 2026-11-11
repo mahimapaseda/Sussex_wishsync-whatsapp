@@ -12,8 +12,11 @@ let clientStatus = 'INITIALIZING'; // INITIALIZING, QR_READY, AUTHENTICATED, REA
 let latestQrCode = null;
 let latestQrDataUrl = null;
 let clientInfo = null;
+let loadingPercent = null;
 let isDispatching = false;
 let retryTimeout = null;
+let authWatchdogTimeout = null;
+let consecutiveAuthStalls = 0;
 
 // Ensure auth directory exists in writeable DATA_DIR
 const authDataPath = path.join(config.DATA_DIR, '.wwebjs_auth');
@@ -90,6 +93,13 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function clearAuthWatchdog() {
+  if (authWatchdogTimeout) {
+    clearTimeout(authWatchdogTimeout);
+    authWatchdogTimeout = null;
+  }
+}
+
 /**
  * Initializes the WhatsApp Web client with LocalAuth.
  */
@@ -98,6 +108,7 @@ function initializeWhatsAppClient() {
     clearTimeout(retryTimeout);
     retryTimeout = null;
   }
+  clearAuthWatchdog();
 
   if (client) {
     return client;
@@ -105,6 +116,7 @@ function initializeWhatsAppClient() {
 
   console.log('[WhatsApp] Initializing WhatsApp Client with LocalAuth...');
   clientStatus = 'INITIALIZING';
+  loadingPercent = null;
 
   try {
     const chromePath = getSystemChromePath();
@@ -117,6 +129,11 @@ function initializeWhatsAppClient() {
         clientId: config.WHATSAPP_CLIENT_ID,
         dataPath: authDataPath
       }),
+      // Disable LocalWebCache so packaged installs in C:\Program Files never fail writing ./.wwebjs_cache
+      webVersionCache: {
+        type: 'none'
+      },
+      authTimeoutMs: 60000,
       deviceName: 'WishSync',
       browserName: 'WishSync',
       puppeteer: {
@@ -132,28 +149,26 @@ function initializeWhatsAppClient() {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--no-default-browser-check',
-          '--no-zygote',
           '--disable-gpu',
           '--disable-extensions',
           '--disable-plugins',
           '--disable-default-apps',
           '--disable-sync',
           '--disable-translate',
-          '--disable-background-networking',
           '--disable-software-rasterizer',
           '--mute-audio',
           '--no-pings',
-          '--aggressive-cache-discard',
-          '--disk-cache-size=15728640',
-          '--media-cache-size=5242880',
           '--renderer-process-limit=1',
-          '--disable-features=TranslateUI,BlinkGenPropertyTrees,AudioServiceOutOfProcess,MediaRouter,OptimizationHints,CalculateNativeWinOcclusion',
-          '--js-flags=--max-old-space-size=192 --optimize-for-size'
+          '--disable-features=TranslateUI,AudioServiceOutOfProcess,MediaRouter,OptimizationHints,CalculateNativeWinOcclusion',
+          '--js-flags=--max-old-space-size=384'
         ]
       }
     });
 
     client.on('qr', async (qr) => {
+      clearAuthWatchdog();
+      consecutiveAuthStalls = 0;
+      loadingPercent = null;
       console.log('[WhatsApp] QR code received. Scan with your phone.');
       latestQrCode = qr;
       clientStatus = 'QR_READY';
@@ -164,14 +179,41 @@ function initializeWhatsAppClient() {
       }
     });
 
+    client.on('loading_screen', (percent, message) => {
+      loadingPercent = Number.isFinite(Number(percent)) ? Number(percent) : null;
+      console.log(`[WhatsApp] Loading WhatsApp Web: ${percent}%${message ? ` (${message})` : ''}`);
+    });
+
     client.on('authenticated', () => {
-      console.log('[WhatsApp] Client authenticated successfully.');
+      console.log('[WhatsApp] Client authenticated successfully. Finishing sync...');
       clientStatus = 'AUTHENTICATED';
       latestQrCode = null;
       latestQrDataUrl = null;
+
+      clearAuthWatchdog();
+      authWatchdogTimeout = setTimeout(async () => {
+        if (clientStatus !== 'AUTHENTICATED') return;
+        consecutiveAuthStalls += 1;
+        console.warn(`[WhatsApp] Post-auth sync stalled >75s (attempt ${consecutiveAuthStalls}). Restarting client...`);
+        try {
+          if (client) await client.destroy();
+        } catch (e) {}
+        client = null;
+        clientInfo = null;
+        loadingPercent = null;
+        if (consecutiveAuthStalls >= 2) {
+          console.warn('[WhatsApp] Repeated post-auth stalls. Clearing session to generate a fresh QR.');
+          cleanSessionFolder();
+          consecutiveAuthStalls = 0;
+        }
+        initializeWhatsAppClient();
+      }, 75000);
     });
 
     client.on('auth_failure', async (msg) => {
+      clearAuthWatchdog();
+      consecutiveAuthStalls = 0;
+      loadingPercent = null;
       console.error('[WhatsApp] Authentication failure:', msg);
       clientStatus = 'AUTH_FAILURE';
       latestQrCode = null;
@@ -185,6 +227,9 @@ function initializeWhatsAppClient() {
     });
 
     client.on('ready', () => {
+      clearAuthWatchdog();
+      consecutiveAuthStalls = 0;
+      loadingPercent = 100;
       console.log('[WhatsApp] Client is ready to send messages!');
       clientStatus = 'READY';
       latestQrCode = null;
@@ -193,6 +238,8 @@ function initializeWhatsAppClient() {
     });
 
     client.on('disconnected', async (reason) => {
+      clearAuthWatchdog();
+      loadingPercent = null;
       console.warn('[WhatsApp] Client disconnected:', reason);
       clientStatus = 'DISCONNECTED';
       clientInfo = null;
@@ -209,6 +256,8 @@ function initializeWhatsAppClient() {
     });
 
     client.initialize().catch(async (err) => {
+      clearAuthWatchdog();
+      loadingPercent = null;
       console.error('[WhatsApp] Client initialization failed:', err.message);
       clientStatus = 'ERROR';
       try {
@@ -222,6 +271,8 @@ function initializeWhatsAppClient() {
     });
 
   } catch (err) {
+    clearAuthWatchdog();
+    loadingPercent = null;
     console.error('[WhatsApp] Failed to instantiate WhatsApp client:', err.message);
     clientStatus = 'ERROR';
     cleanSessionFolder();
@@ -241,6 +292,7 @@ function getStatus() {
     isReady: clientStatus === 'READY',
     hasSession: hasLocalSession,
     qrDataUrl: latestQrDataUrl,
+    loadingPercent,
     user: clientInfo ? { phone: clientInfo.wid?.user, pushname: clientInfo.pushname } : null,
     isDispatching
   };
@@ -423,6 +475,8 @@ async function resetSession() {
     clearTimeout(retryTimeout);
     retryTimeout = null;
   }
+  clearAuthWatchdog();
+  consecutiveAuthStalls = 0;
   try {
     if (client) {
       try {
@@ -432,6 +486,7 @@ async function resetSession() {
     }
     clientStatus = 'INITIALIZING';
     clientInfo = null;
+    loadingPercent = null;
     latestQrCode = null;
     latestQrDataUrl = null;
 

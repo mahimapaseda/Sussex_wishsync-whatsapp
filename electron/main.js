@@ -93,9 +93,7 @@ function createWindow() {
   mainWindow.loadURL(`http://localhost:${PORT}`);
 
   mainWindow.once('ready-to-show', () => {
-    if (!isStartMinimized) {
-      mainWindow.show();
-    }
+    mainWindow.show();
   });
 
   // Release UI Chromium renderer RAM completely when window is closed, keeping tray + WhatsApp engine alive
