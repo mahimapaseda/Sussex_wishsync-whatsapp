@@ -474,13 +474,29 @@
     </div>
 
     <!-- Page Footer -->
-    <footer class="mt-10 pt-4 border-t border-slate-200 dark:border-white/5 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-      <div class="flex items-center space-x-2">
+    <footer class="mt-10 pt-5 pb-2 border-t border-slate-200 dark:border-white/5 text-xs text-slate-500 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 text-center sm:text-left">
         <span class="font-crest font-bold text-amber-600 dark:text-amber-400">SUSSEX COLLEGE NETWORK</span>
-        <span>•</span>
+        <span class="hidden sm:inline">•</span>
         <span>SheetPulse Automated Birthday Engine</span>
+        <span class="hidden sm:inline">•</span>
+        <span class="text-[11px] text-slate-400">Asia/Colombo Timezone</span>
       </div>
-      <p>Automated background dispatch in Asia/Colombo Timezone</p>
+
+      <!-- Software Engineering Credit & QR -->
+      <div class="flex items-center gap-3 theme-pill px-3 py-1.5 rounded-2xl border shadow-sm">
+        <div class="text-right leading-tight">
+          <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Software Engineering by</p>
+          <p class="text-xs font-bold text-slate-800 dark:text-slate-100">
+            Mahima Paseda
+            <span class="text-slate-300 dark:text-slate-600 mx-1">•</span>
+            <a href="https://www.mahimapaseda.lk" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">www.mahimapaseda.lk</a>
+          </p>
+        </div>
+        <button id="openDeveloperModalBtn" type="button" title="Scan QR to visit www.mahimapaseda.lk" class="w-10 h-10 bg-white rounded-xl p-1 border border-slate-200 shadow-sm hover:scale-105 transition shrink-0 flex items-center justify-center">
+          <img src="/mahimapaseda-qr.png" alt="Mahima Paseda Website QR Code" class="w-full h-full object-contain">
+        </button>
+      </div>
     </footer>
 
   </div>
@@ -961,6 +977,37 @@
           </div>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Developer / Software Engineering Attribution Modal -->
+  <div id="developerModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="theme-modal border rounded-3xl max-w-sm w-full p-6 shadow-2xl relative text-center">
+      <button id="closeDeveloperModalBtn" type="button" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-white text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="h-11 w-11 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto mb-3 border border-blue-500/20">
+        <i class="fa-solid fa-code text-lg"></i>
+      </div>
+      <p class="text-[11px] uppercase tracking-widest text-slate-400 font-semibold">Software Engineering by</p>
+      <h3 class="text-xl font-bold text-slate-900 dark:text-white font-display mt-0.5">Mahima Paseda</h3>
+
+      <div class="bg-white p-4 rounded-2xl flex items-center justify-center mx-auto w-56 h-56 my-5 shadow-xl border border-slate-200">
+        <img src="/mahimapaseda-qr.png" alt="Mahima Paseda QR Code" class="w-full h-full object-contain">
+      </div>
+
+      <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Scan the QR code or click below to visit website & support:</p>
+
+      <div class="flex items-center justify-center gap-2.5">
+        <a href="https://www.mahimapaseda.lk" target="_blank" rel="noopener noreferrer" class="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-md shadow-blue-600/20 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-globe"></i>
+          <span>www.mahimapaseda.lk</span>
+        </a>
+        <button id="doneDeveloperModalBtn" type="button" class="theme-pill px-4 py-2 text-xs font-semibold rounded-xl border transition">
+          Close
+        </button>
+      </div>
     </div>
   </div>
 

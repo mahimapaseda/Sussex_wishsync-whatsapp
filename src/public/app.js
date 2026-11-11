@@ -1465,5 +1465,30 @@ document.addEventListener('DOMContentLoaded', () => {
   if (manualSendForm) {
     manualSendForm.addEventListener('submit', handleManualSendSubmit);
   }
+
+  const developerModal = document.getElementById('developerModal');
+  const openDeveloperModalBtn = document.getElementById('openDeveloperModalBtn');
+  const closeDeveloperModalBtn = document.getElementById('closeDeveloperModalBtn');
+  const doneDeveloperModalBtn = document.getElementById('doneDeveloperModalBtn');
+
+  if (developerModal) {
+    const closeDeveloperModal = () => developerModal.classList.add('hidden');
+    if (openDeveloperModalBtn) {
+      openDeveloperModalBtn.addEventListener('click', () => {
+        developerModal.classList.remove('hidden');
+      });
+    }
+    if (closeDeveloperModalBtn) {
+      closeDeveloperModalBtn.addEventListener('click', closeDeveloperModal);
+    }
+    if (doneDeveloperModalBtn) {
+      doneDeveloperModalBtn.addEventListener('click', closeDeveloperModal);
+    }
+    developerModal.addEventListener('click', (e) => {
+      if (e.target === developerModal) {
+        closeDeveloperModal();
+      }
+    });
+  }
 });
 

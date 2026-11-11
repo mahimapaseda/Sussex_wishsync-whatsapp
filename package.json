@@ -20,7 +20,7 @@
     "automation",
     "startup"
   ],
-  "author": "Sussex Education Group",
+  "author": "Mahima Paseda (www.mahimapaseda.lk)",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
