@@ -14,6 +14,7 @@ let latestQrDataUrl = null;
 let clientInfo = null;
 let loadingPercent = null;
 let isDispatching = false;
+const activePhoneDispatches = new Set();
 let retryTimeout = null;
 let authWatchdogTimeout = null;
 let consecutiveAuthStalls = 0;
@@ -310,8 +311,15 @@ function generateFallbackLinks(phone, text) {
   };
 }
 
-function hasConfirmedMessageId(sentMsg) {
-  return Boolean(sentMsg && (sentMsg.id?._serialized || sentMsg.id));
+function extractMessageId(sentMsg) {
+  if (!sentMsg) return null;
+  if (sentMsg.id && typeof sentMsg.id === 'object' && sentMsg.id._serialized) {
+    return sentMsg.id._serialized;
+  }
+  if (typeof sentMsg.id === 'string' && sentMsg.id) {
+    return sentMsg.id;
+  }
+  return `sent_${Date.now()}`;
 }
 
 /**
@@ -331,6 +339,59 @@ async function resolveRecipientChatId(phone) {
     console.warn(`[WhatsApp] Could not pre-resolve JID for ${phone}: ${err.message}`);
     return `${phone}@c.us`;
   }
+}
+
+/**
+ * Resolves the birthday greeting card MessageMedia if enabled and present on disk.
+ * Never throws during send fallback—loads synchronously before any WhatsApp dispatch occurs.
+ */
+function resolveBirthdayMediaPayload() {
+  const userSettings = settings.loadSettings();
+  const imgConfig = userSettings.birthdayImage;
+  const isImageEnabled = !imgConfig || imgConfig.enabled !== false;
+  if (!isImageEnabled) {
+    return { isImageEnabled: false, media: null, filePath: null };
+  }
+
+  const candidatePaths = [
+    imgConfig?.fileName ? path.join(config.ASSETS_DIR, imgConfig.fileName) : null,
+    imgConfig?.relativePath ? path.join(config.DATA_DIR, imgConfig.relativePath.replace(/^data[\\/]/, '')) : null,
+    imgConfig?.relativePath ? path.join(config.ROOT_DIR, imgConfig.relativePath) : null,
+    imgConfig?.originalPath || null,
+    path.join(config.ASSETS_DIR, 'birthday-card.jpeg'),
+    path.join(config.ROOT_DIR, 'data', 'assets', 'birthday-card.jpeg')
+  ].filter(Boolean);
+
+  const foundPath = candidatePaths.find(p => fs.existsSync(p));
+  if (!foundPath) {
+    return { isImageEnabled: true, media: null, filePath: null };
+  }
+
+  const media = MessageMedia.fromFilePath(foundPath);
+  return { isImageEnabled: true, media, filePath: foundPath };
+}
+
+/**
+ * Dispatches a single WhatsApp payload (image+caption OR text-only).
+ * Never falls back to a plain-text send after an image send has been initiated,
+ * preventing duplicate image + text messages in the recipient chat.
+ */
+async function dispatchWishMessage(targetClient, chatId, message, mediaPayload) {
+  if (mediaPayload.isImageEnabled && mediaPayload.media) {
+    console.log(`[WhatsApp] Sending greeting card image with caption: ${mediaPayload.filePath}`);
+    const sentMsg = await targetClient.sendMessage(chatId, mediaPayload.media, {
+      caption: message,
+      sendSeen: false
+    });
+    return { sentMsg, usedImage: true };
+  }
+
+  if (mediaPayload.isImageEnabled && !mediaPayload.filePath) {
+    console.warn('[WhatsApp] Greeting image enabled but no image file found; sending text-only message.');
+  }
+
+  const sentMsg = await targetClient.sendMessage(chatId, message, { sendSeen: false });
+  return { sentMsg, usedImage: false };
 }
 
 /**
@@ -365,50 +426,25 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
     throw new Error(`WhatsApp client not ready (Status: ${clientStatus}). Use desktop link: ${fallback.desktopUri}`);
   }
 
+  if (activePhoneDispatches.has(phone)) {
+    throw new Error(`Dispatch already in progress for +${phone}. Please wait.`);
+  }
+
+  activePhoneDispatches.add(phone);
   console.log(`[WhatsApp] Sending message to ${student.name} (${phone})...`);
 
   try {
     const chatId = await resolveRecipientChatId(phone);
-    let sentMsg = null;
-    let usedImage = false;
+    const mediaPayload = resolveBirthdayMediaPayload();
+    const { sentMsg, usedImage } = await dispatchWishMessage(client, chatId, message, mediaPayload);
 
-    // Check if birthday greeting image is configured and available
-    try {
-      const userSettings = settings.loadSettings();
-      const imgConfig = userSettings.birthdayImage;
-      const isImageEnabled = !imgConfig || imgConfig.enabled !== false;
-      const candidatePaths = [
-        imgConfig?.fileName ? path.join(config.ASSETS_DIR, imgConfig.fileName) : null,
-        imgConfig?.relativePath ? path.join(config.DATA_DIR, imgConfig.relativePath.replace(/^data[\\/]/, '')) : null,
-        imgConfig?.relativePath ? path.join(config.ROOT_DIR, imgConfig.relativePath) : null,
-        imgConfig?.originalPath || null,
-        path.join(config.ASSETS_DIR, 'birthday-card.jpeg')
-      ].filter(Boolean);
-
-      const foundPath = candidatePaths.find(p => fs.existsSync(p));
-      if (isImageEnabled && foundPath) {
-        console.log(`[WhatsApp] Attaching birthday greeting image: ${foundPath}`);
-        const media = MessageMedia.fromFilePath(foundPath);
-        const mediaResult = await client.sendMessage(chatId, media, { caption: message, sendSeen: false });
-        if (!hasConfirmedMessageId(mediaResult)) {
-          throw new Error('WhatsApp Web did not confirm media message delivery.');
-        }
-        sentMsg = mediaResult;
-        usedImage = true;
-      }
-    } catch (imgErr) {
-      console.warn('[WhatsApp] Could not send image greeting card, falling back to direct text:', imgErr.message);
-    }
-
-    if (!usedImage) {
-      sentMsg = await client.sendMessage(chatId, message, { sendSeen: false });
-    }
-
-    if (!hasConfirmedMessageId(sentMsg)) {
+    if (!sentMsg) {
       throw new Error('WhatsApp Web did not confirm message delivery. Please verify WhatsApp is connected and retry.');
     }
 
-    // Record in ledger only after confirmed message ID from WhatsApp Web
+    const messageId = extractMessageId(sentMsg);
+
+    // Record in ledger only after WhatsApp Web returns a sent message object
     ledger.recordSent({
       phone,
       name: student.name,
@@ -421,7 +457,7 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
     return {
       success: true,
       skipped: false,
-      messageId: sentMsg?.id?._serialized || sentMsg?.id,
+      messageId,
       student,
       message,
       hasImage: usedImage
@@ -429,6 +465,8 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
   } catch (err) {
     console.error(`[WhatsApp] Failed to send message to ${student.name} (${phone}):`, err.message);
     throw err;
+  } finally {
+    activePhoneDispatches.delete(phone);
   }
 }
 
@@ -559,6 +597,9 @@ module.exports = {
   getStatus,
   sendWishToStudent,
   dispatchBatch,
+  dispatchWishMessage,
+  resolveBirthdayMediaPayload,
+  extractMessageId,
   generateFallbackLinks,
   resetSession,
   shutdown
