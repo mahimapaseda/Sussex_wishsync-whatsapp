@@ -101,6 +101,20 @@ app.get('/api/ledger', (req, res) => {
   }
 });
 
+// 3a. Clear a single sent ledger record (allows re-queuing as Pending)
+app.delete('/api/ledger/:phone/:year', (req, res) => {
+  try {
+    const cleared = ledger.clearSentRecord(req.params.phone, req.params.year);
+    if (!cleared) {
+      return res.status(404).json({ success: false, error: 'Record not found in delivery log.' });
+    }
+    googleSheets.clearCache();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 3b. Export Ledger as CSV
 app.get('/api/ledger/export', (req, res) => {
   try {
@@ -355,6 +369,7 @@ app.post('/api/send', async (req, res) => {
       phoneRaw: phone,
       phoneDisplay: phoneSanitized.formattedDisplay,
       branch: (branch && branch.trim()) ? branch.trim() : 'Sussex College Network',
+      branchCustomTemplate: branchCustomTemplate || null,
       age: age || null,
       isPhoneValid: true
     };
@@ -374,38 +389,50 @@ app.post('/api/send', async (req, res) => {
   }
 });
 
-// 6. Send Batch Wishes to All Pending Students API
+// 6. Send Batch Wishes to Today's Students API (Pending, or Force Resend)
 app.post('/api/send-batch', async (req, res) => {
   try {
-    const { template, branchFilter } = req.body;
+    const { template, branchFilter, force } = req.body;
+    const forceResend = Boolean(force);
     const sheetData = await googleSheets.fetchStudentsFromSheet();
     const processed = birthdayMatcher.processStudentRecords(sheetData.students);
 
-    let pendingStudents = processed.today.filter(s => s.status === 'PENDING_TODAY');
+    let targetStudents = forceResend
+      ? [...processed.today]
+      : processed.today.filter(s => s.status === 'PENDING_TODAY');
 
     // Filter by branch if user selected a branch
     if (branchFilter && branchFilter !== 'ALL') {
-      pendingStudents = pendingStudents.filter(s => 
-        (s.branch && s.branch.toLowerCase() === branchFilter.toLowerCase()) || 
-        (s.branchId === branchFilter)
-      );
+      const normalize = str => (str || '').toString().toLowerCase().replace(/\s+/g, ' ').trim();
+      const normFilter = normalize(branchFilter);
+      const branchMeta = settings.getBranches().find(b => b.id === branchFilter);
+      const normBranchName = branchMeta ? normalize(branchMeta.name) : normFilter;
+
+      targetStudents = targetStudents.filter(s => {
+        if (s.branchId && s.branchId === branchFilter) return true;
+        if (s.id && s.id.startsWith(branchFilter)) return true;
+        const normStudentBranch = normalize(s.branch);
+        return normStudentBranch === normBranchName ||
+          (normStudentBranch && normBranchName && (normStudentBranch.includes(normBranchName) || normBranchName.includes(normStudentBranch)));
+      });
     }
 
-    if (pendingStudents.length === 0) {
+    if (targetStudents.length === 0) {
       return res.json({
         success: true,
-        message: 'No pending birthday wishes to send today for selected branch.',
+        message: 'No eligible birthday wishes to send today for selected branch.',
         total: 0,
         successful: 0,
         skipped: 0,
-        failed: 0
+        failed: 0,
+        details: []
       });
     }
 
     autoSendBootTriggered = true;
     const userSettings = settings.loadSettings();
     const wishTemplate = template || userSettings.template;
-    const results = await whatsappClient.dispatchBatch(pendingStudents, wishTemplate);
+    const results = await whatsappClient.dispatchBatch(targetStudents, wishTemplate, null, forceResend);
 
     res.json({
       success: true,

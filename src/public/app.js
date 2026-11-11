@@ -507,7 +507,12 @@ function updateBirthdaysUI(data) {
   todayBadgeCount.textContent = displayToday.length;
   upcomingBadgeCount.textContent = displayUpcoming.length;
 
-  sendAllBtn.disabled = pendingCount === 0 || isDispatching;
+  const canResendToday = pendingCount === 0 && sentCount > 0;
+  sendAllBtn.disabled = (displayToday.length === 0) || isDispatching;
+  sendAllBtn.dataset.mode = canResendToday ? 'resend' : 'pending';
+  sendAllBtn.innerHTML = canResendToday
+    ? `<i class="fa-solid fa-rotate-right text-sm"></i><span>Resend Today's Wishes (${sentCount})</span>`
+    : '<i class="fa-brands fa-whatsapp text-sm"></i><span>Send All Pending Wishes</span>';
 
   // Render Today's Table
   if (displayToday.length === 0) {
@@ -525,6 +530,10 @@ function updateBirthdaysUI(data) {
         : '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Pending</span>';
 
       const previewMsg = formatPreview(student);
+
+      const actionBtnClass = isSent
+        ? 'send-single-btn btn-neutral px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center gap-1.5 disabled:opacity-45 disabled:cursor-not-allowed'
+        : 'send-single-btn px-3 py-1.5 text-xs font-semibold rounded-md bg-emerald-700 hover:bg-emerald-600 text-white transition flex items-center gap-1.5 disabled:opacity-45 disabled:cursor-not-allowed';
 
       return `
         <tr class="hover:bg-[var(--bg-toolbar)] transition">
@@ -551,16 +560,27 @@ function updateBirthdaysUI(data) {
             <div class="inline-flex items-center gap-1.5">
               <button
                 type="button"
-                class="send-single-btn px-3 py-1.5 text-xs font-semibold rounded-md bg-emerald-700 hover:bg-emerald-600 text-white transition flex items-center gap-1.5 disabled:opacity-45 disabled:cursor-not-allowed"
+                class="${actionBtnClass}"
                 data-id="${escapeHtml(student.id)}"
                 data-phone="${escapeHtml(student.phone)}"
                 data-name="${escapeHtml(student.name)}"
-                ${isSent || isDispatching ? 'disabled' : ''}
-                title="Send birthday card and message via WhatsApp"
+                ${isDispatching ? 'disabled' : ''}
+                title="${isSent ? 'Resend birthday wish via WhatsApp' : 'Send birthday card and message via WhatsApp'}"
               >
-                <i class="fa-brands fa-whatsapp"></i>
-                <span>${isSent ? 'Sent' : 'Send Wish'}</span>
+                <i class="${isSent ? 'fa-solid fa-rotate-right text-[var(--text-muted)]' : 'fa-brands fa-whatsapp'}"></i>
+                <span>${isSent ? 'Resend' : 'Send Wish'}</span>
               </button>
+              ${isSent ? `
+                <button
+                  type="button"
+                  class="reset-sent-btn btn-neutral p-1.5 rounded-md text-xs text-[var(--text-muted)] hover:text-amber-700 dark:hover:text-amber-400"
+                  data-phone="${escapeHtml(student.phone)}"
+                  data-name="${escapeHtml(student.name)}"
+                  title="Mark back as Pending so Send All includes this student"
+                >
+                  <i class="fa-solid fa-clock-rotate-left"></i>
+                </button>
+              ` : ''}
               <a
                 href="whatsapp://send?phone=${encodeURIComponent(student.phone)}&text=${encodeURIComponent(previewMsg)}"
                 class="btn-neutral p-1.5 rounded-md text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -601,6 +621,15 @@ function updateBirthdaysUI(data) {
         if (targetStudent) {
           await dispatchSingle(targetStudent, btn);
         }
+      });
+    });
+
+    document.querySelectorAll('.reset-sent-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const phone = btn.getAttribute('data-phone');
+        const name = btn.getAttribute('data-name');
+        const year = (currentStatus.today && currentStatus.today.year) || new Date().getFullYear();
+        await clearSentLogEntry(phone, year, name);
       });
     });
   }
@@ -715,9 +744,26 @@ function cancelCountdown() {
   }
 }
 
+async function clearSentLogEntry(phone, year, name = 'this student') {
+  try {
+    const res = await fetch(`/api/ledger/${encodeURIComponent(phone)}/${encodeURIComponent(year)}`, {
+      method: 'DELETE'
+    }).then(r => r.json());
+    if (res.success) {
+      showToast(`${name} marked back as Pending.`, 'info');
+      fetchAllState();
+    } else {
+      showToast(res.error || 'Could not reset status', 'error');
+    }
+  } catch (err) {
+    showToast(`Failed to reset status: ${err.message}`, 'error');
+  }
+}
+
 // Send Single Student Wish
 async function dispatchSingle(student, btnElement) {
   if (isDispatching) return;
+  const isResend = student.status === 'SENT_TODAY';
   btnElement.disabled = true;
   btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Sending...</span>';
 
@@ -730,13 +776,15 @@ async function dispatchSingle(student, btnElement) {
         phone: student.phone,
         name: student.name,
         branch: student.branch,
+        branchCustomTemplate: student.branchCustomTemplate || null,
         age: student.age,
-        template: currentTemplate
+        template: (student.branchCustomTemplate && student.branchCustomTemplate.trim()) ? student.branchCustomTemplate : currentTemplate,
+        force: true
       })
     }).then(r => r.json());
 
     if (res.success) {
-      showToast(`Birthday wish sent to ${student.name}.`, 'success');
+      showToast(`Birthday wish ${isResend ? 'resent' : 'sent'} to ${student.name}.`, 'success');
       fetchAllState();
     } else {
       showToast(res.error || 'Failed to send message', 'error');
@@ -750,11 +798,18 @@ async function dispatchSingle(student, btnElement) {
   }
 }
 
-// Send Batch Wishes (All Pending)
-async function dispatchBatchAll() {
-  const pendingStudents = currentData.today.filter(s => s.status === 'PENDING_TODAY');
-  if (pendingStudents.length === 0) {
-    showToast('No pending birthday wishes to send today.', 'info');
+// Send Batch Wishes (Pending, or Force Resend when all today's wishes are marked Delivered)
+async function dispatchBatchAll(explicitForce = null) {
+  const todayList = (currentData.today || []).filter(s => matchesStudentBranch(s, selectedBranchFilter));
+  const pendingStudents = todayList.filter(s => s.status === 'PENDING_TODAY');
+  const forceMode = explicitForce !== null ? explicitForce : (pendingStudents.length === 0 && todayList.length > 0);
+
+  if (todayList.length === 0) {
+    showToast('No birthdays today for selected branch.', 'info');
+    return;
+  }
+
+  if (forceMode && !confirm(`All ${todayList.length} birthday wish(es) today are already marked Delivered. Resend via WhatsApp now?`)) {
     return;
   }
 
@@ -762,19 +817,27 @@ async function dispatchBatchAll() {
   sendAllBtn.disabled = true;
   sendAllBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Sending Batch...</span>';
 
-  showToast(`Sending wishes to ${pendingStudents.length} student(s)...`, 'info');
+  const targetCount = forceMode ? todayList.length : pendingStudents.length;
+  showToast(`Sending wishes to ${targetCount} student(s)...`, 'info');
 
   try {
     const res = await fetch('/api/send-batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        template: currentTemplate
+        template: currentTemplate,
+        branchFilter: selectedBranchFilter,
+        force: forceMode
       })
     }).then(r => r.json());
 
     if (res.success) {
-      showToast(`Batch complete: ${res.successful} sent, ${res.skipped} skipped, ${res.failed} failed.`, 'success');
+      if (res.failed > 0) {
+        const firstErr = (res.details || []).find(d => d.status === 'FAILED')?.error || 'Delivery error';
+        showToast(`Sent ${res.successful}, Failed ${res.failed}: ${firstErr}`, 'error');
+      } else {
+        showToast(`Batch complete: ${res.successful} sent, ${res.skipped} skipped.`, 'success');
+      }
     } else {
       showToast(res.error || 'Batch dispatch encountered errors', 'error');
     }
@@ -783,7 +846,6 @@ async function dispatchBatchAll() {
   } finally {
     isDispatching = false;
     sendAllBtn.disabled = false;
-    sendAllBtn.innerHTML = '<i class="fa-brands fa-whatsapp text-sm"></i><span>Send All Pending Wishes</span>';
     fetchAllState();
   }
 }
@@ -1184,9 +1246,31 @@ async function loadLedgerRecords() {
             <span class="font-mono text-[var(--text-secondary)] ml-1.5">(${escapeHtml(rec.phone)})</span>
             <span class="text-[var(--text-muted)] ml-2 text-[11px]">via ${escapeHtml(rec.method)}</span>
           </div>
-          <span class="text-[var(--text-muted)] font-mono text-[11px] shrink-0">${new Date(rec.timestamp).toLocaleTimeString()}</span>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-[var(--text-muted)] font-mono text-[11px]">${new Date(rec.timestamp).toLocaleTimeString()}</span>
+            <button
+              type="button"
+              class="clear-ledger-entry-btn btn-neutral px-2 py-1 rounded text-[11px] font-medium text-[var(--text-muted)] hover:text-amber-700 dark:hover:text-amber-400"
+              data-phone="${escapeHtml(rec.phone)}"
+              data-year="${escapeHtml(rec.year)}"
+              data-name="${escapeHtml(rec.name)}"
+              title="Reset status back to Pending"
+            >
+              Reset
+            </button>
+          </div>
         </div>
       `).join('');
+
+      document.querySelectorAll('.clear-ledger-entry-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          clearSentLogEntry(
+            btn.getAttribute('data-phone'),
+            btn.getAttribute('data-year'),
+            btn.getAttribute('data-name')
+          );
+        });
+      });
     }
   } catch (err) {
     showToast('Failed to load delivery log', 'error');
@@ -1384,7 +1468,7 @@ document.addEventListener('DOMContentLoaded', () => {
   cancelCountdownBtn.addEventListener('click', cancelCountdown);
   dispatchNowBtn.addEventListener('click', () => {
     cancelCountdown();
-    dispatchBatchAll();
+    dispatchBatchAll(false);
   });
 
   if (toggleLedgerBtn) {

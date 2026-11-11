@@ -95,11 +95,15 @@ console.log('\n[Test 4] Ledger & Deduplication:');
   assert.strictEqual(ledger.hasBeenSentThisYear(testPhone, testYear), true);
   console.log('  ✓ After recordSent, hasBeenSentThisYear is true');
 
-  // Check that records persist
+  // Check that records persist and can be cleared back to pending
   const records = ledger.getAllSentRecords();
   const found = records.find(r => r.phone === testPhone && r.year === testYear);
   assert.ok(found);
   console.log('  ✓ Record retrieved from ledger file successfully');
+
+  assert.strictEqual(ledger.clearSentRecord(testPhone, testYear), true);
+  assert.strictEqual(ledger.hasBeenSentThisYear(testPhone, testYear), false);
+  console.log('  ✓ clearSentRecord resets student back to pending');
 }
 
 // 5. Dynamic Header Matching

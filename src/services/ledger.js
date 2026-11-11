@@ -95,6 +95,22 @@ function recordSent({ phone, name, year, date, message = '', method = 'whatsapp-
 }
 
 /**
+ * Removes a specific sent record by phone and year so it returns to pending status.
+ */
+function clearSentRecord(phone, year) {
+  if (!phone || !year) return false;
+  const ledger = readLedger();
+  const key = getRecordKey(phone, year);
+  if (!ledger.records[key]) {
+    return false;
+  }
+  delete ledger.records[key];
+  saveLedger(ledger);
+  console.log(`[Ledger] Cleared sent record for ${phone} - Year: ${year}`);
+  return true;
+}
+
+/**
  * Gets all sent records as an array, sorted newest first.
  */
 function getAllSentRecords() {
@@ -109,6 +125,7 @@ module.exports = {
   getRecordKey,
   hasBeenSentThisYear,
   recordSent,
+  clearSentRecord,
   getAllSentRecords
 };
 

@@ -310,19 +310,45 @@ function generateFallbackLinks(phone, text) {
   };
 }
 
+function hasConfirmedMessageId(sentMsg) {
+  return Boolean(sentMsg && (sentMsg.id?._serialized || sentMsg.id));
+}
+
+/**
+ * Resolves the canonical WhatsApp JID for a sanitized phone number.
+ */
+async function resolveRecipientChatId(phone) {
+  try {
+    const numberDetails = await client.getNumberId(phone);
+    if (!numberDetails || !numberDetails._serialized) {
+      throw new Error(`WhatsApp number +${phone} is not registered on WhatsApp.`);
+    }
+    return numberDetails._serialized;
+  } catch (err) {
+    if (err.message && err.message.includes('not registered on WhatsApp')) {
+      throw err;
+    }
+    console.warn(`[WhatsApp] Could not pre-resolve JID for ${phone}: ${err.message}`);
+    return `${phone}@c.us`;
+  }
+}
+
 /**
  * Dispatches a message to a single student via whatsapp-web.js.
  */
 async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, force = false) {
   const today = matcher.getCurrentDateInTimezone();
   const phone = student.phone;
-  const message = matcher.formatMessage(template, student);
+  const effectiveTemplate = (student.branchCustomTemplate && student.branchCustomTemplate.trim())
+    ? student.branchCustomTemplate
+    : template;
+  const message = matcher.formatMessage(effectiveTemplate, student);
 
   if (!phone || !student.isPhoneValid) {
     throw new Error(`Invalid phone number for student ${student.name}: ${student.phoneRaw}`);
   }
 
-  // Deduplication check (unless force is requested, e.g. manual dispatch)
+  // Deduplication check (unless force is requested, e.g. manual/resend dispatch)
   if (!force && ledger.hasBeenSentThisYear(phone, today.year)) {
     console.log(`[WhatsApp] Skip: Wish already sent to ${student.name} (${phone}) for ${today.year}`);
     return {
@@ -339,10 +365,10 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
     throw new Error(`WhatsApp client not ready (Status: ${clientStatus}). Use desktop link: ${fallback.desktopUri}`);
   }
 
-  const chatId = `${phone}@c.us`;
-  console.log(`[WhatsApp] Sending message to ${student.name} (${chatId})...`);
+  console.log(`[WhatsApp] Sending message to ${student.name} (${phone})...`);
 
   try {
+    const chatId = await resolveRecipientChatId(phone);
     let sentMsg = null;
     let usedImage = false;
 
@@ -352,16 +378,22 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
       const imgConfig = userSettings.birthdayImage;
       const isImageEnabled = !imgConfig || imgConfig.enabled !== false;
       const candidatePaths = [
+        imgConfig?.fileName ? path.join(config.ASSETS_DIR, imgConfig.fileName) : null,
+        imgConfig?.relativePath ? path.join(config.DATA_DIR, imgConfig.relativePath.replace(/^data[\\/]/, '')) : null,
         imgConfig?.relativePath ? path.join(config.ROOT_DIR, imgConfig.relativePath) : null,
         imgConfig?.originalPath || null,
-        path.join(config.DATA_DIR, 'assets', 'birthday-card.jpeg')
+        path.join(config.ASSETS_DIR, 'birthday-card.jpeg')
       ].filter(Boolean);
 
       const foundPath = candidatePaths.find(p => fs.existsSync(p));
       if (isImageEnabled && foundPath) {
         console.log(`[WhatsApp] Attaching birthday greeting image: ${foundPath}`);
         const media = MessageMedia.fromFilePath(foundPath);
-        sentMsg = await client.sendMessage(chatId, media, { caption: message });
+        const mediaResult = await client.sendMessage(chatId, media, { caption: message, sendSeen: false });
+        if (!hasConfirmedMessageId(mediaResult)) {
+          throw new Error('WhatsApp Web did not confirm media message delivery.');
+        }
+        sentMsg = mediaResult;
         usedImage = true;
       }
     } catch (imgErr) {
@@ -369,10 +401,14 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
     }
 
     if (!usedImage) {
-      sentMsg = await client.sendMessage(chatId, message);
+      sentMsg = await client.sendMessage(chatId, message, { sendSeen: false });
     }
 
-    // Record in ledger immediately upon dispatch confirmation
+    if (!hasConfirmedMessageId(sentMsg)) {
+      throw new Error('WhatsApp Web did not confirm message delivery. Please verify WhatsApp is connected and retry.');
+    }
+
+    // Record in ledger only after confirmed message ID from WhatsApp Web
     ledger.recordSent({
       phone,
       name: student.name,
@@ -385,7 +421,7 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
     return {
       success: true,
       skipped: false,
-      messageId: sentMsg?.id?._serialized || (typeof sentMsg?.id === 'string' ? sentMsg.id : `msg_${Date.now()}`),
+      messageId: sentMsg?.id?._serialized || sentMsg?.id,
       student,
       message,
       hasImage: usedImage
@@ -399,7 +435,7 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
 /**
  * Dispatches birthday wishes to a list of students with anti-ban pacing.
  */
-async function dispatchBatch(students, template = config.DEFAULT_TEMPLATE, onProgress = null) {
+async function dispatchBatch(students, template = config.DEFAULT_TEMPLATE, onProgress = null, force = false) {
   if (isDispatching) {
     throw new Error('A batch dispatch is already in progress.');
   }
@@ -421,7 +457,7 @@ async function dispatchBatch(students, template = config.DEFAULT_TEMPLATE, onPro
           onProgress({ index: i + 1, total: students.length, student, state: 'SENDING' });
         }
 
-        const res = await sendWishToStudent(student, template);
+        const res = await sendWishToStudent(student, template, force);
 
         if (res.skipped) {
           results.skipped++;
