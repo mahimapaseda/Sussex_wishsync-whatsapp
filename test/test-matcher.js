@@ -152,11 +152,123 @@ console.log('\n[Test 6] Student Processing & Categorization:');
   console.log('  ✓ Correctly categorized: 1 Pending Today, 1 Sent Today, 1 Upcoming');
 }
 
-// Restore original ledger state
-if (originalLedger !== null) {
-  fs.writeFileSync(config.SENT_LOG_PATH, originalLedger, 'utf8');
-}
+// 7. Extended Google Sheets Date Formats & Column Detection
+console.log('\n[Test 7] Extended DOB Formats, Split Columns & Sheet Fetching:');
+(async () => {
+  // Apostrophe, spaces, ordinals, en-dash, commas, missing year, fractional serial, MDY hint
+  const nov12Cases = [
+    ["'12/11/2018", {}],
+    ['12 / 11 / 2018', {}],
+    ['12th Nov 2018', {}],
+    ['12\u201311\u20132018', {}],
+    ['12,11,2018', {}],
+    ['12/11', {}],
+    ['12-Nov', {}],
+    ['43416.5', {}],
+    ['11/12/2018', { dateOrder: 'MDY' }],
+    ['2018-Nov-12', {}],
+    ['DOB: 12.Nov.2018', {}]
+  ];
+  for (const [input, opts] of nov12Cases) {
+    const parsed = matcher.parseDateOfBirth(input, opts);
+    assert.strictEqual(parsed.isValid, true, `Expected valid date for ${input}`);
+    assert.strictEqual(parsed.day, 12, `Expected day=12 for ${input}, got ${parsed.day}`);
+    assert.strictEqual(parsed.month, 11, `Expected month=11 for ${input}, got ${parsed.month}`);
+  }
+  assert.strictEqual(matcher.parseDateOfBirth('2018').isValid, false, 'Bare year must not parse as 1905 serial');
+  console.log('  ✓ Extended DOB formats (ordinals, en-dash, serials, no-year, MDY hint) parsed accurately');
 
-console.log('\n==========================================');
-console.log('  ✅ ALL TESTS PASSED SUCCESSFULLY!');
-console.log('==========================================\n');
+  // Hierarchical 2-row sub-headers + Inquiry Date collision check
+  const splitRows = [
+    ['No', 'Date', 'Student Name', 'Contact No', 'Date of Birth', '', ''],
+    ['', '', '', '', 'Date', 'Month', 'Year'],
+    ['1', '10/01/2026', 'Nethmi', '0771112233', '12', 'November', '2019']
+  ];
+  const splitMap = googleSheets.identifyColumnsFromRows(splitRows);
+  assert.strictEqual(splitMap.headerRowIdx, 1);
+  assert.strictEqual(splitMap.dayIdx, 4);
+  assert.strictEqual(splitMap.monthIdx, 5);
+  assert.strictEqual(splitMap.yearIdx, 6);
+  console.log('  ✓ 2-row split Date/Month/Year sub-headers mapped without Inquiry Date collision');
+
+  // Late banner row + Child Name / T.P. / Birthday labels + early Day column (< 4)
+  const lateBannerRows = [
+    ['SUSSEX COLLEGE NETWORK'],
+    ['INQUIRY REGISTER'],
+    [],
+    ['Child Name', 'Father T.P.', 'Day', 'Month', 'Year'],
+    ['Kavisha', '0775556667', '12', '11', '2020']
+  ];
+  const lateMap = googleSheets.identifyColumnsFromRows(lateBannerRows);
+  assert.strictEqual(lateMap.headerRowIdx, 3);
+  assert.strictEqual(lateMap.nameIdx, 0);
+  assert.strictEqual(lateMap.phoneIdx, 1);
+  assert.strictEqual(lateMap.dayIdx, 2);
+  assert.strictEqual(lateMap.monthIdx, 3);
+  console.log('  ✓ Banner offset rows, Child Name / Father T.P., and early Day column detected');
+
+  // Mock fetchBranchStudents: US-formatted real date cell (serial 43416) + text MDY + past column Z
+  const header28 = Array(28).fill('');
+  header28[0] = 'Student Name';
+  header28[1] = 'Birthday';
+  header28[27] = 'WhatsApp'; // Column AB (past Z!)
+  const dataFormatted1 = Array(28).fill('');
+  dataFormatted1[0] = 'US Sheet Serial Student';
+  dataFormatted1[1] = '11/12/2018'; // Formatted as MM/DD in US locale
+  dataFormatted1[27] = '0772223344';
+  const dataUnformatted1 = Array(28).fill('');
+  dataUnformatted1[0] = 'US Sheet Serial Student';
+  dataUnformatted1[1] = 43416; // Exact serial for 12 Nov 2018
+  dataUnformatted1[27] = 772223344;
+
+  const mockSheetsClient = {
+    authType: 'Test',
+    client: {
+      spreadsheets: {
+        get: async () => ({ data: { sheets: [{ properties: { title: "Sussex's 2026" } }] } }),
+        values: {
+          get: async (params) => {
+            assert.strictEqual(params.range, "'Sussex''s 2026'");
+            if (params.valueRenderOption === 'UNFORMATTED_VALUE') {
+              return { data: { values: [header28, dataUnformatted1] } };
+            }
+            return { data: { values: [header28, dataFormatted1] } };
+          }
+        }
+      }
+    }
+  };
+
+  const branchRes = await googleSheets.fetchBranchStudents(
+    { id: 'test_b', name: 'Test Branch', spreadsheetId: 'mock_id', sheetName: "Sussex's 2026" },
+    mockSheetsClient
+  );
+  assert.strictEqual(branchRes.status, 'CONNECTED');
+  assert.strictEqual(branchRes.students.length, 1);
+
+  const nov12Today = { day: 12, month: 11, year: 2026, dateString: '2026-11-12' };
+  const matched = matcher.processStudentRecords(branchRes.students, nov12Today);
+  assert.strictEqual(matched.today.length, 1, 'Expected US serial + col AB phone student to match Nov 12');
+  assert.strictEqual(matched.today[0].phone, '94772223344');
+
+  // Column inference for text-only MDY sheet
+  const mdyOrder = googleSheets.inferColumnDateOrder(
+    [['Name', 'DOB'], ['A', '11/25/2018'], ['B', '11/12/2018']],
+    1,
+    1
+  );
+  assert.strictEqual(mdyOrder, 'MDY');
+  console.log('  ✓ Full-sheet fetch past column Z, serial dates, and MDY inference verified');
+
+  // Restore original ledger state
+  if (originalLedger !== null) {
+    fs.writeFileSync(config.SENT_LOG_PATH, originalLedger, 'utf8');
+  }
+
+  console.log('\n==========================================');
+  console.log('  ✅ ALL TESTS PASSED SUCCESSFULLY!');
+  console.log('==========================================');
+})().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

@@ -12,8 +12,87 @@ function normalizeHeader(str) {
   return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+function isNameHeader(norm) {
+  if (!norm) return false;
+  if (norm === 'branchname' || norm === 'schoolname' || norm === 'username') return false;
+  return (
+    norm.includes('nameofstudent') ||
+    norm.includes('nameofthestudent') ||
+    norm.includes('nameofchild') ||
+    norm === 'studentname' ||
+    norm === 'studentsname' ||
+    norm === 'childname' ||
+    norm === 'childsname' ||
+    norm === 'inquirername' ||
+    norm === 'applicantname' ||
+    norm === 'student' ||
+    norm === 'name' ||
+    norm.includes('fullname') ||
+    norm.includes('applicant')
+  );
+}
+
+function isPhoneHeader(norm) {
+  if (!norm) return false;
+  return (
+    norm.includes('whatsapp') ||
+    norm.includes('contact') ||
+    norm.includes('phone') ||
+    norm.includes('mobile') ||
+    norm === 'tel' ||
+    norm.startsWith('tel') ||
+    norm === 'tp' ||
+    norm.endsWith('tp') ||
+    norm === 'tno' ||
+    norm.includes('guardianno') ||
+    norm.includes('parentno')
+  );
+}
+
+function isBranchHeader(norm) {
+  if (!norm) return false;
+  return (
+    norm === 'source' ||
+    norm.includes('branch') ||
+    norm.includes('location') ||
+    norm.includes('center') ||
+    norm.includes('centre') ||
+    norm.includes('campus')
+  );
+}
+
+function isDobHeader(norm) {
+  if (!norm) return false;
+  return (
+    norm.includes('dateofbirth') ||
+    norm.includes('dateofbith') ||
+    norm === 'dob' ||
+    norm.startsWith('dob') ||
+    norm.endsWith('dob') ||
+    norm.includes('birthdate') ||
+    norm.includes('birthday') ||
+    norm.includes('bday') ||
+    norm.includes('bdate') ||
+    norm.includes('ddmmyy') ||
+    norm.includes('ddmmyyyy') ||
+    norm.includes('mmddyyyy')
+  );
+}
+
+function isDaySubHeader(norm) {
+  return norm === 'day' || norm === 'dd' || norm === 'date' || norm === 'bday';
+}
+
+function isMonthSubHeader(norm) {
+  return norm === 'month' || norm === 'mm';
+}
+
+function isYearSubHeader(norm) {
+  return norm === 'year' || norm === 'yyyy' || norm === 'yy';
+}
+
 /**
- * Identifies column mapping across rows (supports both standard row-1 headers and row-2/3/4 hierarchical sub-headers).
+ * Identifies column mapping across rows (supports both standard row-1 headers and multi-row sub-headers).
  */
 function identifyColumnsFromRows(rows) {
   const mapping = {
@@ -27,72 +106,163 @@ function identifyColumnsFromRows(rows) {
     branchIdx: -1
   };
 
-  const maxScanRows = Math.min(rows.length, 6);
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return mapping;
+  }
 
-  // 1. Identify which row is the deepest primary header row (contains Name and/or Phone)
-  let bestHeaderRowIdx = 0;
+  const maxScanRows = Math.min(rows.length, 15);
+
+  // 1. Score header rows to find the primary table header row (works even if headers sit below title banners or omit phone/name labels)
+  let bestPrimaryRowIdx = 0;
+  let bestScore = -1;
+
   for (let r = 0; r < maxScanRows; r++) {
     const row = rows[r] || [];
     let hasName = false;
     let hasPhone = false;
+    let hasDob = false;
+    let hasBranch = false;
+    let hasDateParts = false;
 
     row.forEach(col => {
       const norm = normalizeHeader(col);
-      if (norm.includes('nameofstudent') || norm === 'studentname' || norm === 'name' || norm.includes('fullname') || norm.includes('applicant')) {
-        hasName = true;
-      }
-      if (norm.includes('contactno') || norm.includes('whatsapp') || norm.includes('phone') || norm.includes('mobile') || norm.includes('tel')) {
-        hasPhone = true;
-      }
+      if (isNameHeader(norm)) hasName = true;
+      if (isPhoneHeader(norm)) hasPhone = true;
+      if (isDobHeader(norm)) hasDob = true;
+      if (isBranchHeader(norm)) hasBranch = true;
+      if (isDaySubHeader(norm) || isMonthSubHeader(norm) || isYearSubHeader(norm)) hasDateParts = true;
     });
 
-    if (hasName && hasPhone) {
-      bestHeaderRowIdx = r;
-      break;
+    const distinctSignals = [hasName, hasPhone, hasDob, hasBranch].filter(Boolean).length;
+    const score = (hasName ? 3 : 0) + (hasPhone ? 3 : 0) + (hasDob ? 3 : 0) + (hasBranch ? 1 : 0) + (hasDateParts ? 1 : 0);
+
+    if (distinctSignals >= 2 && score > bestScore) {
+      bestScore = score;
+      bestPrimaryRowIdx = r;
     }
   }
 
-  mapping.headerRowIdx = bestHeaderRowIdx;
+  // 2. Extend headerRowIdx if the immediate next row holds split sub-headers (e.g., Date | Month | Year or DD/MM/YYYY under Date of Birth)
+  let headerEndRowIdx = bestPrimaryRowIdx;
+  if (bestPrimaryRowIdx + 1 < rows.length) {
+    const subRow = rows[bestPrimaryRowIdx + 1] || [];
+    const subRowLooksLikeData = subRow.some(c => {
+      const s = String(c || '').trim();
+      return /\d{7,}/.test(s.replace(/\D/g, '')) || /^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}$/.test(s);
+    });
+    const hasSubHeaders = !subRowLooksLikeData && subRow.some(col => {
+      const norm = normalizeHeader(col);
+      return isDaySubHeader(norm) || isMonthSubHeader(norm) || isYearSubHeader(norm) || norm === 'ddmmyy' || norm === 'ddmmyyyy' || norm === 'mmddyyyy';
+    });
+    if (hasSubHeaders) {
+      headerEndRowIdx = bestPrimaryRowIdx + 1;
+    }
+  }
 
-  // 2. Scan across ALL header rows (0 through bestHeaderRowIdx) to build complete mapping!
-  // This seamlessly handles merged/split headers (e.g. Row 1: "Date Of Birth", Row 2: "DD/MM/YY" or "Date/Month/Year")
-  for (let r = 0; r <= bestHeaderRowIdx; r++) {
+  mapping.headerRowIdx = headerEndRowIdx;
+
+  // 3. Scan header rows (0 through headerEndRowIdx) to populate primary columns and split-date candidates
+  const dayCandidates = [];
+  const monthCandidates = [];
+  const yearCandidates = [];
+
+  // Scan primary row first, then sub-header row, then any leading rows for merged top labels
+  const scanOrder = [bestPrimaryRowIdx];
+  for (let r = 0; r <= headerEndRowIdx; r++) {
+    if (r !== bestPrimaryRowIdx) scanOrder.push(r);
+  }
+
+  for (const r of scanOrder) {
     const row = rows[r] || [];
     row.forEach((col, idx) => {
       const norm = normalizeHeader(col);
+      if (!norm) return;
 
-      if (mapping.nameIdx === -1 && (norm.includes('nameofstudent') || norm === 'studentname' || norm === 'name' || norm.includes('fullname') || norm.includes('applicant'))) {
+      if (mapping.nameIdx === -1 && isNameHeader(norm)) {
         mapping.nameIdx = idx;
       }
-      if (mapping.phoneIdx === -1 && (norm.includes('contactno') || norm.includes('whatsapp') || norm.includes('phone') || norm.includes('mobile') || norm.includes('tel'))) {
+      if (mapping.phoneIdx === -1 && isPhoneHeader(norm)) {
         mapping.phoneIdx = idx;
       }
-      if (mapping.branchIdx === -1 && (norm === 'source' || norm.includes('branch') || norm.includes('location') || norm.includes('center') || norm.includes('campus'))) {
+      if (mapping.branchIdx === -1 && isBranchHeader(norm)) {
         mapping.branchIdx = idx;
       }
-      if (mapping.dobIdx === -1 && (
-        norm.includes('dateofbirth') || 
-        norm === 'dob' || 
-        norm.includes('birthdate') || 
-        norm.includes('bday') ||
-        norm.includes('ddmmyy') ||
-        norm.includes('ddmmyyyy')
-      )) {
+      if (mapping.dobIdx === -1 && isDobHeader(norm)) {
         mapping.dobIdx = idx;
       }
-      if (mapping.dayIdx === -1 && (norm === 'date' || norm === 'day') && idx >= 4) {
-        mapping.dayIdx = idx;
+      if (isDaySubHeader(norm)) {
+        dayCandidates.push({ idx, norm, row: r });
       }
-      if (mapping.monthIdx === -1 && norm === 'month') {
-        mapping.monthIdx = idx;
+      if (isMonthSubHeader(norm)) {
+        monthCandidates.push({ idx, norm, row: r });
       }
-      if (mapping.yearIdx === -1 && norm === 'year') {
-        mapping.yearIdx = idx;
+      if (isYearSubHeader(norm)) {
+        yearCandidates.push({ idx, norm, row: r });
       }
     });
   }
 
+  // Resolve split Day / Month / Year cluster without colliding with an unrelated Inquiry "Date" column
+  if (monthCandidates.length > 0) {
+    const pickedMonth = (mapping.dobIdx !== -1
+      ? monthCandidates.find(c => c.idx >= mapping.dobIdx)
+      : null) || monthCandidates[0];
+    mapping.monthIdx = pickedMonth.idx;
+
+    const nearDays = dayCandidates.filter(c =>
+      Math.abs(c.idx - mapping.monthIdx) <= 3 ||
+      c.norm === 'day' ||
+      c.norm === 'dd' ||
+      c.norm === 'bday' ||
+      (mapping.dobIdx !== -1 && c.idx >= mapping.dobIdx)
+    );
+    if (nearDays.length > 0) {
+      nearDays.sort((a, b) => Math.abs(a.idx - mapping.monthIdx) - Math.abs(b.idx - mapping.monthIdx));
+      mapping.dayIdx = nearDays[0].idx;
+    }
+
+    const nearYears = yearCandidates.filter(c => Math.abs(c.idx - mapping.monthIdx) <= 3);
+    if (nearYears.length > 0) {
+      nearYears.sort((a, b) => Math.abs(a.idx - mapping.monthIdx) - Math.abs(b.idx - mapping.monthIdx));
+      mapping.yearIdx = nearYears[0].idx;
+    }
+  }
+
   return mapping;
+}
+
+/**
+ * Infers whether a sheet's combined DOB column uses MDY (MM/DD) vs DMY (DD/MM) when text dates appear.
+ */
+function inferColumnDateOrder(rows, startRowIdx, dobIdx) {
+  if (dobIdx === -1 || !Array.isArray(rows)) return 'DMY';
+
+  let dmyEvidence = 0;
+  let mdyEvidence = 0;
+
+  for (let r = startRowIdx; r < rows.length; r++) {
+    const val = rows[r]?.[dobIdx];
+    if (!val || typeof val === 'number') continue;
+    const match = String(val).trim().match(/^(\d{1,2})\s*[-/.,]\s*(\d{1,2})(?:\s*[-/.,]\s*\d{2,5})?$/);
+    if (!match) continue;
+    const p1 = parseInt(match[1], 10);
+    const p2 = parseInt(match[2], 10);
+    if (p1 > 12) dmyEvidence++;
+    if (p2 > 12) mdyEvidence++;
+  }
+
+  return (mdyEvidence > 0 && dmyEvidence === 0) ? 'MDY' : 'DMY';
+}
+
+function isValidSheetSerial(val) {
+  return typeof val === 'number' && !isNaN(val) && Math.floor(val) >= 3653 && Math.floor(val) < 90000;
+}
+
+function looksLikeCombinedDateValue(formattedVal, unformattedVal) {
+  if (isValidSheetSerial(unformattedVal)) return true;
+  const s = String(formattedVal || '').trim();
+  if (!s) return false;
+  return /[-/.,]/.test(s) || /\b[a-zA-Z]{3,}\b/.test(s);
 }
 
 /**
@@ -167,14 +337,22 @@ async function fetchBranchStudents(branch, sheetsClientWrapper) {
 
     const exactTitle = matchedSheet.properties.title;
 
-    // 2. Fetch values using properly quoted sheet range: `'<Title>'!A1:Z`
-    const range = `'${exactTitle}'!A1:Z`;
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range
-    });
+    // 2. Fetch all columns/rows across the entire matched tab (including columns past Z).
+    // Fetch both formatted strings (phones/names/headers) and unformatted serial dates (unambiguous real Sheet Date cells).
+    const escapedTitle = exactTitle.replace(/'/g, "''");
+    const range = `'${escapedTitle}'`;
+    const [formattedRes, unformattedRes] = await Promise.all([
+      sheets.spreadsheets.values.get({ spreadsheetId, range }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range,
+        valueRenderOption: 'UNFORMATTED_VALUE',
+        dateTimeRenderOption: 'SERIAL_NUMBER'
+      }).catch(() => null)
+    ]);
 
-    const rows = response.data.values || [];
+    const rows = formattedRes?.data?.values || [];
+    const unformattedRows = unformattedRes?.data?.values || null;
     if (rows.length === 0) {
       return {
         branchId: branch.id,
@@ -186,29 +364,46 @@ async function fetchBranchStudents(branch, sheetsClientWrapper) {
       };
     }
 
-    // 3. Smart multi-row header mapping
+    // 3. Smart multi-row header mapping & column date-order inference
     const mapping = identifyColumnsFromRows(rows);
-    const dataRows = rows.slice(mapping.headerRowIdx + 1);
+    const dataStartIdx = mapping.headerRowIdx + 1;
+    const dataRows = rows.slice(dataStartIdx);
+    const columnDateOrder = inferColumnDateOrder(rows, dataStartIdx, mapping.dobIdx);
 
     const students = [];
     dataRows.forEach((row, index) => {
       if (!row || !row.length) return;
 
-      let name = mapping.nameIdx !== -1 ? (row[mapping.nameIdx] || '').trim() : '';
-      let phone = mapping.phoneIdx !== -1 ? (row[mapping.phoneIdx] || '').trim() : '';
-      let branchName = branch.name || (mapping.branchIdx !== -1 && row[mapping.branchIdx] ? row[mapping.branchIdx].trim() : 'College');
+      const unformattedRow = unformattedRows ? unformattedRows[dataStartIdx + index] : null;
+      let name = mapping.nameIdx !== -1 ? String(row[mapping.nameIdx] || '').trim() : '';
+      let phone = mapping.phoneIdx !== -1 ? String(row[mapping.phoneIdx] || '').trim() : '';
+      let branchName = branch.name || (mapping.branchIdx !== -1 && row[mapping.branchIdx] ? String(row[mapping.branchIdx]).trim() : 'College');
 
-      // Check combined DOB column vs split Date/Month/Year columns
+      // Prefer unambiguous Sheets serial dates or complete combined DOB; fall back to split Day/Month/Year columns
+      const formattedDob = mapping.dobIdx !== -1 ? row[mapping.dobIdx] : undefined;
+      const unformattedDob = (mapping.dobIdx !== -1 && unformattedRow) ? unformattedRow[mapping.dobIdx] : undefined;
+      const hasSplitDayMonth = mapping.dayIdx !== -1 && mapping.monthIdx !== -1 && row[mapping.dayIdx] && row[mapping.monthIdx];
+
       let dob = '';
-      if (mapping.dobIdx !== -1 && row[mapping.dobIdx] && (String(row[mapping.dobIdx]).includes('/') || String(row[mapping.dobIdx]).includes('-') || String(row[mapping.dobIdx]).includes('.'))) {
-        dob = String(row[mapping.dobIdx]).trim();
-      } else if (mapping.dayIdx !== -1 && mapping.monthIdx !== -1 && row[mapping.dayIdx] && row[mapping.monthIdx]) {
+      let dateOrderHint = columnDateOrder;
+
+      if (hasSplitDayMonth && (mapping.dobIdx === -1 || mapping.dobIdx === mapping.dayIdx || !looksLikeCombinedDateValue(formattedDob, unformattedDob))) {
         const d = String(row[mapping.dayIdx]).trim();
         const m = String(row[mapping.monthIdx]).trim();
-        const y = mapping.yearIdx !== -1 && row[mapping.yearIdx] ? String(row[mapping.yearIdx]).trim() : '2020';
-        dob = `${d}/${m}/${y}`;
-      } else if (mapping.dobIdx !== -1 && row[mapping.dobIdx]) {
-        dob = String(row[mapping.dobIdx]).trim();
+        const y = (mapping.yearIdx !== -1 && row[mapping.yearIdx]) ? String(row[mapping.yearIdx]).trim() : '';
+        dob = y ? `${d}/${m}/${y}` : `${d}/${m}`;
+        dateOrderHint = 'DMY';
+      } else if (isValidSheetSerial(unformattedDob)) {
+        dob = String(unformattedDob);
+        dateOrderHint = 'DMY';
+      } else if (formattedDob !== undefined && formattedDob !== null && String(formattedDob).trim() !== '') {
+        dob = String(formattedDob).trim();
+      } else if (hasSplitDayMonth) {
+        const d = String(row[mapping.dayIdx]).trim();
+        const m = String(row[mapping.monthIdx]).trim();
+        const y = (mapping.yearIdx !== -1 && row[mapping.yearIdx]) ? String(row[mapping.yearIdx]).trim() : '';
+        dob = y ? `${d}/${m}/${y}` : `${d}/${m}`;
+        dateOrderHint = 'DMY';
       }
 
       if (phone.includes('/')) {
@@ -217,9 +412,10 @@ async function fetchBranchStudents(branch, sheetsClientWrapper) {
 
       if (name || phone || dob) {
         students.push({
-          id: `${branch.id}_row_${mapping.headerRowIdx + index + 2}`,
+          id: `${branch.id}_row_${dataStartIdx + index + 1}`,
           name: name || `Inquirer (${phone || 'Student'})`,
           dob,
+          dateOrderHint,
           phone,
           branch: branchName,
           branchId: branch.id,
@@ -416,6 +612,7 @@ module.exports = {
   testGoogleSheetsConnection,
   clearCache,
   identifyColumnsFromRows,
+  inferColumnDateOrder,
   getSheetsClient,
   identifyColumns: (headerRow) => {
     const res = identifyColumnsFromRows([headerRow]);

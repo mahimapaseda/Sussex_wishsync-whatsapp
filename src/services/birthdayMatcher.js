@@ -47,78 +47,166 @@ function sanitizePhoneNumber(rawPhone) {
   };
 }
 
+const MONTH_NAME_MAP = {
+  jan: 1, january: 1,
+  feb: 2, february: 2,
+  mar: 3, march: 3,
+  apr: 4, april: 4,
+  may: 5,
+  jun: 6, june: 6,
+  jul: 7, july: 7,
+  aug: 8, august: 8,
+  sep: 9, sept: 9, september: 9,
+  oct: 10, october: 10,
+  nov: 11, november: 11,
+  dec: 12, december: 12
+};
+
+const MAX_DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function normalizeYearNumber(rawYear) {
+  if (rawYear === undefined || rawYear === null || rawYear === '') return null;
+  let y = parseInt(rawYear, 10);
+  if (isNaN(y)) return null;
+  if (y < 100) {
+    y = y > 30 ? 1900 + y : 2000 + y;
+  } else if (y > 2100 && String(y).length === 5 && String(y).startsWith('200')) {
+    // Handles typos like 20018 -> 2018
+    y = parseInt('20' + String(y).substring(3), 10);
+  }
+  return y;
+}
+
+function buildValidDobResult(day, month, year = null) {
+  if (
+    !Number.isInteger(month) || month < 1 || month > 12 ||
+    !Number.isInteger(day) || day < 1 || day > MAX_DAYS_IN_MONTH[month - 1]
+  ) {
+    return null;
+  }
+  const dd = String(day).padStart(2, '0');
+  const mm = String(month).padStart(2, '0');
+  return {
+    day,
+    month,
+    year,
+    isValid: true,
+    formatted: year ? `${dd}/${mm}/${year}` : `${dd}/${mm}`
+  };
+}
+
 /**
  * Parses multiple date formats gracefully:
- * - DD/MM/YYYY or DD-MM-YYYY (Sri Lanka standard)
- * - YYYY-MM-DD
- * - MM/DD/YYYY
- * - Excel date serial numbers
+ * - Excel / Google Sheets date serial numbers (including fractional timestamps)
+ * - DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, or DD/MM (Sri Lanka standard default)
+ * - MM/DD/YYYY (when day > 12 or options.dateOrder === 'MDY')
+ * - YYYY-MM-DD / YYYY/MM/DD / ISO timestamps
+ * - Named months: "12 Nov 2018", "12th November 2018", "12-Nov", "Nov 12, 2018"
  */
-function parseDateOfBirth(rawDate) {
-  if (!rawDate) {
+function parseDateOfBirth(rawDate, options = {}) {
+  if (rawDate === undefined || rawDate === null || rawDate === '') {
     return { day: null, month: null, year: null, isValid: false, formatted: '' };
   }
 
-  let str = String(rawDate).trim().replace(/\.+/g, '.').replace(/\s+/g, ' ');
+  if (rawDate instanceof Date && !isNaN(rawDate.getTime())) {
+    const res = buildValidDobResult(rawDate.getDate(), rawDate.getMonth() + 1, rawDate.getFullYear());
+    if (res) return res;
+  }
 
-  // 1. Check for Excel numeric serial date (e.g., 38950)
-  if (/^\d{4,5}$/.test(str)) {
-    const serial = parseInt(str, 10);
-    // Excel epoch begins Dec 30 1899
-    const utcDate = new Date((serial - 25569) * 86400 * 1000);
-    if (!isNaN(utcDate.getTime())) {
-      const d = utcDate.getUTCDate();
-      const m = utcDate.getUTCMonth() + 1;
-      const y = utcDate.getUTCFullYear();
-      return {
-        day: d,
-        month: m,
-        year: y,
-        isValid: true,
-        formatted: `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`
-      };
+  let str = String(rawDate)
+    .trim()
+    .replace(/^['"`\s]+|['"`\s]+$/g, '')
+    .replace(/[\u2012\u2013\u2014\u2015\u2212]/g, '-')
+    .replace(/\.+/g, '.')
+    .replace(/\s+/g, ' ')
+    .replace(/^(?:dob|date of birth|birthday|bday)\s*[:=-]\s*/i, '')
+    .replace(/T\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/i, '')
+    .replace(/\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]m)?$/i, '')
+    .replace(/\b(\d{1,2})(?:st|nd|rd|th)\b/gi, '$1')
+    .trim();
+
+  if (!str) {
+    return { day: null, month: null, year: null, isValid: false, formatted: '' };
+  }
+
+  // 1. Excel / Google Sheets numeric serial date (e.g., 38950 or 43416.5; ignore bare 4-digit years like 2018)
+  if (/^\d{4,5}(?:\.\d+)?$/.test(str)) {
+    const serial = Math.floor(Number(str));
+    if (serial >= 3653 && serial < 90000) {
+      const utcDate = new Date((serial - 25569) * 86400 * 1000);
+      if (!isNaN(utcDate.getTime())) {
+        const res = buildValidDobResult(utcDate.getUTCDate(), utcDate.getUTCMonth() + 1, utcDate.getUTCFullYear());
+        if (res) return res;
+      }
     }
   }
 
-  // 2. YYYY-MM-DD or YYYY.MM.DD or YYYY/MM/DD (supports typo 5-digit years like 20018 -> 2018)
-  const isoMatch = str.match(/^(\d{4,5})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  // 2. Month-name formats (handles DD/Nov/YYYY, 12.Nov.2018, 12-Nov, Nov 12, 2018, 2018-Nov-12)
+  const dayMonthYearMatch = str.match(/^(\d{1,2})[\s./,-]+([a-zA-Z]{3,12})(?:[\s./,-]+(\d{2,5}))?$/);
+  if (dayMonthYearMatch) {
+    const month = MONTH_NAME_MAP[dayMonthYearMatch[2].toLowerCase()];
+    if (month) {
+      const res = buildValidDobResult(
+        parseInt(dayMonthYearMatch[1], 10),
+        month,
+        normalizeYearNumber(dayMonthYearMatch[3])
+      );
+      if (res) return res;
+    }
+  }
+
+  const monthDayYearMatch = str.match(/^([a-zA-Z]{3,12})[\s./,-]+(\d{1,2})(?:[\s./,-]+(\d{2,5}))?$/);
+  if (monthDayYearMatch) {
+    const month = MONTH_NAME_MAP[monthDayYearMatch[1].toLowerCase()];
+    if (month) {
+      const res = buildValidDobResult(
+        parseInt(monthDayYearMatch[2], 10),
+        month,
+        normalizeYearNumber(monthDayYearMatch[3])
+      );
+      if (res) return res;
+    }
+  }
+
+  const yearMonthNameDayMatch = str.match(/^(\d{4,5})[\s./,-]+([a-zA-Z]{3,12})[\s./,-]+(\d{1,2})$/);
+  if (yearMonthNameDayMatch) {
+    const month = MONTH_NAME_MAP[yearMonthNameDayMatch[2].toLowerCase()];
+    if (month) {
+      const res = buildValidDobResult(
+        parseInt(yearMonthNameDayMatch[3], 10),
+        month,
+        normalizeYearNumber(yearMonthNameDayMatch[1])
+      );
+      if (res) return res;
+    }
+  }
+
+  // 3. YYYY-MM-DD or YYYY.MM.DD or YYYY/MM/DD
+  const isoMatch = str.match(/^(\d{4,5})\s*[-/.]\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})$/);
   if (isoMatch) {
-    let y = parseInt(isoMatch[1], 10);
-    if (y > 2100 && String(y).length === 5 && String(y).startsWith('200')) {
-      y = parseInt('20' + String(y).substring(3), 10);
-    }
-    const m = parseInt(isoMatch[2], 10);
-    const d = parseInt(isoMatch[3], 10);
-    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-      return {
-        day: d,
-        month: m,
-        year: y,
-        isValid: true,
-        formatted: `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`
-      };
-    }
+    const res = buildValidDobResult(
+      parseInt(isoMatch[3], 10),
+      parseInt(isoMatch[2], 10),
+      normalizeYearNumber(isoMatch[1])
+    );
+    if (res) return res;
   }
 
-  // 3. DD/MM/YYYY or DD-MM-YYYY or MM/DD/YYYY
-  const partsMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+  // 4. Numeric DD/MM/YYYY, MM/DD/YYYY, DD-MM-YY, or DD/MM (tolerates spaces around separators and commas)
+  const partsMatch = str.match(/^(\d{1,2})\s*[-/.,]\s*(\d{1,2})(?:\s*[-/.,]\s*(\d{2,5}))?$/);
   if (partsMatch) {
-    let p1 = parseInt(partsMatch[1], 10);
-    let p2 = parseInt(partsMatch[2], 10);
-    let y = parseInt(partsMatch[3], 10);
-
-    // Normalize 2-digit years
-    if (y < 100) {
-      y = y > 30 ? 1900 + y : 2000 + y;
-    }
+    const p1 = parseInt(partsMatch[1], 10);
+    const p2 = parseInt(partsMatch[2], 10);
+    const y = normalizeYearNumber(partsMatch[3]);
 
     let day, month;
     if (p1 > 12) {
-      // Must be DD/MM/YYYY
       day = p1;
       month = p2;
     } else if (p2 > 12) {
-      // Must be MM/DD/YYYY
+      month = p1;
+      day = p2;
+    } else if (options.dateOrder === 'MDY') {
       month = p1;
       day = p2;
     } else {
@@ -127,30 +215,17 @@ function parseDateOfBirth(rawDate) {
       month = p2;
     }
 
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      return {
-        day,
-        month,
-        year: y,
-        isValid: true,
-        formatted: `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${y}`
-      };
-    }
+    const res = buildValidDobResult(day, month, y);
+    if (res) return res;
   }
 
-  // 4. Standard Date.parse fallback
-  const fallback = new Date(str);
-  if (!isNaN(fallback.getTime())) {
-    const day = fallback.getDate();
-    const month = fallback.getMonth() + 1;
-    const year = fallback.getFullYear();
-    return {
-      day,
-      month,
-      year,
-      isValid: true,
-      formatted: `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`
-    };
+  // 5. Standard Date.parse fallback for any other textual date formats (ignore bare numbers like '2018')
+  if (!/^\d+(?:\.\d+)?$/.test(str)) {
+    const fallback = new Date(str);
+    if (!isNaN(fallback.getTime())) {
+      const res = buildValidDobResult(fallback.getDate(), fallback.getMonth() + 1, fallback.getFullYear());
+      if (res) return res;
+    }
   }
 
   return { day: null, month: null, year: null, isValid: false, formatted: str };
@@ -253,7 +328,7 @@ function processStudentRecords(rawStudents, customToday = null) {
     }
 
     const phoneInfo = sanitizePhoneNumber(rawPhone);
-    const dobInfo = parseDateOfBirth(rawDob);
+    const dobInfo = parseDateOfBirth(rawDob, { dateOrder: raw.dateOrderHint || 'DMY' });
 
     if (!dobInfo.isValid) {
       return;
@@ -281,7 +356,9 @@ function processStudentRecords(rawStudents, customToday = null) {
 
     // Check if birthday is TODAY
     if (dobInfo.day === today.day && dobInfo.month === today.month) {
-      const alreadySent = ledger.hasBeenSentThisYear(phoneInfo.sanitized, today.year);
+      const alreadySent = phoneInfo.sanitized
+        ? ledger.hasBeenSentThisYear(phoneInfo.sanitized, today.year)
+        : false;
       studentRecord.status = alreadySent ? 'SENT_TODAY' : 'PENDING_TODAY';
 
       if (alreadySent) {
