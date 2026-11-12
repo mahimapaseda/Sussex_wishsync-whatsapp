@@ -2,6 +2,7 @@ const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
+const { execFile } = require('child_process');
 const config = require('../config/env');
 const ledger = require('./ledger');
 const matcher = require('./birthdayMatcher');
@@ -723,21 +724,57 @@ async function resetSession() {
   }
 }
 
+let shutdownPromise = null;
+
+function killProcessTree(pid) {
+  return new Promise((resolve) => {
+    if (!pid) return resolve();
+    if (process.platform === 'win32') {
+      execFile('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true }, () => resolve());
+    } else {
+      try {
+        process.kill(pid, 'SIGKILL');
+      } catch (e) {}
+      resolve();
+    }
+  });
+}
+
 /**
- * Cleanly closes WhatsApp Puppeteer browser on app exit so no lock files remain.
+ * Cleanly closes WhatsApp Puppeteer browser on app exit so no background processes or lock files remain.
  */
 async function shutdown() {
-  if (retryTimeout) {
-    clearTimeout(retryTimeout);
-    retryTimeout = null;
-  }
-  clearAuthWatchdog();
-  if (client) {
-    try {
-      await client.destroy();
-    } catch (e) {}
+  if (shutdownPromise) return shutdownPromise;
+
+  shutdownPromise = (async () => {
+    if (retryTimeout) {
+      clearTimeout(retryTimeout);
+      retryTimeout = null;
+    }
+    clearAuthWatchdog();
+    isDispatching = false;
+    clientStatus = 'DISCONNECTED';
+
+    const activeClient = client;
     client = null;
-  }
+
+    if (activeClient) {
+      const browserPid = activeClient.pupBrowser?.process?.()?.pid || null;
+      try {
+        await Promise.race([
+          activeClient.destroy().catch(() => {}),
+          sleep(2000)
+        ]);
+      } catch (e) {}
+      if (browserPid) {
+        await killProcessTree(browserPid);
+      }
+    }
+  })().finally(() => {
+    shutdownPromise = null;
+  });
+
+  return shutdownPromise;
 }
 
 module.exports = {

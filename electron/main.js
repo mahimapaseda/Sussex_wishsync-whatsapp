@@ -27,7 +27,9 @@ app.commandLine.appendSwitch('js-flags', '--max-old-space-size=128 --optimize-fo
 let mainWindow = null;
 let tray = null;
 let isQuitting = false;
-let shownTrayNotice = false;
+let shutdownCompleted = false;
+let quitPromise = null;
+let backendModule = null;
 
 // Determine if started hidden (e.g. from Windows boot auto-run)
 const isStartMinimized = process.argv.includes('--hidden') || process.argv.includes('--minimized');
@@ -47,7 +49,7 @@ function startBackendServer() {
   try {
     process.env.OPEN_BROWSER_ON_BOOT = 'false'; // prevent duplicate system browser opens
     process.env.STARTUP_BOOT = isStartMinimized ? 'true' : 'false';
-    require('../src/index.js');
+    backendModule = require('../src/index.js');
     console.log('[Electron] Embedded WishSync Express server active on port ' + PORT + (isStartMinimized ? ' (Windows boot standby)' : ''));
   } catch (err) {
     console.error('[Electron] Failed to start embedded backend:', err);
@@ -96,17 +98,7 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Release UI Chromium renderer RAM completely when window is closed, keeping tray + WhatsApp engine alive
-  mainWindow.on('close', () => {
-    if (!isQuitting && tray && !shownTrayNotice) {
-      shownTrayNotice = true;
-      tray.displayBalloon?.({
-        title: 'WishSync Running in Tray',
-        content: 'Window closed to save RAM. WishSync remains active in the background.'
-      });
-    }
-  });
-
+  // Clear window reference & renderer cache when closed; app exit terminates all background tasks
   mainWindow.on('closed', () => {
     mainWindow = null;
     session.defaultSession.clearCache().catch(() => {});
@@ -168,8 +160,7 @@ function createTray() {
     {
       label: 'Quit WishSync',
       click: () => {
-        isQuitting = true;
-        app.quit();
+        quitApplication();
       }
     }
   ]);
@@ -239,15 +230,50 @@ app.on('open-url', (event, url) => {
   bringWindowToForeground();
 });
 
-app.on('before-quit', () => {
+async function quitApplication() {
+  if (quitPromise) return quitPromise;
   isQuitting = true;
-  try {
-    const whatsappClient = require('../src/services/whatsappClient');
-    whatsappClient.shutdown().catch(() => {});
-  } catch (e) {}
+
+  quitPromise = (async () => {
+    console.log('[Electron] Closing WishSync and ending all background tasks...');
+    if (tray) {
+      try {
+        tray.destroy();
+      } catch (e) {}
+      tray = null;
+    }
+
+    const stopBackend = async () => {
+      if (backendModule && typeof backendModule.shutdownBackend === 'function') {
+        await backendModule.shutdownBackend();
+      } else {
+        const whatsappClient = require('../src/services/whatsappClient');
+        await whatsappClient.shutdown();
+      }
+    };
+
+    try {
+      await Promise.race([
+        stopBackend().catch(() => {}),
+        new Promise(resolve => setTimeout(resolve, 3500))
+      ]);
+    } catch (e) {}
+
+    shutdownCompleted = true;
+    app.exit(0);
+  })();
+
+  return quitPromise;
+}
+
+app.on('before-quit', (event) => {
+  if (!shutdownCompleted) {
+    event.preventDefault();
+    quitApplication();
+  }
 });
 
 app.on('window-all-closed', () => {
-  // Do not quit when windows close on Windows, stay resident in tray!
+  quitApplication();
 });
 

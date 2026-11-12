@@ -2,10 +2,10 @@
   <img src="src/public/sussex-logo.jpg" alt="Sussex College Network Logo" width="84" />
   <h1>WishSync</h1>
   <p><strong>Automated Birthday Dispatch Desktop Software for Google Sheets &amp; WhatsApp</strong></p>
-  <p>Built for the <strong>Sussex College Network</strong> &bull; Lightweight 4GB-RAM Windows Startup Edition (<code>v1.1.2</code>)</p>
+  <p>Built for the <strong>Sussex College Network</strong> &bull; Lightweight 4GB-RAM Windows Startup Edition (<code>v1.1.3</code>)</p>
 
   <p>
-    <img src="https://img.shields.io/badge/Version-1.1.2-1B365D?style=flat-square" alt="Version 1.1.2" />
+    <img src="https://img.shields.io/badge/Version-1.1.3-1B365D?style=flat-square" alt="Version 1.1.3" />
     <img src="https://img.shields.io/badge/Platform-Windows%20Desktop%20%7C%20Electron-0F766E?style=flat-square" alt="Windows Desktop Electron" />
     <img src="https://img.shields.io/badge/RAM%20Target-4GB%20Low--End%20PCs-B45309?style=flat-square" alt="4GB RAM Optimized" />
     <img src="https://img.shields.io/badge/Package-%40mahimapaseda%2Fwishsync-24292F?style=flat-square" alt="GitHub Packages" />
@@ -66,11 +66,11 @@
 
 ---
 
-## Optimized for 4GB RAM & Windows Startup PCs (`v1.1.2`)
+## Optimized for 4GB RAM & Windows Startup PCs (`v1.1.3`)
 
-Designed specifically to run quietly all day on older 4GB RAM office PCs configured for **Start with Windows**:
+Designed specifically to run cleanly all day on older 4GB RAM office PCs configured for **Start with Windows**:
 
-- **Zero-Renderer Tray Standby**: Closing the WishSync window destroys the Electron Chromium renderer instead of hiding it, dropping UI memory usage to `0 MB` while keeping the system tray icon, local server, and WhatsApp watcher active.
+- **Clean Full Exit on Close**: Closing the WishSync window cleanly shuts down the Electron UI, tray icon, local server, background scheduler timers, and WishSync's headless WhatsApp Chromium process tree so zero background tasks remain running.
 - **Staggered Windows Boot (`--hidden`)**: Automatically registers with Windows login (`--hidden`), waits **15 seconds** on boot before initializing the headless WhatsApp Web engine so Windows Explorer and startup services settle cleanly, and runs **headless auto-dispatch** (`runHeadlessBootAutoDispatch`) without opening a heavy UI window.
 - **Strict V8 & Chromium Memory Caps**: Caps Electron renderer heap (`128 MB`), Electron disk/media cache (`10 MB` / `5 MB`), and headless WhatsApp Web heap (`384 MB`), with GPU/extension overhead disabled while keeping WhatsApp Web sync reliable.
 - **Low-CPU Polling & Single-Flight Caching**: Pauses dashboard polling when minimized/hidden (`visibilityState`), serves fresh cached branch data across tabs, and shares in-flight Google Sheets fetches (`inflightFetchPromise`).
@@ -81,8 +81,8 @@ Designed specifically to run quietly all day on older 4GB RAM office PCs configu
 
 Download pre-built Windows binaries directly from [**GitHub Releases**](../../releases):
 
-- **Installer**: `WishSync Setup 1.1.2.exe` — Installs or upgrades WishSync while preserving existing client data (`%APPDATA%\WishSync` WhatsApp session, Google Sheets sign-in, branch settings, and delivery log), creates desktop/Start Menu shortcuts, registers the `wishsync://` protocol handler, and enables Windows startup tray launch.
-- **Portable**: `WishSync 1.1.2.exe` — Single-file portable executable with zero installation required.
+- **Installer**: `WishSync Setup 1.1.3.exe` — Installs or upgrades WishSync while preserving existing client data (`%APPDATA%\WishSync` WhatsApp session, Google Sheets sign-in, branch settings, and delivery log), creates desktop/Start Menu shortcuts, registers the `wishsync://` protocol handler, and enables Windows startup tray launch.
+- **Portable**: `WishSync 1.1.3.exe` — Single-file portable executable with zero installation required.
 
 ---
 

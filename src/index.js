@@ -27,6 +27,11 @@ app.use('/assets', express.static(path.join(config.DATA_DIR, 'assets')));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 let autoSendBootTriggered = false;
+let isShuttingDown = false;
+let initTimer = null;
+let schedulerInterval = null;
+let browserOpenTimer = null;
+let backendShutdownPromise = null;
 
 // 1a. Dedicated WhatsApp Status API (Fast, zero external API overhead for polling)
 app.get('/api/whatsapp/status', (req, res) => {
@@ -494,13 +499,13 @@ async function runHeadlessBootAutoDispatch() {
   console.log('[Startup] Boot auto-dispatch monitor active (waiting for WhatsApp readiness)...');
   const maxAttempts = 48; // up to ~4 minutes
   for (let i = 0; i < maxAttempts; i++) {
-    if (autoSendBootTriggered) return;
+    if (autoSendBootTriggered || isShuttingDown) return;
     const waStatus = whatsappClient.getStatus();
     if (waStatus.status === 'READY') {
       const delaySec = parseInt(userSettings.autoSendDelaySeconds, 10) || 10;
       console.log(`[Startup] WhatsApp ready. Waiting ${delaySec}s before checking birthday roster...`);
       await sleep(delaySec * 1000);
-      if (autoSendBootTriggered) return;
+      if (autoSendBootTriggered || isShuttingDown) return;
 
       try {
         const sheetData = await googleSheets.fetchStudentsFromSheet(true);
@@ -543,7 +548,8 @@ const server = app.listen(config.PORT, async () => {
     console.log(`[Startup] Windows boot mode detected — delaying WhatsApp engine ${initDelayMs / 1000}s to reduce boot load...`);
   }
 
-  setTimeout(() => {
+  initTimer = setTimeout(() => {
+    if (isShuttingDown) return;
     try {
       whatsappClient.initializeWhatsAppClient();
       if (isStartupBoot) {
@@ -558,7 +564,8 @@ const server = app.listen(config.PORT, async () => {
 
   // Periodic Midnight / Date-Change Scheduler (runs every 15 minutes)
   let lastCheckedDate = birthdayMatcher.getCurrentDateInTimezone().dateString;
-  setInterval(async () => {
+  schedulerInterval = setInterval(async () => {
+    if (isShuttingDown) return;
     try {
       const currentDate = birthdayMatcher.getCurrentDateInTimezone().dateString;
       if (currentDate !== lastCheckedDate) {
@@ -587,7 +594,8 @@ const server = app.listen(config.PORT, async () => {
 
   // Auto-launch Dashboard in browser if enabled
   if (config.OPEN_BROWSER_ON_BOOT) {
-    setTimeout(async () => {
+    browserOpenTimer = setTimeout(async () => {
+      if (isShuttingDown) return;
       try {
         console.log(`[Startup] Opening dashboard in browser: ${url}`);
         // Attempt to open in application mode if Chrome/Edge is available, or default browser
@@ -601,20 +609,62 @@ const server = app.listen(config.PORT, async () => {
   }
 });
 
+/**
+ * Stops all background timers, HTTP connections, and WhatsApp Puppeteer browser processes.
+ */
+async function shutdownBackend() {
+  if (backendShutdownPromise) return backendShutdownPromise;
+
+  backendShutdownPromise = (async () => {
+    isShuttingDown = true;
+    autoSendBootTriggered = true;
+
+    if (initTimer) {
+      clearTimeout(initTimer);
+      initTimer = null;
+    }
+    if (schedulerInterval) {
+      clearInterval(schedulerInterval);
+      schedulerInterval = null;
+    }
+    if (browserOpenTimer) {
+      clearTimeout(browserOpenTimer);
+      browserOpenTimer = null;
+    }
+
+    await whatsappClient.shutdown().catch(() => {});
+
+    await new Promise((resolve) => {
+      if (!server || !server.listening) return resolve();
+      const closeTimer = setTimeout(resolve, 1000);
+      try {
+        if (typeof server.closeAllConnections === 'function') {
+          server.closeAllConnections();
+        }
+        server.close(() => {
+          clearTimeout(closeTimer);
+          resolve();
+        });
+      } catch (e) {
+        clearTimeout(closeTimer);
+        resolve();
+      }
+    });
+  })();
+
+  return backendShutdownPromise;
+}
+
 // Graceful termination handling
 process.on('SIGINT', () => {
   console.log('\n[WishSync] Shutting down gracefully...');
-  server.close(() => {
-    process.exit(0);
-  });
+  shutdownBackend().finally(() => process.exit(0));
 });
 
 process.on('SIGTERM', () => {
   console.log('\n[WishSync] Received SIGTERM. Shutting down...');
-  server.close(() => {
-    process.exit(0);
-  });
+  shutdownBackend().finally(() => process.exit(0));
 });
 
-module.exports = { app, server };
+module.exports = { app, server, shutdownBackend };
 
