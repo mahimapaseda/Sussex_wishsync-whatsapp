@@ -19,6 +19,7 @@ const activePhoneDispatches = new Set();
 let retryTimeout = null;
 let authWatchdogTimeout = null;
 let consecutiveAuthStalls = 0;
+let isShuttingDown = false;
 
 // Ensure auth directory exists in writeable DATA_DIR
 const authDataPath = path.join(config.DATA_DIR, '.wwebjs_auth');
@@ -106,6 +107,9 @@ function clearAuthWatchdog() {
  * Initializes the WhatsApp Web client with LocalAuth.
  */
 function initializeWhatsAppClient() {
+  if (isShuttingDown) {
+    return null;
+  }
   if (retryTimeout) {
     clearTimeout(retryTimeout);
     retryTimeout = null;
@@ -194,12 +198,13 @@ function initializeWhatsAppClient() {
 
       clearAuthWatchdog();
       authWatchdogTimeout = setTimeout(async () => {
-        if (clientStatus !== 'AUTHENTICATED') return;
+        if (isShuttingDown || clientStatus !== 'AUTHENTICATED') return;
         consecutiveAuthStalls += 1;
         console.warn(`[WhatsApp] Post-auth sync stalled >75s (attempt ${consecutiveAuthStalls}). Restarting client...`);
         try {
           if (client) await client.destroy();
         } catch (e) {}
+        if (isShuttingDown) return;
         client = null;
         clientInfo = null;
         loadingPercent = null;
@@ -214,6 +219,7 @@ function initializeWhatsAppClient() {
 
     client.on('auth_failure', async (msg) => {
       clearAuthWatchdog();
+      if (isShuttingDown) return;
       consecutiveAuthStalls = 0;
       loadingPercent = null;
       console.error('[WhatsApp] Authentication failure:', msg);
@@ -223,6 +229,7 @@ function initializeWhatsAppClient() {
       try {
         await client.destroy();
       } catch (e) {}
+      if (isShuttingDown) return;
       client = null;
       cleanSessionFolder();
       retryTimeout = setTimeout(() => initializeWhatsAppClient(), 2000);
@@ -241,6 +248,7 @@ function initializeWhatsAppClient() {
 
     client.on('disconnected', async (reason) => {
       clearAuthWatchdog();
+      if (isShuttingDown) return;
       loadingPercent = null;
       console.warn('[WhatsApp] Client disconnected:', reason);
       clientStatus = 'DISCONNECTED';
@@ -250,6 +258,7 @@ function initializeWhatsAppClient() {
       try {
         await client.destroy();
       } catch (e) {}
+      if (isShuttingDown) return;
       client = null;
 
       cleanSessionFolder();
@@ -259,12 +268,14 @@ function initializeWhatsAppClient() {
 
     client.initialize().catch(async (err) => {
       clearAuthWatchdog();
+      if (isShuttingDown) return;
       loadingPercent = null;
       console.error('[WhatsApp] Client initialization failed:', err.message);
       clientStatus = 'ERROR';
       try {
         await client.destroy();
       } catch (e) {}
+      if (isShuttingDown) return;
       client = null;
 
       cleanSessionFolder();
@@ -274,6 +285,7 @@ function initializeWhatsAppClient() {
 
   } catch (err) {
     clearAuthWatchdog();
+    if (isShuttingDown) return client;
     loadingPercent = null;
     console.error('[WhatsApp] Failed to instantiate WhatsApp client:', err.message);
     clientStatus = 'ERROR';
@@ -744,6 +756,7 @@ function killProcessTree(pid) {
  * Cleanly closes WhatsApp Puppeteer browser on app exit so no background processes or lock files remain.
  */
 async function shutdown() {
+  isShuttingDown = true;
   if (shutdownPromise) return shutdownPromise;
 
   shutdownPromise = (async () => {

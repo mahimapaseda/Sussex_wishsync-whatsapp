@@ -95,7 +95,19 @@ function createWindow() {
   mainWindow.loadURL(`http://localhost:${PORT}`);
 
   mainWindow.once('ready-to-show', () => {
+    console.log('[Electron] Main window ready-to-show');
     mainWindow.show();
+  });
+
+  // Closing the app window immediately hides UI and shuts down all background tasks cleanly
+  mainWindow.on('close', (event) => {
+    if (!shutdownCompleted) {
+      event.preventDefault();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide();
+      }
+      quitApplication();
+    }
   });
 
   // Clear window reference & renderer cache when closed; app exit terminates all background tasks
