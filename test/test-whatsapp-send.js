@@ -1,4 +1,5 @@
 const assert = require('assert');
+const EventEmitter = require('events');
 const {
   dispatchWishMessage,
   extractMessageId
@@ -101,6 +102,77 @@ async function runTests() {
     assert.strictEqual(res.usedImage, false);
     assert.strictEqual(extractMessageId(res.sentMsg), 'msg-text-1');
     console.log('  ✓ Disabled image config dispatches plain text once');
+  }
+
+  // 5. Undefined return from sendMessage recovers via message_create event (no false error toast)
+  {
+    const fakeClient = new EventEmitter();
+    let calls = 0;
+    fakeClient.sendMessage = async (chatId) => {
+      calls++;
+      fakeClient.emit('message_create', {
+        fromMe: true,
+        to: chatId,
+        id: { _serialized: 'true_94770114407@c.us_EVT1' }
+      });
+      return undefined;
+    };
+    const res = await dispatchWishMessage(fakeClient, '94770114407@c.us', 'Happy Birthday!', {
+      isImageEnabled: true,
+      media: { mimetype: 'image/jpeg', data: 'base64data' },
+      filePath: 'birthday-card.jpeg'
+    });
+
+    assert.strictEqual(calls, 1);
+    assert.strictEqual(extractMessageId(res.sentMsg), 'true_94770114407@c.us_EVT1');
+    console.log('  ✓ Undefined sendMessage return recovered via message_create event');
+  }
+
+  // 6. Undefined return from sendMessage recovers via pupPage outgoing store check
+  {
+    let calls = 0;
+    const fakeClient = {
+      pupPage: {
+        async evaluate() {
+          return { chatFound: true, confirmed: true, messageId: 'true_94770114407@c.us_DOM1' };
+        }
+      },
+      async sendMessage() {
+        calls++;
+        return undefined;
+      }
+    };
+    const res = await dispatchWishMessage(fakeClient, '94770114407@c.us', 'Happy Birthday!', {
+      isImageEnabled: true,
+      media: { mimetype: 'image/jpeg', data: 'base64data' },
+      filePath: 'birthday-card.jpeg'
+    });
+
+    assert.strictEqual(calls, 1);
+    assert.strictEqual(extractMessageId(res.sentMsg), 'true_94770114407@c.us_DOM1');
+    console.log('  ✓ Undefined sendMessage return recovered via pupPage verification');
+  }
+
+  // 7. Undefined return when chat truly does not exist still leaves sentMsg null
+  {
+    const fakeClient = {
+      pupPage: {
+        async evaluate() {
+          return { chatFound: false, confirmed: false, messageId: null };
+        }
+      },
+      async sendMessage() {
+        return undefined;
+      }
+    };
+    const res = await dispatchWishMessage(fakeClient, '94770114407@c.us', 'Happy Birthday!', {
+      isImageEnabled: true,
+      media: { mimetype: 'image/jpeg', data: 'base64data' },
+      filePath: 'birthday-card.jpeg'
+    });
+
+    assert.strictEqual(Boolean(res.sentMsg), false);
+    console.log('  ✓ Unsent missing-chat return stays falsy and does not falsely mark delivered');
   }
 
   console.log('\n==========================================');

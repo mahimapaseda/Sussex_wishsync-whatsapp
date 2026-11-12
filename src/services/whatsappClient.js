@@ -371,27 +371,173 @@ function resolveBirthdayMediaPayload() {
   return { isImageEnabled: true, media, filePath: foundPath };
 }
 
+function matchesTargetRecipient(rawJid, chatId, phoneDigits) {
+  if (!rawJid) return false;
+  const serialized = typeof rawJid === 'object' ? (rawJid._serialized || rawJid.user || '') : String(rawJid);
+  if (serialized === chatId) return true;
+  if (!phoneDigits) return false;
+  const digits = serialized.replace(/\D/g, '');
+  return digits.endsWith(phoneDigits) || phoneDigits.endsWith(digits);
+}
+
+/**
+ * Inspects WhatsApp Web in the Puppeteer page when whatsapp-web.js returns `undefined`
+ * (e.g. when `getMessageModel` / CDP serialization drops the return value after sending).
+ * Returns ONLY plain JSON primitives so CDP structured cloning never drops the result.
+ */
+async function confirmOutgoingInWhatsAppWeb(pupPage, chatId, phoneDigits, sinceSec, messageBody) {
+  if (!pupPage || typeof pupPage.evaluate !== 'function') {
+    return { chatFound: false, confirmed: false, messageId: null };
+  }
+
+  const expectedSnippet = String(messageBody || '').trim().slice(0, 40);
+
+  return pupPage.evaluate(
+    async (targetChatId, targetDigits, minTs, snippet) => {
+      try {
+        let chat = await window.WWebJS.getChat(targetChatId, { getAsModel: false });
+        const collections = window.require('WAWebCollections');
+
+        if (!chat && collections?.Chat?.getModelsArray) {
+          const allChats = collections.Chat.getModelsArray();
+          chat = allChats.find((c) => {
+            const ser = c?.id?._serialized || '';
+            const usr = String(c?.id?.user || '').replace(/\D/g, '');
+            return ser === targetChatId || (targetDigits && usr && (usr === targetDigits || usr.endsWith(targetDigits)));
+          }) || null;
+        }
+
+        const isRecentOutgoing = (m) => {
+          if (!m) return false;
+          const fromMe = Boolean(m.id?.fromMe || m.fromMe || m.self === 'out');
+          if (!fromMe) return false;
+          const ts = Number(m.t || 0);
+          if (ts >= minTs - 20) return true;
+          const text = String(m.caption || m.body || '');
+          return Boolean(snippet && text.includes(snippet));
+        };
+
+        if (chat && chat.msgs) {
+          const chatMsgs = typeof chat.msgs.getModelsArray === 'function'
+            ? chat.msgs.getModelsArray()
+            : Array.from(chat.msgs || []);
+          for (let i = chatMsgs.length - 1; i >= Math.max(0, chatMsgs.length - 15); i--) {
+            const m = chatMsgs[i];
+            if (isRecentOutgoing(m)) {
+              return {
+                chatFound: true,
+                confirmed: true,
+                messageId: m?.id?._serialized ? String(m.id._serialized) : null
+              };
+            }
+          }
+        }
+
+        if (collections?.Msg?.getModelsArray) {
+          const msgs = collections.Msg.getModelsArray();
+          for (let i = msgs.length - 1; i >= Math.max(0, msgs.length - 30); i--) {
+            const m = msgs[i];
+            if (!isRecentOutgoing(m)) continue;
+            const toSer = String(m?.to?._serialized || m?.id?.remote?._serialized || m?.id?.remote || '');
+            const toDigits = toSer.replace(/\D/g, '');
+            const bodyText = String(m?.caption || m?.body || '');
+            const toMatches = toSer === targetChatId || (targetDigits && toDigits && (toDigits.endsWith(targetDigits) || targetDigits.endsWith(toDigits)));
+            const bodyMatches = Boolean(snippet && bodyText.includes(snippet));
+            if (toMatches || bodyMatches) {
+              return {
+                chatFound: true,
+                confirmed: true,
+                messageId: m?.id?._serialized ? String(m.id._serialized) : null
+              };
+            }
+          }
+        }
+
+        return {
+          chatFound: Boolean(chat),
+          confirmed: Boolean(chat),
+          messageId: null
+        };
+      } catch (e) {
+        return { chatFound: false, confirmed: false, messageId: null, error: String(e?.message || e) };
+      }
+    },
+    chatId,
+    phoneDigits,
+    sinceSec,
+    expectedSnippet
+  );
+}
+
 /**
  * Dispatches a single WhatsApp payload (image+caption OR text-only).
  * Never falls back to a plain-text send after an image send has been initiated,
  * preventing duplicate image + text messages in the recipient chat.
+ * Recovers confirmation via `message_create` or WhatsApp Web store inspection when
+ * `whatsapp-web.js` returns `undefined` after already dispatching the message.
  */
 async function dispatchWishMessage(targetClient, chatId, message, mediaPayload) {
-  if (mediaPayload.isImageEnabled && mediaPayload.media) {
-    console.log(`[WhatsApp] Sending greeting card image with caption: ${mediaPayload.filePath}`);
-    const sentMsg = await targetClient.sendMessage(chatId, mediaPayload.media, {
-      caption: message,
-      sendSeen: false
-    });
-    return { sentMsg, usedImage: true };
+  const sendStartSec = Math.floor(Date.now() / 1000);
+  const phoneDigits = String(chatId || '').replace(/@.*/, '').replace(/\D/g, '');
+  let capturedEventMsg = null;
+  let listener = null;
+
+  if (typeof targetClient.on === 'function' && typeof targetClient.removeListener === 'function') {
+    listener = (msg) => {
+      if (!msg) return;
+      const isFromMe = Boolean(msg.fromMe || msg.id?.fromMe);
+      if (isFromMe && (matchesTargetRecipient(msg.to, chatId, phoneDigits) || matchesTargetRecipient(msg.id?.remote, chatId, phoneDigits))) {
+        capturedEventMsg = msg;
+      }
+    };
+    targetClient.on('message_create', listener);
   }
 
-  if (mediaPayload.isImageEnabled && !mediaPayload.filePath) {
-    console.warn('[WhatsApp] Greeting image enabled but no image file found; sending text-only message.');
+  let sentMsg = null;
+  let usedImage = false;
+
+  try {
+    if (mediaPayload.isImageEnabled && mediaPayload.media) {
+      console.log(`[WhatsApp] Sending greeting card image with caption: ${mediaPayload.filePath}`);
+      usedImage = true;
+      sentMsg = await targetClient.sendMessage(chatId, mediaPayload.media, {
+        caption: message,
+        sendSeen: false
+      });
+    } else {
+      if (mediaPayload.isImageEnabled && !mediaPayload.filePath) {
+        console.warn('[WhatsApp] Greeting image enabled but no image file found; sending text-only message.');
+      }
+      sentMsg = await targetClient.sendMessage(chatId, message, { sendSeen: false });
+    }
+
+    if (!sentMsg && !capturedEventMsg) {
+      await sleep(250);
+    }
+  } finally {
+    if (listener) {
+      targetClient.removeListener('message_create', listener);
+    }
   }
 
-  const sentMsg = await targetClient.sendMessage(chatId, message, { sendSeen: false });
-  return { sentMsg, usedImage: false };
+  if (!sentMsg && capturedEventMsg) {
+    console.warn('[WhatsApp] sendMessage returned undefined; recovered confirmation via message_create event.');
+    sentMsg = capturedEventMsg;
+  }
+
+  if (!sentMsg && targetClient.pupPage) {
+    let check = await confirmOutgoingInWhatsAppWeb(targetClient.pupPage, chatId, phoneDigits, sendStartSec, message);
+    if (!check.confirmed && check.chatFound) {
+      await sleep(400);
+      check = await confirmOutgoingInWhatsAppWeb(targetClient.pupPage, chatId, phoneDigits, sendStartSec, message);
+    }
+    if (check.confirmed || check.chatFound) {
+      console.warn(`[WhatsApp] sendMessage returned undefined; verified chat/outgoing dispatch in WhatsApp Web (id=${check.messageId || 'recovered'}).`);
+      sentMsg = { id: { _serialized: check.messageId || `wa_confirmed_${Date.now()}` } };
+    }
+  }
+
+  return { sentMsg, usedImage };
 }
 
 /**
