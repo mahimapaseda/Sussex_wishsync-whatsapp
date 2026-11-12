@@ -497,21 +497,34 @@ function updateBirthdaysUI(data) {
   }
 
   const pendingCount = displayToday.filter(s => s.status === 'PENDING_TODAY').length;
-  const sentCount = displayToday.filter(s => s.status === 'SENT_TODAY').length;
+  const rosterSentCount = displayToday.filter(s => s.status === 'SENT_TODAY').length;
+
+  // Include Manual Birthday Wishes delivered today in the "Delivered today" KPI
+  const rosterSentPhones = new Set(
+    displayToday.filter(s => s.status === 'SENT_TODAY' && s.phone).map(s => s.phone)
+  );
+  const manualSentToday = (data.sentTodayLedger || []).filter(rec => {
+    if (!rec || !rec.phone || rosterSentPhones.has(rec.phone)) return false;
+    if (selectedBranchFilter !== 'ALL') {
+      return matchesStudentBranch(rec, selectedBranchFilter);
+    }
+    return true;
+  });
+  const totalDeliveredToday = rosterSentCount + manualSentToday.length;
 
   statTodayCount.textContent = displayToday.length;
   statPendingCount.textContent = pendingCount;
-  statSentCount.textContent = sentCount;
+  statSentCount.textContent = totalDeliveredToday;
   statUpcomingCount.textContent = displayUpcoming.length;
 
   todayBadgeCount.textContent = displayToday.length;
   upcomingBadgeCount.textContent = displayUpcoming.length;
 
-  const canResendToday = pendingCount === 0 && sentCount > 0;
+  const canResendToday = pendingCount === 0 && rosterSentCount > 0;
   sendAllBtn.disabled = (displayToday.length === 0) || isDispatching;
   sendAllBtn.dataset.mode = canResendToday ? 'resend' : 'pending';
   sendAllBtn.innerHTML = canResendToday
-    ? `<i class="fa-solid fa-rotate-right text-sm"></i><span>Resend Today's Wishes (${sentCount})</span>`
+    ? `<i class="fa-solid fa-rotate-right text-sm"></i><span>Resend Today's Wishes (${rosterSentCount})</span>`
     : '<i class="fa-brands fa-whatsapp text-sm"></i><span>Send All Pending Wishes</span>';
 
   // Render Today's Table

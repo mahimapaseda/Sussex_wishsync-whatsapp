@@ -63,6 +63,19 @@ app.get('/api/birthdays', async (req, res) => {
     const forceRefresh = req.query.refresh === '1';
     const sheetData = await googleSheets.fetchStudentsFromSheet(forceRefresh);
     const processed = birthdayMatcher.processStudentRecords(sheetData.students);
+    const sentTodayLedger = ledger.getSentRecordsByDate(processed.todayInfo.dateString).map(r => ({
+      phone: r.phone,
+      name: r.name,
+      branch: r.branch || null,
+      branchId: r.branchId || null,
+      dateSent: r.dateSent
+    }));
+    const deliveredPhones = new Set(
+      processed.today.filter(s => s.status === 'SENT_TODAY' && s.phone).map(s => s.phone)
+    );
+    sentTodayLedger.forEach(r => {
+      if (r.phone) deliveredPhones.add(r.phone);
+    });
 
     res.json({
       success: true,
@@ -77,10 +90,12 @@ app.get('/api/birthdays', async (req, res) => {
       todayInfo: processed.todayInfo,
       stats: {
         ...processed.stats,
+        deliveredTodayTotal: deliveredPhones.size,
         totalStudentsCelebratedToday: processed.today.length
       },
       today: processed.today,
-      upcoming: processed.upcoming
+      upcoming: processed.upcoming,
+      sentTodayLedger
     });
   } catch (err) {
     console.error('[API] Error retrieving birthdays:', err.message);
@@ -362,19 +377,24 @@ app.post('/api/send', async (req, res) => {
       });
     }
 
+    const userSettings = settings.loadSettings();
+    const resolvedBranchName = (branch && branch.trim()) ? branch.trim() : 'Sussex College Network';
+    const matchedBranch = (userSettings.branches || []).find(
+      b => (b.name || '').trim().toLowerCase() === resolvedBranchName.toLowerCase()
+    );
+
     const student = {
       id: studentId || `manual_${Date.now()}`,
       name: (name && name.trim()) ? name.trim() : 'Little Sunshine',
       phone: phoneSanitized.sanitized,
       phoneRaw: phone,
       phoneDisplay: phoneSanitized.formattedDisplay,
-      branch: (branch && branch.trim()) ? branch.trim() : 'Sussex College Network',
+      branch: resolvedBranchName,
+      branchId: matchedBranch ? matchedBranch.id : null,
       branchCustomTemplate: branchCustomTemplate || null,
       age: age || null,
       isPhoneValid: true
     };
-
-    const userSettings = settings.loadSettings();
     // Prioritize: explicitly passed template > branch custom template > global template
     const wishTemplate = template || branchCustomTemplate || userSettings.template;
     const forceResend = req.body.force !== undefined ? Boolean(req.body.force) : true;

@@ -86,6 +86,8 @@ console.log('\n[Test 4] Ledger & Deduplication:');
   ledger.recordSent({
     phone: testPhone,
     name: 'Unit Test Student',
+    branch: 'Kuliyapitiya',
+    branchId: 'branch_kul',
     year: testYear,
     date: '2026-11-09',
     message: 'Test message',
@@ -95,11 +97,15 @@ console.log('\n[Test 4] Ledger & Deduplication:');
   assert.strictEqual(ledger.hasBeenSentThisYear(testPhone, testYear), true);
   console.log('  ✓ After recordSent, hasBeenSentThisYear is true');
 
-  // Check that records persist and can be cleared back to pending
+  // Check that records persist and can be retrieved by date and cleared back to pending
   const records = ledger.getAllSentRecords();
   const found = records.find(r => r.phone === testPhone && r.year === testYear);
   assert.ok(found);
-  console.log('  ✓ Record retrieved from ledger file successfully');
+  assert.strictEqual(found.branch, 'Kuliyapitiya');
+  assert.strictEqual(found.branchId, 'branch_kul');
+  const byDate = ledger.getSentRecordsByDate('2026-11-09');
+  assert.ok(byDate.some(r => r.phone === testPhone));
+  console.log('  ✓ Record retrieved from ledger file and filtered by date successfully');
 
   assert.strictEqual(ledger.clearSentRecord(testPhone, testYear), true);
   assert.strictEqual(ledger.hasBeenSentThisYear(testPhone, testYear), false);

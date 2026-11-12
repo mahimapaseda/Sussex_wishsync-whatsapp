@@ -69,7 +69,7 @@ function hasBeenSentThisYear(phone, year) {
 /**
  * Records a successful birthday wish in the ledger.
  */
-function recordSent({ phone, name, year, date, message = '', method = 'whatsapp-web.js' }) {
+function recordSent({ phone, name, year, date, branch = null, branchId = null, message = '', method = 'whatsapp-web.js' }) {
   if (!phone || !year) {
     throw new Error('phone and year are required to record in sent_log');
   }
@@ -81,6 +81,8 @@ function recordSent({ phone, name, year, date, message = '', method = 'whatsapp-
     key,
     phone,
     name,
+    branch: branch || null,
+    branchId: branchId || null,
     year: Number(year),
     dateSent: date || new Date().toISOString().split('T')[0],
     timestamp: new Date().toISOString(),
@@ -120,12 +122,18 @@ function getAllSentRecords() {
   );
 }
 
+function getSentRecordsByDate(dateString) {
+  if (!dateString) return [];
+  return getAllSentRecords().filter(r => r.status === 'SENT' && r.dateSent === dateString);
+}
+
 module.exports = {
   readLedger,
   getRecordKey,
   hasBeenSentThisYear,
   recordSent,
   clearSentRecord,
-  getAllSentRecords
+  getAllSentRecords,
+  getSentRecordsByDate
 };
 

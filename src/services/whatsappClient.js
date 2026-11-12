@@ -590,10 +590,12 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
 
     const messageId = extractMessageId(sentMsg);
 
-    // Record in ledger only after WhatsApp Web returns a sent message object
+    // Record in ledger only after WhatsApp Web confirms outgoing dispatch
     ledger.recordSent({
       phone,
       name: student.name,
+      branch: student.branch || null,
+      branchId: student.branchId || null,
       year: today.year,
       date: today.dateString,
       message,
