@@ -301,17 +301,58 @@ function formatMessage(template, student) {
 }
 
 /**
+ * Returns UTC day-of-week (0 = Sun, 1 = Mon) and the previous calendar date for a YYYY/MM/DD object.
+ */
+function getWeekdayAndPreviousDay(dateObj) {
+  const utcMs = Date.UTC(dateObj.year, dateObj.month - 1, dateObj.day);
+  const utcDate = new Date(utcMs);
+  const dayOfWeek = utcDate.getUTCDay();
+  const prevUtc = new Date(utcMs - 86400000);
+  const prevYear = prevUtc.getUTCFullYear();
+  const prevMonth = prevUtc.getUTCMonth() + 1;
+  const prevDay = prevUtc.getUTCDate();
+  return {
+    dayOfWeek,
+    isMonday: dayOfWeek === 1,
+    previousDay: {
+      year: prevYear,
+      month: prevMonth,
+      day: prevDay,
+      dateString: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(prevDay).padStart(2, '0')}`,
+      displayString: `${String(prevDay).padStart(2, '0')}/${String(prevMonth).padStart(2, '0')}/${prevYear}`
+    }
+  };
+}
+
+/**
  * Analyzes a raw list of student records from Google Sheets / CSV and categorizes them.
  */
-function processStudentRecords(rawStudents, customToday = null) {
-  const today = customToday || getCurrentDateInTimezone();
+function processStudentRecords(rawStudents, customTodayOrOptions = null, extraOptions = {}) {
+  const hasCustomToday = Boolean(
+    customTodayOrOptions &&
+    Number.isInteger(customTodayOrOptions.day) &&
+    Number.isInteger(customTodayOrOptions.month) &&
+    Number.isInteger(customTodayOrOptions.year)
+  );
+  const today = hasCustomToday ? customTodayOrOptions : getCurrentDateInTimezone();
+  const options = hasCustomToday ? (extraOptions || {}) : (customTodayOrOptions || {});
+  const includeSundayCatchUp = Boolean(options.includeSundayCatchUp);
+  const dayContext = getWeekdayAndPreviousDay(today);
+  const shouldIncludeMissedSunday = includeSundayCatchUp && dayContext.isMonday;
+
   const results = {
-    todayInfo: today,
+    todayInfo: {
+      ...today,
+      isMonday: dayContext.isMonday,
+      sundayCatchUpEnabled: includeSundayCatchUp,
+      previousDateString: dayContext.previousDay.dateString
+    },
     stats: {
       totalStudents: rawStudents.length,
       pendingTodayCount: 0,
       sentTodayCount: 0,
-      upcomingCount: 0
+      upcomingCount: 0,
+      sundayCatchUpCount: 0
     },
     today: [],
     upcoming: []
@@ -334,7 +375,14 @@ function processStudentRecords(rawStudents, customToday = null) {
       return;
     }
 
-    const age = calculateTurningAge(dobInfo.year, today.year);
+    const isExactToday = dobInfo.day === today.day && dobInfo.month === today.month;
+    const isMissedSunday = !isExactToday &&
+      shouldIncludeMissedSunday &&
+      dobInfo.day === dayContext.previousDay.day &&
+      dobInfo.month === dayContext.previousDay.month;
+
+    const matchYear = isMissedSunday ? dayContext.previousDay.year : today.year;
+    const age = calculateTurningAge(dobInfo.year, matchYear);
     const daysUntil = getDaysUntilBirthday(dobInfo.day, dobInfo.month, today.day, today.month, today.year);
 
     const studentRecord = {
@@ -351,16 +399,39 @@ function processStudentRecords(rawStudents, customToday = null) {
       phoneRaw: phoneInfo.raw,
       phoneDisplay: phoneInfo.formattedDisplay,
       isPhoneValid: phoneInfo.isValid,
-      daysUntil
+      daysUntil,
+      ledgerYear: matchYear,
+      isSundayCatchUp: isMissedSunday,
+      missedDayLabel: isMissedSunday ? 'Sunday' : null,
+      birthdayDateDisplay: isMissedSunday ? dayContext.previousDay.displayString : null
     };
 
-    // Check if birthday is TODAY
-    if (dobInfo.day === today.day && dobInfo.month === today.month) {
+    if (isExactToday) {
       const alreadySent = phoneInfo.sanitized
         ? ledger.hasBeenSentThisYear(phoneInfo.sanitized, today.year)
         : false;
       studentRecord.status = alreadySent ? 'SENT_TODAY' : 'PENDING_TODAY';
 
+      if (alreadySent) {
+        results.stats.sentTodayCount++;
+      } else {
+        results.stats.pendingTodayCount++;
+      }
+
+      results.today.push(studentRecord);
+    } else if (isMissedSunday) {
+      const sentRecord = phoneInfo.sanitized
+        ? ledger.getSentRecord(phoneInfo.sanitized, matchYear)
+        : null;
+      const alreadySent = Boolean(sentRecord && sentRecord.status === 'SENT');
+
+      // Skip Sunday birthdays that were already delivered on Sunday; show unsent ones or ones delivered today (Monday)
+      if (alreadySent && sentRecord.dateSent !== today.dateString) {
+        return;
+      }
+
+      studentRecord.status = alreadySent ? 'SENT_TODAY' : 'PENDING_TODAY';
+      results.stats.sundayCatchUpCount++;
       if (alreadySent) {
         results.stats.sentTodayCount++;
       } else {
@@ -376,6 +447,8 @@ function processStudentRecords(rawStudents, customToday = null) {
     }
   });
 
+  // Show today's (Monday) birthdays first, then Sunday carryovers
+  results.today.sort((a, b) => Number(Boolean(a.isSundayCatchUp)) - Number(Boolean(b.isSundayCatchUp)));
   // Sort upcoming by closest day
   results.upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
 
@@ -388,6 +461,7 @@ module.exports = {
   getCurrentDateInTimezone,
   calculateTurningAge,
   getDaysUntilBirthday,
+  getWeekdayAndPreviousDay,
   formatMessage,
   processStudentRecords
 };

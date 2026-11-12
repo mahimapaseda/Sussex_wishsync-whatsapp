@@ -57,7 +57,8 @@ app.get('/api/status', async (req, res) => {
       port: config.PORT,
       timezone: config.TIMEZONE,
       sheetName: config.SHEET_NAME,
-      autoSendOnBoot: userSettings.autoSendOnBoot
+      autoSendOnBoot: userSettings.autoSendOnBoot,
+      sundayCatchUpOnMonday: userSettings.sundayCatchUpOnMonday !== false
     }
   });
 });
@@ -66,8 +67,11 @@ app.get('/api/status', async (req, res) => {
 app.get('/api/birthdays', async (req, res) => {
   try {
     const forceRefresh = req.query.refresh === '1';
+    const userSettings = settings.loadSettings();
     const sheetData = await googleSheets.fetchStudentsFromSheet(forceRefresh);
-    const processed = birthdayMatcher.processStudentRecords(sheetData.students);
+    const processed = birthdayMatcher.processStudentRecords(sheetData.students, {
+      includeSundayCatchUp: userSettings.sundayCatchUpOnMonday !== false
+    });
     const sentTodayLedger = ledger.getSentRecordsByDate(processed.todayInfo.dateString).map(r => ({
       phone: r.phone,
       name: r.name,
@@ -419,8 +423,11 @@ app.post('/api/send-batch', async (req, res) => {
   try {
     const { template, branchFilter, force } = req.body;
     const forceResend = Boolean(force);
+    const userSettings = settings.loadSettings();
     const sheetData = await googleSheets.fetchStudentsFromSheet();
-    const processed = birthdayMatcher.processStudentRecords(sheetData.students);
+    const processed = birthdayMatcher.processStudentRecords(sheetData.students, {
+      includeSundayCatchUp: userSettings.sundayCatchUpOnMonday !== false
+    });
 
     let targetStudents = forceResend
       ? [...processed.today]
@@ -455,7 +462,6 @@ app.post('/api/send-batch', async (req, res) => {
     }
 
     autoSendBootTriggered = true;
-    const userSettings = settings.loadSettings();
     const wishTemplate = template || userSettings.template;
     const results = await whatsappClient.dispatchBatch(targetStudents, wishTemplate, null, forceResend);
 
@@ -509,7 +515,9 @@ async function runHeadlessBootAutoDispatch() {
 
       try {
         const sheetData = await googleSheets.fetchStudentsFromSheet(true);
-        const processed = birthdayMatcher.processStudentRecords(sheetData.students);
+        const processed = birthdayMatcher.processStudentRecords(sheetData.students, {
+          includeSundayCatchUp: userSettings.sundayCatchUpOnMonday !== false
+        });
         const pending = processed.today.filter(s => s.status === 'PENDING_TODAY');
 
         autoSendBootTriggered = true;
@@ -577,7 +585,9 @@ const server = app.listen(config.PORT, async () => {
         if (userSettings.autoSendOnBoot) {
           console.log('[Scheduler] Automatically checking birthdays for the new day...');
           const sheetData = await googleSheets.fetchStudentsFromSheet();
-          const processed = birthdayMatcher.processStudentRecords(sheetData.students);
+          const processed = birthdayMatcher.processStudentRecords(sheetData.students, {
+            includeSundayCatchUp: userSettings.sundayCatchUpOnMonday !== false
+          });
           const pending = processed.today.filter(s => s.status === 'PENDING_TODAY');
           if (pending.length > 0) {
             console.log(`[Scheduler] Found ${pending.length} birthdays today. Dispatching with anti-ban delay...`);

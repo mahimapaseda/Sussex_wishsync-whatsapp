@@ -568,9 +568,11 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
     throw new Error(`Invalid phone number for student ${student.name}: ${student.phoneRaw}`);
   }
 
+  const ledgerYear = student.ledgerYear || today.year;
+
   // Deduplication check (unless force is requested, e.g. manual/resend dispatch)
-  if (!force && ledger.hasBeenSentThisYear(phone, today.year)) {
-    console.log(`[WhatsApp] Skip: Wish already sent to ${student.name} (${phone}) for ${today.year}`);
+  if (!force && ledger.hasBeenSentThisYear(phone, ledgerYear)) {
+    console.log(`[WhatsApp] Skip: Wish already sent to ${student.name} (${phone}) for ${ledgerYear}`);
     return {
       success: true,
       skipped: true,
@@ -609,7 +611,7 @@ async function sendWishToStudent(student, template = config.DEFAULT_TEMPLATE, fo
       name: student.name,
       branch: student.branch || null,
       branchId: student.branchId || null,
-      year: today.year,
+      year: ledgerYear,
       date: today.dateString,
       message,
       method: usedImage ? 'whatsapp-web.js (with greeting card image)' : 'whatsapp-web.js'

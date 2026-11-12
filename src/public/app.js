@@ -110,6 +110,7 @@ const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const settingsOpenBranchesBtn = document.getElementById('settingsOpenBranchesBtn');
 const settingsBranchCountBadge = document.getElementById('settingsBranchCountBadge');
 const settingAutoSendOnBoot = document.getElementById('settingAutoSendOnBoot');
+const settingSundayCatchUp = document.getElementById('settingSundayCatchUp');
 const settingCountdownSeconds = document.getElementById('settingCountdownSeconds');
 const settingMinDelay = document.getElementById('settingMinDelay');
 const settingMaxDelay = document.getElementById('settingMaxDelay');
@@ -536,11 +537,16 @@ function updateBirthdaysUI(data) {
       </div>
     `;
   } else {
+    const sundayCarryoverCount = displayToday.filter(s => s.isSundayCatchUp).length;
     const rowsHtml = displayToday.map(student => {
       const isSent = student.status === 'SENT_TODAY';
       const statusBadge = isSent
         ? '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Delivered</span>'
         : '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Pending</span>';
+
+      const sundayBadge = student.isSundayCatchUp
+        ? '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Missed Sunday</span>'
+        : '';
 
       const previewMsg = formatPreview(student);
 
@@ -548,10 +554,15 @@ function updateBirthdaysUI(data) {
         ? 'send-single-btn btn-neutral px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center gap-1.5 disabled:opacity-45 disabled:cursor-not-allowed'
         : 'send-single-btn px-3 py-1.5 text-xs font-semibold rounded-md bg-emerald-700 hover:bg-emerald-600 text-white transition flex items-center gap-1.5 disabled:opacity-45 disabled:cursor-not-allowed';
 
+      const rowLedgerYear = student.ledgerYear || (currentStatus.today && currentStatus.today.year) || new Date().getFullYear();
+
       return `
         <tr class="hover:bg-[var(--bg-toolbar)] transition">
           <td class="px-4 py-3 align-top">
-            <div class="font-semibold text-[var(--text-primary)]">${escapeHtml(student.name)}</div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="font-semibold text-[var(--text-primary)]">${escapeHtml(student.name)}</span>
+              ${sundayBadge}
+            </div>
             <div class="text-xs text-[var(--text-muted)] mt-0.5 max-w-md truncate" title="${escapeHtml(previewMsg)}">${escapeHtml(previewMsg)}</div>
           </td>
           <td class="px-4 py-3 align-top whitespace-nowrap">
@@ -588,6 +599,7 @@ function updateBirthdaysUI(data) {
                   type="button"
                   class="reset-sent-btn btn-neutral p-1.5 rounded-md text-xs text-[var(--text-muted)] hover:text-amber-700 dark:hover:text-amber-400"
                   data-phone="${escapeHtml(student.phone)}"
+                  data-year="${escapeHtml(rowLedgerYear)}"
                   data-name="${escapeHtml(student.name)}"
                   title="Mark back as Pending so Send All includes this student"
                 >
@@ -607,7 +619,12 @@ function updateBirthdaysUI(data) {
       `;
     }).join('');
 
+    const carryoverNoticeHtml = sundayCarryoverCount > 0
+      ? `<div class="px-4 py-2 bg-amber-50/70 dark:bg-amber-950/30 border-b border-amber-200/80 dark:border-amber-900/50 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-2"><i class="fa-solid fa-calendar-day"></i><span>Includes <strong>${sundayCarryoverCount}</strong> missed Sunday birthday${sundayCarryoverCount === 1 ? '' : 's'} carried over to Monday's queue.</span></div>`
+      : '';
+
     todayBirthdaysList.innerHTML = `
+      ${carryoverNoticeHtml}
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -641,7 +658,7 @@ function updateBirthdaysUI(data) {
       btn.addEventListener('click', async () => {
         const phone = btn.getAttribute('data-phone');
         const name = btn.getAttribute('data-name');
-        const year = (currentStatus.today && currentStatus.today.year) || new Date().getFullYear();
+        const year = btn.getAttribute('data-year') || (currentStatus.today && currentStatus.today.year) || new Date().getFullYear();
         await clearSentLogEntry(phone, year, name);
       });
     });
@@ -1147,6 +1164,9 @@ async function loadSettingsIntoModal() {
         settingsBranchCountBadge.textContent = `${activeCount} / ${branches.length} Active`;
       }
       settingAutoSendOnBoot.checked = Boolean(s.autoSendOnBoot);
+      if (settingSundayCatchUp) {
+        settingSundayCatchUp.checked = s.sundayCatchUpOnMonday !== false;
+      }
       settingCountdownSeconds.value = s.autoSendDelaySeconds || 10;
       settingMinDelay.value = Math.round((s.minDispatchDelayMs || 5000) / 1000);
       settingMaxDelay.value = Math.round((s.maxDispatchDelayMs || 12000) / 1000);
@@ -1195,6 +1215,7 @@ async function saveSettingsFromModal() {
   try {
     const payload = {
       autoSendOnBoot: autoSend,
+      sundayCatchUpOnMonday: settingSundayCatchUp ? settingSundayCatchUp.checked : true,
       autoSendDelaySeconds: countdown,
       minDispatchDelayMs: minDelay,
       maxDispatchDelayMs: maxDelay

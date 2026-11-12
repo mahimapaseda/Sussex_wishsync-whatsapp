@@ -57,13 +57,21 @@ function getRecordKey(phone, year) {
 }
 
 /**
+ * Returns the stored ledger record for a phone/year, or null if not present.
+ */
+function getSentRecord(phone, year) {
+  if (!phone || !year) return null;
+  const ledger = readLedger();
+  const key = getRecordKey(phone, year);
+  return ledger.records[key] || null;
+}
+
+/**
  * Checks if a birthday wish has already been sent to this phone in the given year.
  */
 function hasBeenSentThisYear(phone, year) {
-  if (!phone || !year) return false;
-  const ledger = readLedger();
-  const key = getRecordKey(phone, year);
-  return Boolean(ledger.records[key] && ledger.records[key].status === 'SENT');
+  const record = getSentRecord(phone, year);
+  return Boolean(record && record.status === 'SENT');
 }
 
 /**
@@ -130,6 +138,7 @@ function getSentRecordsByDate(dateString) {
 module.exports = {
   readLedger,
   getRecordKey,
+  getSentRecord,
   hasBeenSentThisYear,
   recordSent,
   clearSentRecord,

@@ -266,6 +266,82 @@ console.log('\n[Test 7] Extended DOB Formats, Split Columns & Sheet Fetching:');
   assert.strictEqual(mdyOrder, 'MDY');
   console.log('  ✓ Full-sheet fetch past column Z, serial dates, and MDY inference verified');
 
+  // 8. Monday Catch-Up for Missed Sunday Birthdays
+  console.log('\n[Test 8] Sunday-to-Monday Birthday Carryover:');
+  const sundayUnsentPhone = '0779112201';
+  const sundayAlreadySentPhone = '0779112202';
+  const mondayStudentPhone = '0779112203';
+  const sundayCaughtUpTodayPhone = '0779112204';
+  const tuesdayStudentPhone = '0779112205';
+
+  const sanSunUnsent = matcher.sanitizePhoneNumber(sundayUnsentPhone).sanitized;
+  const sanSunSentYesterday = matcher.sanitizePhoneNumber(sundayAlreadySentPhone).sanitized;
+  const sanSunSentToday = matcher.sanitizePhoneNumber(sundayCaughtUpTodayPhone).sanitized;
+  ledger.clearSentRecord(sanSunUnsent, 2026);
+  ledger.recordSent({
+    phone: sanSunSentYesterday,
+    name: 'Sunday Already Sent',
+    year: 2026,
+    date: '2026-11-15',
+    message: 'Sent on Sunday',
+    method: 'unit-test'
+  });
+  ledger.recordSent({
+    phone: sanSunSentToday,
+    name: 'Sunday Caught Up Monday',
+    year: 2026,
+    date: '2026-11-16',
+    message: 'Caught up Monday',
+    method: 'unit-test'
+  });
+
+  const mondayStudents = [
+    { name: 'Sunday Missed', dob: '15/11/2008', phone: sundayUnsentPhone, branch: 'Matara' },
+    { name: 'Sunday Already Sent', dob: '15/11/2007', phone: sundayAlreadySentPhone, branch: 'Matara' },
+    { name: 'Sunday Caught Up Monday', dob: '15/11/2009', phone: sundayCaughtUpTodayPhone, branch: 'Galle' },
+    { name: 'Monday Birthday', dob: '16/11/2010', phone: mondayStudentPhone, branch: 'Ampara' },
+    { name: 'Tuesday Birthday', dob: '17/11/2011', phone: tuesdayStudentPhone, branch: 'Kandy' }
+  ];
+
+  // 2026-11-16 is a Monday
+  const mondayToday = { day: 16, month: 11, year: 2026, dateString: '2026-11-16' };
+  const mondayRes = matcher.processStudentRecords(mondayStudents, mondayToday, { includeSundayCatchUp: true });
+  assert.strictEqual(mondayRes.todayInfo.isMonday, true);
+  assert.strictEqual(mondayRes.today.length, 3, 'Expected Monday + Missed Sunday + Caught-up Sunday');
+  assert.strictEqual(mondayRes.today[0].name, 'Monday Birthday', 'Monday birthdays sorted first');
+  assert.strictEqual(mondayRes.today[0].isSundayCatchUp, false);
+  const missedSunRow = mondayRes.today.find(s => s.name === 'Sunday Missed');
+  const caughtUpSunRow = mondayRes.today.find(s => s.name === 'Sunday Caught Up Monday');
+  assert.ok(missedSunRow && missedSunRow.isSundayCatchUp && missedSunRow.status === 'PENDING_TODAY');
+  assert.ok(caughtUpSunRow && caughtUpSunRow.isSundayCatchUp && caughtUpSunRow.status === 'SENT_TODAY');
+  assert.strictEqual(mondayRes.today.some(s => s.name === 'Sunday Already Sent'), false, 'Already sent Sunday student excluded on Monday');
+  assert.strictEqual(mondayRes.stats.sundayCatchUpCount, 2);
+  assert.strictEqual(mondayRes.stats.pendingTodayCount, 2);
+  assert.strictEqual(mondayRes.stats.sentTodayCount, 1);
+
+  // Disabled catch-up excludes Sunday
+  const mondayDisabledRes = matcher.processStudentRecords(mondayStudents, mondayToday, { includeSundayCatchUp: false });
+  assert.strictEqual(mondayDisabledRes.today.length, 1);
+  assert.strictEqual(mondayDisabledRes.today[0].name, 'Monday Birthday');
+
+  // Tuesday does NOT carry over Monday
+  const tuesdayToday = { day: 17, month: 11, year: 2026, dateString: '2026-11-17' };
+  const tuesdayRes = matcher.processStudentRecords(mondayStudents, tuesdayToday, { includeSundayCatchUp: true });
+  assert.strictEqual(tuesdayRes.todayInfo.isMonday, false);
+  assert.strictEqual(tuesdayRes.today.length, 1);
+  assert.strictEqual(tuesdayRes.today[0].name, 'Tuesday Birthday');
+
+  // Year boundary: Monday 2024-01-01 carries over Sunday 2023-12-31 with ledgerYear=2023
+  const dec31Res = matcher.processStudentRecords(
+    [{ name: 'NYE Sunday Student', dob: '31/12/2015', phone: '0779112209', branch: 'College' }],
+    { day: 1, month: 1, year: 2024, dateString: '2024-01-01' },
+    { includeSundayCatchUp: true }
+  );
+  assert.strictEqual(dec31Res.today.length, 1);
+  assert.strictEqual(dec31Res.today[0].ledgerYear, 2023);
+  assert.strictEqual(dec31Res.today[0].age, 8);
+  console.log('  ✓ Unsent Sunday carryover, Sunday-sent deduplication, Tuesday isolation & Jan 1 boundary verified');
+
   // Restore original ledger state
   if (originalLedger !== null) {
     fs.writeFileSync(config.SENT_LOG_PATH, originalLedger, 'utf8');
