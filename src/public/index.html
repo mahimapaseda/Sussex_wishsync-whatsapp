@@ -194,6 +194,12 @@
         <nav aria-label="Primary actions" class="hidden lg:flex items-center gap-1.5 shrink-0">
           <div class="h-5 w-px bg-[var(--border-hairline)] mx-0.5 shrink-0"></div>
 
+          <!-- Update Available Nav Pill Button -->
+          <button id="navUpdatePill" type="button" class="hidden px-2.5 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 whitespace-nowrap transition shadow-sm animate-pulse" title="A new software update is available!">
+            <i class="fa-solid fa-cloud-arrow-down text-[11px]"></i>
+            <span id="navUpdatePillText">Update v1.2.0</span>
+          </button>
+
           <button id="navManualSendBtn" type="button" class="btn-neutral px-2 xl:px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition" title="Send a wish to any mobile number">
             <i class="fa-solid fa-paper-plane text-[11px] text-[var(--text-muted)]"></i>
             <span>Manual Send</span>
@@ -266,6 +272,15 @@
 
         <!-- Mobile/Tablet Navigation Items -->
         <nav aria-label="Mobile navigation" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <!-- Mobile Update Alert Pill -->
+          <button id="mobileNavUpdatePill" type="button" class="hidden sm:col-span-2 px-3 py-2.5 rounded-md text-xs font-semibold bg-emerald-600 text-white flex items-center justify-between transition animate-pulse">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-cloud-arrow-down text-[11px]"></i>
+              <span id="mobileNavUpdatePillText">Update v1.2.0 Available</span>
+            </span>
+            <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-800 font-bold">Install</span>
+          </button>
+
           <button id="mobileManualSendBtn" type="button" class="btn-neutral w-full px-3 py-2.5 rounded-md text-xs font-medium flex items-center justify-between transition">
             <span class="flex items-center gap-2">
               <i class="fa-solid fa-paper-plane text-[11px] text-[var(--text-muted)]"></i>
@@ -663,6 +678,45 @@
             </div>
           </div>
         </div>
+
+        <!-- 4. Software Updates (Private GitHub Releases) -->
+        <div class="app-toolbar p-4 rounded-lg border border-[var(--border-hairline)] space-y-3.5">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h4 class="text-xs font-bold text-[var(--text-primary)]">Software Updates</h4>
+              <p class="text-[11px] text-[var(--text-muted)]">Check for updates from Sussex College private releases repository.</p>
+            </div>
+            <button id="checkUpdateBtn" type="button" class="btn-neutral px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-rotate text-[11px]"></i>
+              <span id="checkUpdateBtnText">Check for Updates</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-[var(--border-hairline)] text-xs">
+            <div>
+              <span class="text-[var(--text-muted)] block text-[11px]">Installed Version</span>
+              <span id="updaterCurrentVerDisplay" class="font-semibold font-mono text-[var(--text-primary)]">v1.1.5</span>
+            </div>
+            <div>
+              <span class="text-[var(--text-muted)] block text-[11px]">Update Status</span>
+              <span id="updaterStatusSummary" class="font-medium text-[var(--text-secondary)]">Ready to check</span>
+            </div>
+          </div>
+
+          <!-- GitHub Personal Access Token (for Private Repo Releases) -->
+          <div class="pt-3 border-t border-[var(--border-hairline)]">
+            <label for="settingGithubToken" class="text-xs font-medium text-[var(--text-secondary)] block mb-1">
+              GitHub Personal Access Token (PAT)
+            </label>
+            <div class="relative">
+              <input type="password" id="settingGithubToken" placeholder="github_pat_... or ghp_..." class="app-input w-full rounded-md pl-3 pr-10 py-1.5 text-xs font-mono">
+              <button type="button" id="toggleGithubTokenVisibility" class="absolute inset-y-0 right-0 pr-3 flex items-center text-[var(--text-muted)] hover:text-[var(--text-primary)]" title="Toggle Token Visibility">
+                <i class="fa-regular fa-eye text-xs" id="githubTokenEyeIcon"></i>
+              </button>
+            </div>
+            <p class="text-[10px] text-[var(--text-muted)] mt-1">Requires read-only <strong class="text-[var(--text-secondary)]">Contents</strong> permission to check and download private release installers.</p>
+          </div>
+        </div>
       </div>
 
       <!-- Modal Footer -->
@@ -852,6 +906,103 @@
           </div>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Software Update Available Modal -->
+  <div id="updateModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="app-panel rounded-xl max-w-lg w-full p-6 shadow-2xl relative border border-[var(--border-strong)]">
+      <button id="closeUpdateModalBtn" type="button" title="Close" aria-label="Close" class="absolute top-4 right-4 h-8 w-8 rounded-full flex items-center justify-center btn-neutral hover:text-red-600 dark:hover:text-red-400 transition text-sm">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <!-- Header with Update Icon -->
+      <div class="flex items-start gap-3.5 mb-4 pr-8">
+        <div class="h-10 w-10 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400 text-lg">
+          <i class="fa-solid fa-cloud-arrow-down"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-bold text-[var(--text-primary)]">Software Update Available</h3>
+            <span id="updateModalTagBadge" class="px-2 py-0.5 text-xs font-bold rounded-full bg-emerald-600 text-white font-mono">v1.2.0</span>
+          </div>
+          <p id="updateModalSubtitle" class="text-xs text-[var(--text-muted)] mt-0.5">A new version of WishSync is available to install.</p>
+        </div>
+      </div>
+
+      <!-- Release Info Summary Box -->
+      <div class="app-toolbar p-3 rounded-lg border border-[var(--border-hairline)] mb-3 text-xs flex items-center justify-between">
+        <div>
+          <span class="text-[var(--text-muted)] block text-[11px]">Current Version</span>
+          <span id="updateCurrentVersionText" class="font-semibold font-mono text-[var(--text-primary)]">v1.1.5</span>
+        </div>
+        <div class="text-center">
+          <i class="fa-solid fa-arrow-right text-[var(--text-muted)]"></i>
+        </div>
+        <div>
+          <span class="text-[var(--text-muted)] block text-[11px]">New Version</span>
+          <span id="updateNewVersionText" class="font-semibold font-mono text-emerald-600 dark:text-emerald-400">v1.2.0</span>
+        </div>
+        <div>
+          <span class="text-[var(--text-muted)] block text-[11px]">Published Date</span>
+          <span id="updatePublishedDateText" class="font-medium text-[var(--text-secondary)]">—</span>
+        </div>
+      </div>
+
+      <!-- Release Notes Box -->
+      <div class="mb-4">
+        <label class="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">What's New in this Release</label>
+        <div id="updateReleaseNotesBox" class="app-input w-full rounded-md p-3 text-xs max-h-48 overflow-y-auto whitespace-pre-line leading-relaxed font-sans text-[var(--text-secondary)]">
+          Loading release notes...
+        </div>
+      </div>
+
+      <!-- Download Progress Strip (Hidden while not downloading) -->
+      <div id="updateProgressContainer" class="hidden mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span id="updateProgressStatusText" class="font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-2">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <span>Downloading update...</span>
+          </span>
+          <span id="updateProgressPercent" class="font-mono font-bold text-blue-900 dark:text-blue-200">0%</span>
+        </div>
+        <div class="w-full bg-blue-200 dark:bg-blue-900/60 rounded-full h-2 overflow-hidden">
+          <div id="updateProgressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-blue-700 dark:text-blue-300 font-mono">
+          <span id="updateProgressBytes">0.0 MB / 0.0 MB</span>
+          <span id="updateProgressSpeed">0 KB/s</span>
+        </div>
+      </div>
+
+      <!-- Error Message Banner -->
+      <div id="updateErrorBanner" class="hidden mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-start gap-2">
+        <i class="fa-solid fa-circle-exclamation mt-0.5 shrink-0"></i>
+        <span id="updateErrorText">An error occurred during update.</span>
+      </div>
+
+      <!-- Modal Footer Action Buttons -->
+      <div class="flex items-center justify-between pt-3 border-t border-[var(--border-hairline)]">
+        <button id="laterUpdateBtn" type="button" class="btn-neutral px-4 py-2 text-xs font-semibold rounded-md transition">
+          Remind Me Later
+        </button>
+
+        <div class="flex items-center gap-2">
+          <button id="cancelUpdateBtn" type="button" class="hidden btn-neutral px-4 py-2 text-xs font-semibold rounded-md text-red-600 hover:text-red-700 transition">
+            Cancel Download
+          </button>
+
+          <button id="startUpdateBtn" type="button" class="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-download"></i>
+            <span>Download &amp; Install Update</span>
+          </button>
+
+          <button id="installUpdateBtn" type="button" class="hidden px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition flex items-center gap-1.5 shadow-sm animate-pulse">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>Restart &amp; Install Now</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

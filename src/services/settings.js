@@ -44,6 +44,9 @@ const DEFAULT_SETTINGS = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || embeddedSecrets.GOOGLE_CLIENT_SECRET || '',
   googleUserEmail: null,
   googleAuthConnected: false,
+  githubToken: process.env.GITHUB_TOKEN || embeddedSecrets.GITHUB_TOKEN || '',
+  githubRepoOwner: process.env.GITHUB_REPO_OWNER || embeddedSecrets.GITHUB_REPO_OWNER || 'mahimapaseda',
+  githubRepoName: process.env.GITHUB_REPO_NAME || embeddedSecrets.GITHUB_REPO_NAME || 'Sussex_wishsync-whatsapp',
   updatedAt: new Date().toISOString()
 };
 
@@ -141,6 +144,15 @@ function updateSettings(newSettings) {
     }
     if (newSettings.googleAuthConnected !== undefined) {
       updated.googleAuthConnected = newSettings.googleAuthConnected;
+    }
+    if (newSettings.githubToken !== undefined) {
+      updated.githubToken = newSettings.githubToken.trim();
+    }
+    if (newSettings.githubRepoOwner !== undefined) {
+      updated.githubRepoOwner = newSettings.githubRepoOwner.trim();
+    }
+    if (newSettings.githubRepoName !== undefined) {
+      updated.githubRepoName = newSettings.githubRepoName.trim();
     }
 
     if (newSettings.credentialsJsonContent && newSettings.credentialsJsonContent.trim()) {

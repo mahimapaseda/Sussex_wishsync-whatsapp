@@ -9,6 +9,7 @@ const birthdayMatcher = require('./services/birthdayMatcher');
 const ledger = require('./services/ledger');
 const settings = require('./services/settings');
 const whatsappClient = require('./services/whatsappClient');
+const updater = require('./services/updater');
 const pkg = require('../package.json');
 
 // Catch any unhandled Puppeteer navigation/disconnection rejections without crashing server
@@ -484,6 +485,54 @@ app.get('/api/sheets/test', async (req, res) => {
   res.json(result);
 });
 
+// 8. In-App Software Auto-Updater APIs (Private GitHub Releases)
+app.get('/api/updater/status', (req, res) => {
+  res.json(updater.getStatus());
+});
+
+app.post('/api/updater/check', async (req, res) => {
+  try {
+    const result = await updater.checkForUpdates();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/updater/download', (req, res) => {
+  try {
+    const status = updater.getStatus();
+    if (status.status === 'DOWNLOADING') {
+      return res.json({ success: true, message: 'Download already in progress.' });
+    }
+    // Start asynchronous download in background
+    updater.downloadUpdate().catch(err => {
+      console.error('[Updater] Background download failed:', err.message);
+    });
+    res.json({ success: true, message: 'Download started.' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/updater/install', (req, res) => {
+  try {
+    const result = updater.installUpdate();
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/updater/cancel', (req, res) => {
+  try {
+    const result = updater.cancelDownload();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 const isStartupBoot = process.env.STARTUP_BOOT === 'true';
 
 /**
@@ -602,6 +651,14 @@ const server = app.listen(config.PORT, async () => {
     }
   }, 15 * 60 * 1000);
 
+  // Background Auto-Updater check (non-blocking, delayed 6s to allow system to stabilize)
+  setTimeout(() => {
+    if (isShuttingDown) return;
+    updater.checkForUpdates().catch(err => {
+      console.warn('[Updater] Background startup update check notice:', err.message);
+    });
+  }, 6000);
+
   // Auto-launch Dashboard in browser if enabled
   if (config.OPEN_BROWSER_ON_BOOT) {
     browserOpenTimer = setTimeout(async () => {
@@ -641,6 +698,8 @@ async function shutdownBackend() {
       clearTimeout(browserOpenTimer);
       browserOpenTimer = null;
     }
+
+    try { updater.cancelDownload(); } catch (e) {}
 
     await whatsappClient.shutdown().catch(() => {});
 

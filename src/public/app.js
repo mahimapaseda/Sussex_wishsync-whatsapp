@@ -156,6 +156,42 @@ const manualResetTemplateBtn = document.getElementById('manualResetTemplateBtn')
 const manualDesktopAppLink = document.getElementById('manualDesktopAppLink');
 const submitManualSendBtn = document.getElementById('submitManualSendBtn');
 
+// Software Auto-Updater Elements
+const navUpdatePill = document.getElementById('navUpdatePill');
+const navUpdatePillText = document.getElementById('navUpdatePillText');
+const mobileNavUpdatePill = document.getElementById('mobileNavUpdatePill');
+const mobileNavUpdatePillText = document.getElementById('mobileNavUpdatePillText');
+const updateModal = document.getElementById('updateModal');
+const closeUpdateModalBtn = document.getElementById('closeUpdateModalBtn');
+const laterUpdateBtn = document.getElementById('laterUpdateBtn');
+const startUpdateBtn = document.getElementById('startUpdateBtn');
+const installUpdateBtn = document.getElementById('installUpdateBtn');
+const cancelUpdateBtn = document.getElementById('cancelUpdateBtn');
+const updateModalTagBadge = document.getElementById('updateModalTagBadge');
+const updateModalSubtitle = document.getElementById('updateModalSubtitle');
+const updateCurrentVersionText = document.getElementById('updateCurrentVersionText');
+const updateNewVersionText = document.getElementById('updateNewVersionText');
+const updatePublishedDateText = document.getElementById('updatePublishedDateText');
+const updateReleaseNotesBox = document.getElementById('updateReleaseNotesBox');
+const updateProgressContainer = document.getElementById('updateProgressContainer');
+const updateProgressBar = document.getElementById('updateProgressBar');
+const updateProgressPercent = document.getElementById('updateProgressPercent');
+const updateProgressBytes = document.getElementById('updateProgressBytes');
+const updateProgressSpeed = document.getElementById('updateProgressSpeed');
+const updateProgressStatusText = document.getElementById('updateProgressStatusText');
+const updateErrorBanner = document.getElementById('updateErrorBanner');
+const updateErrorText = document.getElementById('updateErrorText');
+const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+const checkUpdateBtnText = document.getElementById('checkUpdateBtnText');
+const updaterCurrentVerDisplay = document.getElementById('updaterCurrentVerDisplay');
+const updaterStatusSummary = document.getElementById('updaterStatusSummary');
+const settingGithubToken = document.getElementById('settingGithubToken');
+const toggleGithubTokenVisibility = document.getElementById('toggleGithubTokenVisibility');
+const githubTokenEyeIcon = document.getElementById('githubTokenEyeIcon');
+
+let updaterPollingInterval = null;
+let currentUpdaterState = null;
+
 function escapeHtml(str) {
   return String(str || '')
     .replace(/&/g, '&amp;')
@@ -294,6 +330,9 @@ async function fetchAllState(forceRefresh = false) {
     if (statusRes.autoSendActive && !countdownInterval && birthdaysRes.stats.pendingTodayCount > 0) {
       startCountdown(statusRes.autoSendDelaySeconds || 10, birthdaysRes.stats.pendingTodayCount);
     }
+
+    // Check Auto-Updater Status
+    fetchUpdaterStatus().catch(() => {});
   } catch (err) {
     console.error('Failed to load application state:', err);
     showToast('Failed to load application data', 'error');
@@ -1170,6 +1209,13 @@ async function loadSettingsIntoModal() {
       settingCountdownSeconds.value = s.autoSendDelaySeconds || 10;
       settingMinDelay.value = Math.round((s.minDispatchDelayMs || 5000) / 1000);
       settingMaxDelay.value = Math.round((s.maxDispatchDelayMs || 12000) / 1000);
+      if (settingGithubToken) {
+        settingGithubToken.value = s.githubToken || '';
+      }
+      if (updaterCurrentVerDisplay) {
+        updaterCurrentVerDisplay.textContent = 'v' + (currentStatus?.version || '1.1.5');
+      }
+      fetchUpdaterStatus().catch(() => {});
     }
 
     if (authRes.signedIn && authRes.userEmail) {
@@ -1218,7 +1264,8 @@ async function saveSettingsFromModal() {
       sundayCatchUpOnMonday: settingSundayCatchUp ? settingSundayCatchUp.checked : true,
       autoSendDelaySeconds: countdown,
       minDispatchDelayMs: minDelay,
-      maxDispatchDelayMs: maxDelay
+      maxDispatchDelayMs: maxDelay,
+      githubToken: settingGithubToken ? settingGithubToken.value.trim() : ''
     };
 
     const res = await fetch('/api/settings', {
@@ -1423,6 +1470,288 @@ async function handleManualSendSubmit(e) {
   } finally {
     submitManualSendBtn.disabled = false;
     submitManualSendBtn.innerHTML = originalBtnText;
+  }
+}
+
+// ==========================================
+// Software Auto-Updater UI & State Handlers
+// ==========================================
+
+async function fetchUpdaterStatus() {
+  try {
+    const res = await fetch('/api/updater/status').then(r => r.json());
+    currentUpdaterState = res;
+    renderUpdaterUI(res);
+    return res;
+  } catch (err) {
+    console.warn('[Updater] Could not fetch updater status:', err);
+    return null;
+  }
+}
+
+function renderUpdaterUI(state) {
+  if (!state) return;
+
+  if (updaterCurrentVerDisplay) {
+    updaterCurrentVerDisplay.textContent = `v${state.currentVersion}`;
+  }
+
+  // Update Settings Modal Status Summary
+  if (updaterStatusSummary) {
+    if (state.status === 'AVAILABLE') {
+      updaterStatusSummary.textContent = `Update v${state.updateInfo?.version} available`;
+      updaterStatusSummary.className = 'font-semibold text-emerald-600 dark:text-emerald-400';
+    } else if (state.status === 'DOWNLOADING') {
+      updaterStatusSummary.textContent = `Downloading (${state.progress?.percent || 0}%)`;
+      updaterStatusSummary.className = 'font-semibold text-blue-600 dark:text-blue-400';
+    } else if (state.status === 'READY_TO_INSTALL') {
+      updaterStatusSummary.textContent = 'Ready to install';
+      updaterStatusSummary.className = 'font-semibold text-emerald-600 dark:text-emerald-400';
+    } else if (state.status === 'ERROR') {
+      updaterStatusSummary.textContent = state.error || 'Update check error';
+      updaterStatusSummary.className = 'font-medium text-red-600 dark:text-red-400';
+    } else if (state.status === 'CHECKING') {
+      updaterStatusSummary.textContent = 'Checking for updates...';
+      updaterStatusSummary.className = 'font-medium text-[var(--text-muted)]';
+    } else {
+      updaterStatusSummary.textContent = `Up to date (v${state.currentVersion})`;
+      updaterStatusSummary.className = 'font-medium text-[var(--text-muted)]';
+    }
+  }
+
+  // Navbar Badges & Pills
+  const isAvailable = state.status === 'AVAILABLE' || state.status === 'DOWNLOADING' || state.status === 'READY_TO_INSTALL';
+  if (navUpdatePill && navUpdatePillText) {
+    if (isAvailable && state.updateInfo) {
+      navUpdatePillText.textContent = `Update v${state.updateInfo.version}`;
+      navUpdatePill.classList.remove('hidden');
+    } else {
+      navUpdatePill.classList.add('hidden');
+    }
+  }
+
+  if (mobileNavUpdatePill && mobileNavUpdatePillText) {
+    if (isAvailable && state.updateInfo) {
+      mobileNavUpdatePillText.textContent = `Update v${state.updateInfo.version} Available`;
+      mobileNavUpdatePill.classList.remove('hidden');
+    } else {
+      mobileNavUpdatePill.classList.add('hidden');
+    }
+  }
+
+  // If Update Modal is visible, update its state
+  if (updateModal && !updateModal.classList.contains('hidden')) {
+    renderUpdateModalContent(state);
+  }
+}
+
+function renderUpdateModalContent(state) {
+  if (!state) return;
+  const info = state.updateInfo;
+
+  if (info) {
+    if (updateModalTagBadge) updateModalTagBadge.textContent = `v${info.version}`;
+    if (updateCurrentVersionText) updateCurrentVersionText.textContent = `v${state.currentVersion}`;
+    if (updateNewVersionText) updateNewVersionText.textContent = `v${info.version}`;
+    if (updatePublishedDateText) {
+      try {
+        const d = new Date(info.publishedAt);
+        updatePublishedDateText.textContent = !isNaN(d.getTime()) ? d.toLocaleDateString() : (info.publishedAt || '—');
+      } catch (e) {
+        updatePublishedDateText.textContent = '—';
+      }
+    }
+    if (updateReleaseNotesBox) {
+      updateReleaseNotesBox.textContent = info.releaseNotes || 'No release notes provided.';
+    }
+  }
+
+  // Handle Progress & Download States
+  if (state.status === 'DOWNLOADING') {
+    if (updateProgressContainer) updateProgressContainer.classList.remove('hidden');
+    if (startUpdateBtn) startUpdateBtn.classList.add('hidden');
+    if (installUpdateBtn) installUpdateBtn.classList.add('hidden');
+    if (cancelUpdateBtn) cancelUpdateBtn.classList.remove('hidden');
+    if (updateErrorBanner) updateErrorBanner.classList.add('hidden');
+
+    const prog = state.progress || {};
+    if (updateProgressBar) updateProgressBar.style.width = `${prog.percent || 0}%`;
+    if (updateProgressPercent) updateProgressPercent.textContent = `${prog.percent || 0}%`;
+    if (updateProgressBytes) updateProgressBytes.textContent = `${prog.downloadedMB || '0.0'} MB / ${prog.totalMB || '0.0'} MB`;
+    if (updateProgressSpeed) updateProgressSpeed.textContent = `${prog.speedKBps || 0} KB/s`;
+  } else if (state.status === 'READY_TO_INSTALL') {
+    if (updateProgressContainer) updateProgressContainer.classList.remove('hidden');
+    if (updateProgressBar) updateProgressBar.style.width = '100%';
+    if (updateProgressPercent) updateProgressPercent.textContent = '100%';
+    if (updateProgressStatusText) {
+      updateProgressStatusText.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600"></i><span>Download complete. Ready to install!</span>';
+    }
+    if (startUpdateBtn) startUpdateBtn.classList.add('hidden');
+    if (cancelUpdateBtn) cancelUpdateBtn.classList.add('hidden');
+    if (installUpdateBtn) installUpdateBtn.classList.remove('hidden');
+    if (updateErrorBanner) updateErrorBanner.classList.add('hidden');
+    stopUpdaterPolling();
+  } else if (state.status === 'ERROR') {
+    if (updateErrorBanner && updateErrorText) {
+      updateErrorBanner.classList.remove('hidden');
+      updateErrorText.textContent = state.error || 'Update failed.';
+    }
+    if (updateProgressContainer) updateProgressContainer.classList.add('hidden');
+    if (startUpdateBtn) {
+      startUpdateBtn.classList.remove('hidden');
+      startUpdateBtn.disabled = false;
+      startUpdateBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i><span>Retry Download</span>';
+    }
+    if (installUpdateBtn) installUpdateBtn.classList.add('hidden');
+    if (cancelUpdateBtn) cancelUpdateBtn.classList.add('hidden');
+    stopUpdaterPolling();
+  } else {
+    // AVAILABLE or IDLE
+    if (updateProgressContainer) updateProgressContainer.classList.add('hidden');
+    if (updateErrorBanner) updateErrorBanner.classList.add('hidden');
+    if (startUpdateBtn) {
+      startUpdateBtn.classList.remove('hidden');
+      startUpdateBtn.disabled = false;
+      startUpdateBtn.innerHTML = '<i class="fa-solid fa-download"></i><span>Download &amp; Install Update</span>';
+    }
+    if (installUpdateBtn) installUpdateBtn.classList.add('hidden');
+    if (cancelUpdateBtn) cancelUpdateBtn.classList.add('hidden');
+  }
+}
+
+function openUpdateModal() {
+  if (!currentUpdaterState || !currentUpdaterState.updateInfo) {
+    showToast('Checking for updates...', 'info');
+    checkForUpdatesManual(true);
+    return;
+  }
+  setMobileMenuOpen(false);
+  renderUpdateModalContent(currentUpdaterState);
+  if (updateModal) updateModal.classList.remove('hidden');
+}
+
+function closeUpdateModal() {
+  if (updateModal) updateModal.classList.add('hidden');
+}
+
+function startUpdaterPolling() {
+  stopUpdaterPolling();
+  updaterPollingInterval = setInterval(async () => {
+    const fresh = await fetchUpdaterStatus();
+    if (fresh && (fresh.status === 'READY_TO_INSTALL' || fresh.status === 'ERROR')) {
+      stopUpdaterPolling();
+    }
+  }, 600);
+}
+
+function stopUpdaterPolling() {
+  if (updaterPollingInterval) {
+    clearInterval(updaterPollingInterval);
+    updaterPollingInterval = null;
+  }
+}
+
+async function checkForUpdatesManual(openOnAvailable = false) {
+  if (checkUpdateBtn) {
+    checkUpdateBtn.disabled = true;
+    if (checkUpdateBtnText) checkUpdateBtnText.textContent = 'Checking...';
+    const icon = checkUpdateBtn.querySelector('i');
+    if (icon) icon.className = 'fa-solid fa-rotate fa-spin text-[11px]';
+  }
+
+  try {
+    const res = await fetch('/api/updater/check', { method: 'POST' }).then(r => r.json());
+    if (res.success) {
+      const statusRes = await fetchUpdaterStatus();
+      if (res.updateAvailable) {
+        showToast(`Update v${res.latestVersion} is available!`, 'success');
+        if (openOnAvailable) {
+          openUpdateModal();
+        }
+      } else {
+        showToast(`WishSync is up to date (v${res.currentVersion}).`, 'info');
+      }
+    } else {
+      showToast(res.error || 'Failed to check for updates.', 'error');
+      await fetchUpdaterStatus();
+    }
+  } catch (err) {
+    showToast(`Update check error: ${err.message}`, 'error');
+    await fetchUpdaterStatus();
+  } finally {
+    if (checkUpdateBtn) {
+      checkUpdateBtn.disabled = false;
+      if (checkUpdateBtnText) checkUpdateBtnText.textContent = 'Check for Updates';
+      const icon = checkUpdateBtn.querySelector('i');
+      if (icon) icon.className = 'fa-solid fa-rotate text-[11px]';
+    }
+  }
+}
+
+async function startDownloadUpdate() {
+  if (startUpdateBtn) {
+    startUpdateBtn.disabled = true;
+    startUpdateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Starting download...</span>';
+  }
+  try {
+    const res = await fetch('/api/updater/download', { method: 'POST' }).then(r => r.json());
+    if (res.success) {
+      showToast('Downloading update installer in background...', 'info');
+      startUpdaterPolling();
+    } else {
+      showToast(res.error || 'Failed to start download.', 'error');
+      if (startUpdateBtn) {
+        startUpdateBtn.disabled = false;
+        startUpdateBtn.innerHTML = '<i class="fa-solid fa-download"></i><span>Download &amp; Install Update</span>';
+      }
+    }
+  } catch (err) {
+    showToast(`Download error: ${err.message}`, 'error');
+    if (startUpdateBtn) {
+      startUpdateBtn.disabled = false;
+      startUpdateBtn.innerHTML = '<i class="fa-solid fa-download"></i><span>Download &amp; Install Update</span>';
+    }
+  }
+}
+
+async function triggerInstallUpdate() {
+  if (installUpdateBtn) {
+    installUpdateBtn.disabled = true;
+    installUpdateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Launching installer...</span>';
+  }
+  try {
+    const res = await fetch('/api/updater/install', { method: 'POST' }).then(r => r.json());
+    if (res.success) {
+      showToast('Installer launched! WishSync will now close to update.', 'success');
+      setTimeout(() => {
+        document.body.innerHTML = `
+          <div style="font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; display: flex; align-items: center; justify-content: center; background: #F4F5F7; text-align: center; padding: 20px;">
+            <div style="background: #fff; padding: 32px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); max-width: 440px;">
+              <h2 style="color: #1B365D; font-size: 18px; margin: 0 0 10px;">Updating WishSync...</h2>
+              <p style="color: #4B5563; font-size: 13px; line-height: 1.5; margin: 0 0 16px;">The installer is completing the update. WishSync will reopen automatically once finished.</p>
+              <div style="font-size: 11px; color: #9CA3AF;">You may safely close this window.</div>
+            </div>
+          </div>
+        `;
+      }, 1000);
+    } else {
+      showToast(res.error || 'Failed to launch installer.', 'error');
+      if (installUpdateBtn) installUpdateBtn.disabled = false;
+    }
+  } catch (err) {
+    showToast(`Install error: ${err.message}`, 'error');
+    if (installUpdateBtn) installUpdateBtn.disabled = false;
+  }
+}
+
+async function cancelDownloadUpdate() {
+  try {
+    await fetch('/api/updater/cancel', { method: 'POST' });
+    stopUpdaterPolling();
+    await fetchUpdaterStatus();
+    showToast('Update download cancelled.', 'info');
+  } catch (err) {
+    showToast('Failed to cancel download', 'error');
   }
 }
 
@@ -1732,8 +2061,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (doneDeveloperModalBtn) doneDeveloperModalBtn.addEventListener('click', closeDeveloperModal);
   }
 
+  // Auto-Updater Event Listeners
+  if (navUpdatePill) navUpdatePill.addEventListener('click', openUpdateModal);
+  if (mobileNavUpdatePill) mobileNavUpdatePill.addEventListener('click', openUpdateModal);
+  if (closeUpdateModalBtn) closeUpdateModalBtn.addEventListener('click', closeUpdateModal);
+  if (laterUpdateBtn) laterUpdateBtn.addEventListener('click', closeUpdateModal);
+  if (checkUpdateBtn) checkUpdateBtn.addEventListener('click', () => checkForUpdatesManual(true));
+  if (startUpdateBtn) startUpdateBtn.addEventListener('click', startDownloadUpdate);
+  if (installUpdateBtn) installUpdateBtn.addEventListener('click', triggerInstallUpdate);
+  if (cancelUpdateBtn) cancelUpdateBtn.addEventListener('click', cancelDownloadUpdate);
+
+  // GitHub Token Visibility Toggle
+  if (toggleGithubTokenVisibility && settingGithubToken) {
+    toggleGithubTokenVisibility.addEventListener('click', () => {
+      const isPassword = settingGithubToken.type === 'password';
+      settingGithubToken.type = isPassword ? 'text' : 'password';
+      if (githubTokenEyeIcon) {
+        githubTokenEyeIcon.className = isPassword
+          ? 'fa-regular fa-eye-slash text-xs'
+          : 'fa-regular fa-eye text-xs';
+      }
+    });
+  }
+
   // Close open dialogs on backdrop click or Escape key
-  [branchesModal, settingsModal, qrModal, templateModal, manualSendModal, developerModal].forEach(modal => {
+  [branchesModal, settingsModal, qrModal, templateModal, manualSendModal, developerModal, updateModal].forEach(modal => {
     if (!modal) return;
     modal.addEventListener('click', (e) => {
       if (e.target === modal) modal.classList.add('hidden');
@@ -1742,7 +2094,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      [branchesModal, settingsModal, qrModal, templateModal, manualSendModal, developerModal].forEach(modal => {
+      [branchesModal, settingsModal, qrModal, templateModal, manualSendModal, developerModal, updateModal].forEach(modal => {
         if (modal && !modal.classList.contains('hidden')) {
           modal.classList.add('hidden');
         }

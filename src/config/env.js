@@ -75,5 +75,8 @@ module.exports = {
   AUTO_SEND_DELAY_SECONDS: parseInt(process.env.AUTO_SEND_DELAY_SECONDS, 10) || 10,
   MIN_DISPATCH_DELAY_MS: parseInt(process.env.MIN_DISPATCH_DELAY_MS, 10) || 5000,
   MAX_DISPATCH_DELAY_MS: parseInt(process.env.MAX_DISPATCH_DELAY_MS, 10) || 12000,
-  DEFAULT_TEMPLATE: process.env.DEFAULT_TEMPLATE || 'Dear {name}, on behalf of Sussex, we wish you a very Happy Birthday! 🎂🎉 May this special day bring you immense joy, happiness, and great success ahead!'
+  DEFAULT_TEMPLATE: process.env.DEFAULT_TEMPLATE || 'Dear {name}, on behalf of Sussex, we wish you a very Happy Birthday! 🎂🎉 May this special day bring you immense joy, happiness, and great success ahead!',
+  GITHUB_TOKEN: process.env.GITHUB_TOKEN || '',
+  GITHUB_REPO_OWNER: process.env.GITHUB_REPO_OWNER || 'mahimapaseda',
+  GITHUB_REPO_NAME: process.env.GITHUB_REPO_NAME || 'Sussex_wishsync-whatsapp'
 };

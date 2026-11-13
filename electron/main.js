@@ -278,6 +278,9 @@ async function quitApplication() {
   return quitPromise;
 }
 
+// Expose clean exit handle for updater
+global.wishSyncQuitApp = quitApplication;
+
 app.on('before-quit', (event) => {
   if (!shutdownCompleted) {
     event.preventDefault();
