@@ -15,3 +15,6 @@ publish/
 *.pdb
 
 dist/
+.agents/
+.cursor/
+
