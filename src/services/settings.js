@@ -2,6 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const config = require('../config/env');
 
+let embeddedSecrets = {};
+try {
+  embeddedSecrets = require('../config/oauth.secrets');
+} catch (e) {}
+
 const SETTINGS_PATH = path.join(config.DATA_DIR, 'settings.json');
 
 /**
@@ -35,8 +40,8 @@ const DEFAULT_SETTINGS = {
   maxDispatchDelayMs: config.MAX_DISPATCH_DELAY_MS,
   branches: [],
   credentialsConfigured: fs.existsSync(config.GOOGLE_CREDENTIALS_PATH),
-  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+  googleClientId: process.env.GOOGLE_CLIENT_ID || embeddedSecrets.GOOGLE_CLIENT_ID || '416444086943-8nn0b15koet1mqacjgv23p5dojbe8p6u.apps.googleusercontent.com',
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || embeddedSecrets.GOOGLE_CLIENT_SECRET || '',
   googleUserEmail: null,
   googleAuthConnected: false,
   updatedAt: new Date().toISOString()
@@ -57,6 +62,13 @@ function loadSettings() {
 
     if (!Array.isArray(combined.branches)) {
       combined.branches = [];
+    }
+
+    if (!combined.googleClientSecret && (embeddedSecrets.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET)) {
+      combined.googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || embeddedSecrets.GOOGLE_CLIENT_SECRET || '';
+    }
+    if (!combined.googleClientId && (embeddedSecrets.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID)) {
+      combined.googleClientId = process.env.GOOGLE_CLIENT_ID || embeddedSecrets.GOOGLE_CLIENT_ID || '416444086943-8nn0b15koet1mqacjgv23p5dojbe8p6u.apps.googleusercontent.com';
     }
 
     combined.credentialsConfigured = fs.existsSync(config.GOOGLE_CREDENTIALS_PATH);

@@ -4,6 +4,11 @@ const { google } = require('googleapis');
 const config = require('../config/env');
 const settings = require('./settings');
 
+let embeddedSecrets = {};
+try {
+  embeddedSecrets = require('../config/oauth.secrets');
+} catch (e) {}
+
 const TOKEN_PATH = path.join(config.DATA_DIR, 'google_token.json');
 const REDIRECT_URI = `http://localhost:${config.PORT}/auth/google/callback`;
 
@@ -29,8 +34,8 @@ function hasSheetsScope(tokens) {
  */
 function getOAuth2Client() {
   const currentSettings = settings.loadSettings();
-  const clientId = currentSettings.googleClientId || process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = currentSettings.googleClientSecret || process.env.GOOGLE_CLIENT_SECRET;
+  const clientId = currentSettings.googleClientId || process.env.GOOGLE_CLIENT_ID || embeddedSecrets.GOOGLE_CLIENT_ID;
+  const clientSecret = currentSettings.googleClientSecret || process.env.GOOGLE_CLIENT_SECRET || embeddedSecrets.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     return null;
