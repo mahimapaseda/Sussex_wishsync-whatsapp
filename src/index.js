@@ -499,11 +499,15 @@ app.post('/api/updater/check', async (req, res) => {
   }
 });
 
-app.post('/api/updater/download', (req, res) => {
+app.post('/api/updater/download', async (req, res) => {
   try {
-    const status = updater.getStatus();
+    let status = updater.getStatus();
     if (status.status === 'DOWNLOADING') {
       return res.json({ success: true, message: 'Download already in progress.' });
+    }
+    if (!status.updateInfo || !status.updateInfo.asset) {
+      // Auto-fetch release info if not already checked
+      await updater.checkForUpdates();
     }
     // Start asynchronous download in background
     updater.downloadUpdate().catch(err => {

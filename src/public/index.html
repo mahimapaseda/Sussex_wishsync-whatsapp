@@ -686,16 +686,22 @@
               <h4 class="text-xs font-bold text-[var(--text-primary)]">Software Updates</h4>
               <p class="text-[11px] text-[var(--text-muted)]">Check for updates from Sussex College private releases repository.</p>
             </div>
-            <button id="checkUpdateBtn" type="button" class="btn-neutral px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition">
-              <i class="fa-solid fa-rotate text-[11px]"></i>
-              <span id="checkUpdateBtnText">Check for Updates</span>
-            </button>
+            <div class="flex items-center gap-2">
+              <button id="forceReinstallBtn" type="button" class="hidden btn-neutral px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 text-blue-600 hover:text-blue-700 dark:text-blue-400 transition" title="Re-download and run the installer">
+                <i class="fa-solid fa-cloud-arrow-down text-[11px]"></i>
+                <span id="forceReinstallBtnText">Reinstall / Update</span>
+              </button>
+              <button id="checkUpdateBtn" type="button" class="btn-neutral px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-rotate text-[11px]"></i>
+                <span id="checkUpdateBtnText">Check for Updates</span>
+              </button>
+            </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-[var(--border-hairline)] text-xs">
             <div>
               <span class="text-[var(--text-muted)] block text-[11px]">Installed Version</span>
-              <span id="updaterCurrentVerDisplay" class="font-semibold font-mono text-[var(--text-primary)]">v1.1.5</span>
+              <span id="updaterCurrentVerDisplay" class="font-semibold font-mono text-[var(--text-primary)]">v1.2.0</span>
             </div>
             <div>
               <span class="text-[var(--text-muted)] block text-[11px]">Update Status</span>

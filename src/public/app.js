@@ -183,6 +183,7 @@ const updateErrorBanner = document.getElementById('updateErrorBanner');
 const updateErrorText = document.getElementById('updateErrorText');
 const checkUpdateBtn = document.getElementById('checkUpdateBtn');
 const checkUpdateBtnText = document.getElementById('checkUpdateBtnText');
+const forceReinstallBtn = document.getElementById('forceReinstallBtn');
 const updaterCurrentVerDisplay = document.getElementById('updaterCurrentVerDisplay');
 const updaterStatusSummary = document.getElementById('updaterStatusSummary');
 const settingGithubToken = document.getElementById('settingGithubToken');
@@ -1501,6 +1502,7 @@ function renderUpdaterUI(state) {
     if (state.status === 'AVAILABLE') {
       updaterStatusSummary.textContent = `Update v${state.updateInfo?.version} available`;
       updaterStatusSummary.className = 'font-semibold text-emerald-600 dark:text-emerald-400';
+      if (forceReinstallBtn) forceReinstallBtn.classList.add('hidden');
     } else if (state.status === 'DOWNLOADING') {
       updaterStatusSummary.textContent = `Downloading (${state.progress?.percent || 0}%)`;
       updaterStatusSummary.className = 'font-semibold text-blue-600 dark:text-blue-400';
@@ -1516,6 +1518,7 @@ function renderUpdaterUI(state) {
     } else {
       updaterStatusSummary.textContent = `Up to date (v${state.currentVersion})`;
       updaterStatusSummary.className = 'font-medium text-[var(--text-muted)]';
+      if (forceReinstallBtn) forceReinstallBtn.classList.remove('hidden');
     }
   }
 
@@ -1545,7 +1548,7 @@ function renderUpdaterUI(state) {
   }
 }
 
-function renderUpdateModalContent(state) {
+function renderUpdateModalContent(state, force = false) {
   if (!state) return;
   const info = state.updateInfo;
 
@@ -1563,6 +1566,11 @@ function renderUpdateModalContent(state) {
     }
     if (updateReleaseNotesBox) {
       updateReleaseNotesBox.textContent = info.releaseNotes || 'No release notes provided.';
+    }
+    if (updateModalSubtitle) {
+      updateModalSubtitle.textContent = (force || state.status === 'UP_TO_DATE')
+        ? 'You are running the latest version. You can re-download and reinstall the update anytime.'
+        : 'A new version of WishSync is available to install.';
     }
   }
 
@@ -1606,27 +1614,31 @@ function renderUpdateModalContent(state) {
     if (cancelUpdateBtn) cancelUpdateBtn.classList.add('hidden');
     stopUpdaterPolling();
   } else {
-    // AVAILABLE or IDLE
+    // AVAILABLE, UP_TO_DATE (reinstall mode), or IDLE
     if (updateProgressContainer) updateProgressContainer.classList.add('hidden');
     if (updateErrorBanner) updateErrorBanner.classList.add('hidden');
     if (startUpdateBtn) {
       startUpdateBtn.classList.remove('hidden');
       startUpdateBtn.disabled = false;
-      startUpdateBtn.innerHTML = '<i class="fa-solid fa-download"></i><span>Download &amp; Install Update</span>';
+      const isReinstall = force || state.status === 'UP_TO_DATE';
+      startUpdateBtn.innerHTML = isReinstall
+        ? '<i class="fa-solid fa-download"></i><span>Download &amp; Reinstall</span>'
+        : '<i class="fa-solid fa-download"></i><span>Download &amp; Install Update</span>';
     }
     if (installUpdateBtn) installUpdateBtn.classList.add('hidden');
     if (cancelUpdateBtn) cancelUpdateBtn.classList.add('hidden');
   }
 }
 
-function openUpdateModal() {
+function openUpdateModal(force = false) {
   if (!currentUpdaterState || !currentUpdaterState.updateInfo) {
     showToast('Checking for updates...', 'info');
     checkForUpdatesManual(true);
     return;
   }
   setMobileMenuOpen(false);
-  renderUpdateModalContent(currentUpdaterState);
+  if (settingsModal) settingsModal.classList.add('hidden');
+  renderUpdateModalContent(currentUpdaterState, force);
   if (updateModal) updateModal.classList.remove('hidden');
 }
 
@@ -1666,10 +1678,17 @@ async function checkForUpdatesManual(openOnAvailable = false) {
       if (res.updateAvailable) {
         showToast(`Update v${res.latestVersion} is available!`, 'success');
         if (openOnAvailable) {
-          openUpdateModal();
+          openUpdateModal(false);
         }
       } else {
-        showToast(`WishSync is up to date (v${res.currentVersion}).`, 'info');
+        showToast(`WishSync is already on the latest version (v${res.currentVersion}).`, 'info');
+        if (forceReinstallBtn) forceReinstallBtn.classList.remove('hidden');
+        if (openOnAvailable) {
+          const wantReinstall = confirm(`WishSync is already on the latest version (v${res.currentVersion}).\n\nWould you like to open the updater to download or reinstall it anyway?`);
+          if (wantReinstall) {
+            openUpdateModal(true);
+          }
+        }
       }
     } else {
       showToast(res.error || 'Failed to check for updates.', 'error');
@@ -2067,6 +2086,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (closeUpdateModalBtn) closeUpdateModalBtn.addEventListener('click', closeUpdateModal);
   if (laterUpdateBtn) laterUpdateBtn.addEventListener('click', closeUpdateModal);
   if (checkUpdateBtn) checkUpdateBtn.addEventListener('click', () => checkForUpdatesManual(true));
+  if (forceReinstallBtn) forceReinstallBtn.addEventListener('click', () => openUpdateModal(true));
   if (startUpdateBtn) startUpdateBtn.addEventListener('click', startDownloadUpdate);
   if (installUpdateBtn) installUpdateBtn.addEventListener('click', triggerInstallUpdate);
   if (cancelUpdateBtn) cancelUpdateBtn.addEventListener('click', cancelDownloadUpdate);
