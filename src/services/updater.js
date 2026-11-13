@@ -19,7 +19,7 @@ try {
  */
 const updaterState = {
   status: 'IDLE',
-  currentVersion: pkg.version || '1.2.0',
+  currentVersion: pkg.version || '1.2.1',
   updateInfo: null,
   progress: {
     percent: 0,
