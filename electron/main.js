@@ -78,7 +78,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'WishSync — Sussex College Network',
+    title: 'WishSync - Sussex College Network',
     icon: iconPath,
     backgroundColor: '#F4F5F7',
     show: false, // Don't show until ready-to-show
@@ -131,7 +131,7 @@ function createTray() {
   if (!iconPath) return;
 
   tray = new Tray(iconPath);
-  tray.setToolTip('WishSync — Sussex College Network');
+  tray.setToolTip('WishSync - Sussex College Network');
 
   const contextMenu = Menu.buildFromTemplate([
     {

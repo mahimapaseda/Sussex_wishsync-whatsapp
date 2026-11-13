@@ -356,7 +356,7 @@ async function resolveRecipientChatId(phone) {
 
 /**
  * Resolves the birthday greeting card MessageMedia if enabled and present on disk.
- * Never throws during send fallback—loads synchronously before any WhatsApp dispatch occurs.
+ * Never throws during send fallback: loads synchronously before any WhatsApp dispatch occurs.
  */
 function resolveBirthdayMediaPayload() {
   const userSettings = settings.loadSettings();

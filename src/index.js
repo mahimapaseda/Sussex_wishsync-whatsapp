@@ -291,7 +291,7 @@ app.get('/auth/google/callback', async (req, res) => {
       return res.status(403).send(`
         <!DOCTYPE html>
         <html>
-          <head><title>Google Sheets Permission Required — WishSync</title></head>
+          <head><title>Google Sheets Permission Required - WishSync</title></head>
           <body style="font-family: 'Segoe UI', system-ui, sans-serif; background: #F4F5F7; color: #111827; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
             <div style="background: #FFFFFF; border: 1px solid #FECACA; border-radius: 10px; padding: 32px; max-width: 460px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
               <h2 style="margin: 0 0 10px 0; color: #B91C1C; font-size: 18px;">Google Sheets Permission Not Checked</h2>
@@ -308,7 +308,7 @@ app.get('/auth/google/callback', async (req, res) => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Google Sign-In Successful — WishSync</title>
+          <title>Google Sign-In Successful - WishSync</title>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
             body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #F4F5F7; color: #111827; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
@@ -602,7 +602,7 @@ const server = app.listen(config.PORT, async () => {
   // Stagger headless Chromium startup when booting with Windows so 4GB RAM PCs stay responsive
   const initDelayMs = isStartupBoot ? 15000 : 0;
   if (initDelayMs > 0) {
-    console.log(`[Startup] Windows boot mode detected — delaying WhatsApp engine ${initDelayMs / 1000}s to reduce boot load...`);
+    console.log(`[Startup] Windows boot mode detected: delaying WhatsApp engine ${initDelayMs / 1000}s to reduce boot load...`);
   }
 
   initTimer = setTimeout(() => {

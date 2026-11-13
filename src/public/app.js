@@ -1,4 +1,4 @@
-// WishSync Frontend Client — Sussex College Network
+// WishSync Frontend Client - Sussex College Network
 
 let currentData = {
   today: [],
@@ -1556,9 +1556,9 @@ function renderUpdateModalContent(state) {
     if (updatePublishedDateText) {
       try {
         const d = new Date(info.publishedAt);
-        updatePublishedDateText.textContent = !isNaN(d.getTime()) ? d.toLocaleDateString() : (info.publishedAt || '—');
+        updatePublishedDateText.textContent = !isNaN(d.getTime()) ? d.toLocaleDateString() : (info.publishedAt || 'N/A');
       } catch (e) {
-        updatePublishedDateText.textContent = '—';
+        updatePublishedDateText.textContent = 'N/A';
       }
     }
     if (updateReleaseNotesBox) {

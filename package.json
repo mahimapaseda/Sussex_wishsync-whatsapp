@@ -1,7 +1,7 @@
 {
   "name": "@mahimapaseda/wishsync",
   "version": "1.2.0",
-  "description": "WishSync — Automated Birthday Dispatch Software for Google Sheets & WhatsApp",
+  "description": "WishSync - Automated Birthday Dispatch Software for Google Sheets & WhatsApp",
   "main": "electron/main.js",
   "type": "commonjs",
   "repository": {
