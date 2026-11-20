@@ -1585,8 +1585,25 @@ function renderUpdateModalContent(state, force = false) {
     const prog = state.progress || {};
     if (updateProgressBar) updateProgressBar.style.width = `${prog.percent || 0}%`;
     if (updateProgressPercent) updateProgressPercent.textContent = `${prog.percent || 0}%`;
-    if (updateProgressBytes) updateProgressBytes.textContent = `${prog.downloadedMB || '0.0'} MB / ${prog.totalMB || '0.0'} MB`;
-    if (updateProgressSpeed) updateProgressSpeed.textContent = `${prog.speedKBps || 0} KB/s`;
+    if (updateProgressBytes) {
+      const mbTransferred = prog.downloadedMB !== undefined
+        ? prog.downloadedMB
+        : (((prog.downloadedBytes || prog.transferred || 0) / (1024 * 1024)).toFixed(1));
+      const mbTotal = prog.totalMB !== undefined
+        ? prog.totalMB
+        : (((prog.totalBytes || prog.total || 0) / (1024 * 1024)).toFixed(1));
+      updateProgressBytes.textContent = `${mbTransferred} MB / ${mbTotal} MB`;
+    }
+    if (updateProgressSpeed) {
+      const speed = prog.speedKBps !== undefined
+        ? prog.speedKBps
+        : Math.round((prog.bytesPerSecond || 0) / 1024);
+      if (speed >= 1024) {
+        updateProgressSpeed.textContent = `${(speed / 1024).toFixed(1)} MB/s`;
+      } else {
+        updateProgressSpeed.textContent = `${speed} KB/s`;
+      }
+    }
   } else if (state.status === 'READY_TO_INSTALL') {
     if (updateProgressContainer) updateProgressContainer.classList.remove('hidden');
     if (updateProgressBar) updateProgressBar.style.width = '100%';

@@ -70,7 +70,7 @@ function getGitHubConfig() {
 }
 
 /**
- * Parses a semantic version string (e.g., 'v1.2.0', '1.2.0-beta') into numeric [major, minor, patch].
+ * Parses a semantic version string (e.g., 'v1.2.1', '1.2.1-beta') into numeric [major, minor, patch].
  */
 function parseSemver(v) {
   if (!v) return [0, 0, 0];
@@ -101,12 +101,13 @@ function isNewerVersion(remote, local) {
 
 /**
  * Locates the target installer asset inside the GitHub release assets array.
- * Prioritizes NSIS Setup executable (e.g., "WishSync Setup 1.2.0.exe"), then any ".exe".
+ * Prioritizes NSIS Windows setup executable (e.g., "SheetApp-1.2.1-Windows-x64.exe"), then any ".exe".
  */
 function findInstallerAsset(assets) {
   if (!Array.isArray(assets) || assets.length === 0) return null;
-  const setupAsset = assets.find(a => /setup.*\.exe$/i.test(a.name));
-  if (setupAsset) return setupAsset;
+  // Prioritize the standard Windows installer (avoiding Portable unless it's the only one)
+  const nsisAsset = assets.find(a => /(windows|setup).*?\.exe$/i.test(a.name));
+  if (nsisAsset) return nsisAsset;
   const anyExe = assets.find(a => /\.exe$/i.test(a.name));
   if (anyExe) return anyExe;
   return assets[0] || null;
@@ -160,7 +161,7 @@ function checkForUpdates(customConfig = {}) {
           return reject(err);
         }
         if (res.statusCode === 404) {
-          const err = new Error(`Repository "${ghConfig.owner}/${ghConfig.repo}" not found or private. Please ensure your GitHub Token has read permissions.`);
+          const err = new Error(`Repository "${ghConfig.owner}/${ghConfig.repo}" not found or private. Please ensure repository exists or GitHub token is configured.`);
           updaterState.status = 'ERROR';
           updaterState.error = err.message;
           return reject(err);
@@ -198,12 +199,22 @@ function checkForUpdates(customConfig = {}) {
               name: targetAsset.name,
               size: targetAsset.size,
               apiUrl: targetAsset.url,
+              browserDownloadUrl: targetAsset.browser_download_url,
               contentType: targetAsset.content_type
             } : null
           };
 
           updaterState.updateInfo = updateInfo;
           updaterState.status = isAvailable ? 'AVAILABLE' : 'UP_TO_DATE';
+
+          if (isAvailable && global.wishSyncTrayNotify) {
+            try {
+              global.wishSyncTrayNotify(
+                'WishSync Update Available',
+                `Version ${remoteVersion} is available. Click to download and install.`
+              );
+            } catch (e) {}
+          }
 
           resolve({
             updateAvailable: isAvailable,
@@ -237,13 +248,12 @@ function checkForUpdates(customConfig = {}) {
 }
 
 /**
- * Downloads a private release asset binary from the GitHub API.
+ * Downloads a release asset binary from the GitHub API.
  * CRITICAL: When GitHub redirects to AWS S3 storage (HTTP 302 Found),
  * the Authorization header MUST be stripped to prevent S3 rejection.
  */
-function downloadReleaseAsset(assetApiUrl, targetFilePath, token, onProgress) {
+function downloadReleaseAsset(assetApiUrl, targetFilePath, token, onProgress, expectedTotalBytes = 0) {
   return new Promise((resolve, reject) => {
-    const parsedUrl = new URL(assetApiUrl);
     const initialHeaders = {
       'User-Agent': 'WishSync-Updater',
       'Accept': 'application/octet-stream',
@@ -253,7 +263,7 @@ function downloadReleaseAsset(assetApiUrl, targetFilePath, token, onProgress) {
       initialHeaders['Authorization'] = `Bearer ${token}`;
     }
 
-    const startDownload = (downloadUrl, headers, isRedirect = false) => {
+    const startDownload = (downloadUrl, headers) => {
       const isHttps = downloadUrl.startsWith('https:');
       const client = isHttps ? https : http;
 
@@ -271,7 +281,7 @@ function downloadReleaseAsset(assetApiUrl, targetFilePath, token, onProgress) {
             'Accept': '*/*'
           };
 
-          return startDownload(redirectLocation, s3Headers, true);
+          return startDownload(redirectLocation, s3Headers);
         }
 
         if (res.statusCode !== 200) {
@@ -283,7 +293,8 @@ function downloadReleaseAsset(assetApiUrl, targetFilePath, token, onProgress) {
           return;
         }
 
-        const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+        const headerLen = parseInt(res.headers['content-length'] || '0', 10);
+        const totalBytes = headerLen > 0 ? headerLen : expectedTotalBytes;
         let downloadedBytes = 0;
         let lastTime = Date.now();
         let lastDownloaded = 0;
@@ -304,14 +315,17 @@ function downloadReleaseAsset(assetApiUrl, targetFilePath, token, onProgress) {
             lastDownloaded = downloadedBytes;
           }
 
-          const percent = totalBytes > 0 ? Math.round((downloadedBytes / totalBytes) * 100) : 0;
+          const percent = totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : 0;
           const progressPayload = {
             percent,
             downloadedBytes,
+            transferred: downloadedBytes,
             totalBytes,
+            total: totalBytes,
             downloadedMB: (downloadedBytes / (1024 * 1024)).toFixed(1),
             totalMB: (totalBytes / (1024 * 1024)).toFixed(1),
-            speedKBps
+            speedKBps,
+            bytesPerSecond: speedKBps * 1024
           };
 
           updaterState.progress = progressPayload;
@@ -351,7 +365,7 @@ function downloadReleaseAsset(assetApiUrl, targetFilePath, token, onProgress) {
       });
     };
 
-    startDownload(assetApiUrl, initialHeaders, false);
+    startDownload(assetApiUrl, initialHeaders);
   });
 }
 
@@ -385,9 +399,10 @@ async function downloadUpdate(onProgress) {
   updaterState.error = null;
 
   try {
-    const result = await downloadReleaseAsset(asset.apiUrl, targetPath, token, (prog) => {
+    const downloadUrl = (token && asset.apiUrl) ? asset.apiUrl : (asset.browserDownloadUrl || asset.apiUrl);
+    const result = await downloadReleaseAsset(downloadUrl, targetPath, token, (prog) => {
       if (typeof onProgress === 'function') onProgress(prog);
-    });
+    }, asset.size || 0);
 
     updaterState.status = 'READY_TO_INSTALL';
     updaterState.downloadedFilePath = result.filePath;
@@ -406,7 +421,7 @@ async function downloadUpdate(onProgress) {
 }
 
 /**
- * Spawns the downloaded installer and gracefully exits the current app so files are unlocked.
+ * Spawns the downloaded installer and gracefully exits WishSync so files are unlocked.
  */
 function installUpdate() {
   const filePath = updaterState.downloadedFilePath;
@@ -470,4 +485,3 @@ module.exports = {
   cancelDownload,
   getGitHubConfig
 };
-
