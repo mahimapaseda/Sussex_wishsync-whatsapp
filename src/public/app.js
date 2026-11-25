@@ -577,15 +577,17 @@ function updateBirthdaysUI(data) {
       </div>
     `;
   } else {
-    const sundayCarryoverCount = displayToday.filter(s => s.isSundayCatchUp).length;
+    const missedCarryoverCount = displayToday.filter(s => s.isMissedCarryOver || s.isSundayCatchUp).length;
     const rowsHtml = displayToday.map(student => {
       const isSent = student.status === 'SENT_TODAY';
       const statusBadge = isSent
         ? '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Delivered</span>'
         : '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Pending</span>';
 
-      const sundayBadge = student.isSundayCatchUp
-        ? '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Missed Sunday</span>'
+      const isMissed = Boolean(student.isMissedCarryOver || student.isSundayCatchUp);
+      const missedLabel = student.missedDayLabel ? `Missed (${student.missedDayLabel})` : (student.missedDateDisplay ? `Missed (${student.missedDateDisplay})` : 'Missed');
+      const missedBadge = isMissed
+        ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800" title="Missed birthday from ${escapeHtml(student.birthdayDateDisplay || student.missedDateDisplay || '')}">${escapeHtml(missedLabel)}</span>`
         : '';
 
       const previewMsg = formatPreview(student);
@@ -601,7 +603,7 @@ function updateBirthdaysUI(data) {
           <td class="px-4 py-3 align-top">
             <div class="flex flex-wrap items-center gap-1.5">
               <span class="font-semibold text-[var(--text-primary)]">${escapeHtml(student.name)}</span>
-              ${sundayBadge}
+              ${missedBadge}
             </div>
             <div class="text-xs text-[var(--text-muted)] mt-0.5 max-w-md truncate" title="${escapeHtml(previewMsg)}">${escapeHtml(previewMsg)}</div>
           </td>
@@ -659,8 +661,8 @@ function updateBirthdaysUI(data) {
       `;
     }).join('');
 
-    const carryoverNoticeHtml = sundayCarryoverCount > 0
-      ? `<div class="px-4 py-2 bg-amber-50/70 dark:bg-amber-950/30 border-b border-amber-200/80 dark:border-amber-900/50 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-2"><i class="fa-solid fa-calendar-day"></i><span>Includes <strong>${sundayCarryoverCount}</strong> missed Sunday birthday${sundayCarryoverCount === 1 ? '' : 's'} carried over to Monday's queue.</span></div>`
+    const carryoverNoticeHtml = missedCarryoverCount > 0
+      ? `<div class="px-4 py-2 bg-amber-50/70 dark:bg-amber-950/30 border-b border-amber-200/80 dark:border-amber-900/50 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-2"><i class="fa-solid fa-calendar-day"></i><span>Includes <strong>${missedCarryoverCount}</strong> missed birthday${missedCarryoverCount === 1 ? '' : 's'} carried over from closed days / holidays.</span></div>`
       : '';
 
     todayBirthdaysList.innerHTML = `
@@ -1205,7 +1207,7 @@ async function loadSettingsIntoModal() {
       }
       settingAutoSendOnBoot.checked = Boolean(s.autoSendOnBoot);
       if (settingSundayCatchUp) {
-        settingSundayCatchUp.checked = s.sundayCatchUpOnMonday !== false;
+        settingSundayCatchUp.checked = s.carryOverMissedBirthdays !== false && s.sundayCatchUpOnMonday !== false;
       }
       settingCountdownSeconds.value = s.autoSendDelaySeconds || 10;
       settingMinDelay.value = Math.round((s.minDispatchDelayMs || 5000) / 1000);
@@ -1214,7 +1216,7 @@ async function loadSettingsIntoModal() {
         settingGithubToken.value = s.githubToken || '';
       }
       if (updaterCurrentVerDisplay) {
-        updaterCurrentVerDisplay.textContent = 'v' + (currentStatus?.version || '1.1.5');
+        updaterCurrentVerDisplay.textContent = 'v' + (currentStatus?.version || '1.2.3');
       }
       fetchUpdaterStatus().catch(() => {});
     }
@@ -1262,6 +1264,7 @@ async function saveSettingsFromModal() {
   try {
     const payload = {
       autoSendOnBoot: autoSend,
+      carryOverMissedBirthdays: settingSundayCatchUp ? settingSundayCatchUp.checked : true,
       sundayCatchUpOnMonday: settingSundayCatchUp ? settingSundayCatchUp.checked : true,
       autoSendDelaySeconds: countdown,
       minDispatchDelayMs: minDelay,

@@ -34,6 +34,7 @@ function extractSheetGid(input) {
 const DEFAULT_SETTINGS = {
   template: config.DEFAULT_TEMPLATE,
   autoSendOnBoot: config.AUTO_SEND_ON_BOOT,
+  carryOverMissedBirthdays: true,
   sundayCatchUpOnMonday: true,
   autoSendDelaySeconds: config.AUTO_SEND_DELAY_SECONDS,
   minDispatchDelayMs: config.MIN_DISPATCH_DELAY_MS,
@@ -62,6 +63,12 @@ function loadSettings() {
     const raw = fs.readFileSync(SETTINGS_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     const combined = { ...DEFAULT_SETTINGS, ...parsed };
+
+    if (parsed.carryOverMissedBirthdays !== undefined) {
+      combined.sundayCatchUpOnMonday = Boolean(parsed.carryOverMissedBirthdays);
+    } else if (parsed.sundayCatchUpOnMonday !== undefined) {
+      combined.carryOverMissedBirthdays = Boolean(parsed.sundayCatchUpOnMonday);
+    }
 
     if (!Array.isArray(combined.branches)) {
       combined.branches = [];
@@ -121,8 +128,12 @@ function updateSettings(newSettings) {
     if (newSettings.autoSendOnBoot !== undefined) {
       updated.autoSendOnBoot = Boolean(newSettings.autoSendOnBoot);
     }
-    if (newSettings.sundayCatchUpOnMonday !== undefined) {
+    if (newSettings.carryOverMissedBirthdays !== undefined) {
+      updated.carryOverMissedBirthdays = Boolean(newSettings.carryOverMissedBirthdays);
+      updated.sundayCatchUpOnMonday = updated.carryOverMissedBirthdays;
+    } else if (newSettings.sundayCatchUpOnMonday !== undefined) {
       updated.sundayCatchUpOnMonday = Boolean(newSettings.sundayCatchUpOnMonday);
+      updated.carryOverMissedBirthdays = updated.sundayCatchUpOnMonday;
     }
     if (newSettings.autoSendDelaySeconds !== undefined) {
       updated.autoSendDelaySeconds = parseInt(newSettings.autoSendDelaySeconds, 10) || 10;

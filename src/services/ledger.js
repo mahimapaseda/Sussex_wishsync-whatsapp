@@ -135,6 +135,29 @@ function getSentRecordsByDate(dateString) {
   return getAllSentRecords().filter(r => r.status === 'SENT' && r.dateSent === dateString);
 }
 
+/**
+ * Gets the last date the birthday check/send job ran (YYYY-MM-DD), or null if not yet recorded.
+ */
+function getLastRunDate() {
+  const ledger = readLedger();
+  if (ledger.lastRunDate && typeof ledger.lastRunDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ledger.lastRunDate)) {
+    return ledger.lastRunDate;
+  }
+  return null;
+}
+
+/**
+ * Sets the last date the birthday check/send job ran and persists to disk.
+ */
+function setLastRunDate(dateString) {
+  if (!dateString || typeof dateString !== 'string') return false;
+  const ledger = readLedger();
+  ledger.lastRunDate = dateString;
+  saveLedger(ledger);
+  console.log(`[Ledger] Updated lastRunDate to: ${dateString}`);
+  return true;
+}
+
 module.exports = {
   readLedger,
   getRecordKey,
@@ -143,6 +166,8 @@ module.exports = {
   recordSent,
   clearSentRecord,
   getAllSentRecords,
-  getSentRecordsByDate
+  getSentRecordsByDate,
+  getLastRunDate,
+  setLastRunDate
 };
 

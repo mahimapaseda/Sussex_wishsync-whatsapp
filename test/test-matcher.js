@@ -342,6 +342,102 @@ console.log('\n[Test 7] Extended DOB Formats, Split Columns & Sheet Fetching:');
   assert.strictEqual(dec31Res.today[0].age, 8);
   console.log('  ✓ Unsent Sunday carryover, Sunday-sent deduplication, Tuesday isolation & Jan 1 boundary verified');
 
+  // 9. Generalized Holiday & Machine Power-Off Carryover Across Any Day
+  console.log('\n[Test 9] Generalized Multi-Day Missed Holiday & Shutdown Carryover:');
+  {
+    // Machine was last run on Wednesday 2026-11-18.
+    // Closed on Thursday (Poya holiday), Friday (special holiday), Saturday and Sunday.
+    // Machine turned back on Monday 2026-11-23.
+    ledger.setLastRunDate('2026-11-18');
+    assert.strictEqual(ledger.getLastRunDate(), '2026-11-18');
+
+    const pThu = '0778000001';
+    const pFri = '0778000002';
+    const pSatSent = '0778000003';
+    const pSun = '0778000004';
+    const pMonToday = '0778000005';
+    const pTueUpcoming = '0778000006';
+
+    const sanSatSent = matcher.sanitizePhoneNumber(pSatSent).sanitized;
+    const sanMonToday = matcher.sanitizePhoneNumber(pMonToday).sanitized;
+
+    // Simulate Saturday wish sent earlier before shutdown
+    ledger.recordSent({
+      phone: sanSatSent,
+      name: 'Saturday Student (Sent before shutdown)',
+      year: 2026,
+      date: '2026-11-21',
+      message: 'Sent Saturday',
+      method: 'unit-test'
+    });
+
+    const holidayStudents = [
+      { name: 'Thursday Student', dob: '19/11/2012', phone: pThu, branch: 'Kurunegala' },
+      { name: 'Friday Student', dob: '20/11/2011', phone: pFri, branch: 'Anuradhapura' },
+      { name: 'Saturday Student (Sent)', dob: '21/11/2010', phone: pSatSent, branch: 'Kandy' },
+      { name: 'Sunday Student', dob: '22/11/2009', phone: pSun, branch: 'Galle' },
+      { name: 'Monday Student (Today)', dob: '23/11/2008', phone: pMonToday, branch: 'Matara' },
+      { name: 'Tuesday Student (Upcoming)', dob: '24/11/2007', phone: pTueUpcoming, branch: 'Colombo' }
+    ];
+
+    const todayNov23 = { day: 23, month: 11, year: 2026, dateString: '2026-11-23' };
+    const resNov23 = matcher.processStudentRecords(holidayStudents, todayNov23, {
+      carryOverMissedBirthdays: true,
+      lastRunDate: '2026-11-18'
+    });
+
+    // Expect Thursday, Friday, Sunday, and Monday students (4 total active today; Saturday was already delivered)
+    assert.strictEqual(resNov23.today.length, 4, 'Expected 4 students: Thursday + Friday + Sunday + Monday');
+    assert.strictEqual(resNov23.today[0].name, 'Monday Student (Today)', 'Today exact birthday appears first');
+    assert.strictEqual(resNov23.today[0].isMissedCarryOver, false);
+
+    // Verify carryover metadata
+    const thuRecord = resNov23.today.find(s => s.name === 'Thursday Student');
+    assert.ok(thuRecord);
+    assert.strictEqual(thuRecord.isMissedCarryOver, true);
+    assert.strictEqual(thuRecord.missedDayLabel, 'Thursday');
+    assert.strictEqual(thuRecord.missedDate, '2026-11-19');
+    assert.strictEqual(thuRecord.status, 'PENDING_TODAY');
+
+    const friRecord = resNov23.today.find(s => s.name === 'Friday Student');
+    assert.ok(friRecord);
+    assert.strictEqual(friRecord.isMissedCarryOver, true);
+    assert.strictEqual(friRecord.missedDayLabel, 'Friday');
+    assert.strictEqual(friRecord.missedDate, '2026-11-20');
+
+    // Upcoming should contain Tuesday student
+    assert.strictEqual(resNov23.upcoming.length, 1);
+    assert.strictEqual(resNov23.upcoming[0].name, 'Tuesday Student (Upcoming)');
+    assert.strictEqual(resNov23.stats.pendingTodayCount, 4);
+
+    // Idempotency: Dispatch / send wish to Monday student and record lastRunDate = 2026-11-23
+    ledger.recordSent({
+      phone: sanMonToday,
+      name: 'Monday Student (Today)',
+      year: 2026,
+      date: '2026-11-23',
+      message: 'Happy Birthday',
+      method: 'unit-test'
+    });
+    ledger.setLastRunDate('2026-11-23');
+
+    // Restart check on same day (2026-11-23):
+    const resRestart = matcher.processStudentRecords(holidayStudents, todayNov23, {
+      carryOverMissedBirthdays: true,
+      lastRunDate: ledger.getLastRunDate()
+    });
+
+    // Range is now only today (2026-11-23), and Monday student is marked SENT_TODAY
+    assert.strictEqual(resRestart.today.length, 1);
+    assert.strictEqual(resRestart.today[0].name, 'Monday Student (Today)');
+    assert.strictEqual(resRestart.today[0].status, 'SENT_TODAY');
+    assert.strictEqual(resRestart.stats.pendingTodayCount, 0);
+    assert.strictEqual(resRestart.stats.sentTodayCount, 1);
+
+    console.log('  ✓ Multi-day unscheduled weekday holiday + weekend carryover verified');
+    console.log('  ✓ Idempotent restart on same day correctly marks delivered without duplicate pending');
+  }
+
   // Restore original ledger state
   if (originalLedger !== null) {
     fs.writeFileSync(config.SENT_LOG_PATH, originalLedger, 'utf8');

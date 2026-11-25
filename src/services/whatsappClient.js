@@ -700,6 +700,12 @@ async function dispatchBatch(students, template = config.DEFAULT_TEMPLATE, onPro
     isDispatching = false;
   }
 
+  // Update lastRunDate in ledger after messages are successfully dispatched
+  if (results.successful > 0 || (results.total > 0 && results.failed === 0)) {
+    const today = matcher.getCurrentDateInTimezone();
+    ledger.setLastRunDate(today.dateString);
+  }
+
   return results;
 }
 

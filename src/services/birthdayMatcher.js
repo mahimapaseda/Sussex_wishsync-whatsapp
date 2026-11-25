@@ -300,8 +300,11 @@ function formatMessage(template, student) {
     .replace(/{age}/g, student.age ? `${student.age}` : '');
 }
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 /**
  * Returns UTC day-of-week (0 = Sun, 1 = Mon) and the previous calendar date for a YYYY/MM/DD object.
+ * (Maintained for backward compatibility)
  */
 function getWeekdayAndPreviousDay(dateObj) {
   const utcMs = Date.UTC(dateObj.year, dateObj.month - 1, dateObj.day);
@@ -325,6 +328,96 @@ function getWeekdayAndPreviousDay(dateObj) {
 }
 
 /**
+ * Computes an ordered array of date objects between lastRunDate (exclusive) and todayDateObj (inclusive).
+ * Any date prior to today in this list represents a missed day (e.g. computer was powered off / closed).
+ */
+function getMissedDateRange(lastRunDateStr, todayDateObj, options = {}) {
+  const maxLookbackDays = Number.isInteger(options.maxLookbackDays) && options.maxLookbackDays > 0
+    ? options.maxLookbackDays
+    : 30;
+
+  const todayUtcMs = Date.UTC(todayDateObj.year, todayDateObj.month - 1, todayDateObj.day);
+  const todayUtc = new Date(todayUtcMs);
+  const todayDateString = todayDateObj.dateString || `${todayDateObj.year}-${String(todayDateObj.month).padStart(2, '0')}-${String(todayDateObj.day).padStart(2, '0')}`;
+  const todayDisplayString = todayDateObj.displayString || `${String(todayDateObj.day).padStart(2, '0')}/${String(todayDateObj.month).padStart(2, '0')}/${todayDateObj.year}`;
+
+  const todayItem = {
+    year: todayDateObj.year,
+    month: todayDateObj.month,
+    day: todayDateObj.day,
+    dateString: todayDateString,
+    displayString: todayDisplayString,
+    dayOfWeek: todayUtc.getUTCDay(),
+    dayName: DAY_NAMES[todayUtc.getUTCDay()],
+    isToday: true,
+    isMissedCarryOver: false,
+    isSunday: todayUtc.getUTCDay() === 0
+  };
+
+  // Check if carryover is explicitly disabled
+  const isCarryOverEnabled = options.carryOverMissedBirthdays !== false &&
+    options.includeMissedDays !== false &&
+    options.sundayCatchUpOnMonday !== false &&
+    options.includeSundayCatchUp !== false;
+
+  if (!isCarryOverEnabled) {
+    return [todayItem];
+  }
+
+  let startUtcMs;
+  if (lastRunDateStr && typeof lastRunDateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(lastRunDateStr)) {
+    const [y, m, d] = lastRunDateStr.split('-').map(Number);
+    startUtcMs = Date.UTC(y, m - 1, d);
+  } else {
+    // If no lastRunDate is recorded, default lookback:
+    // If today is Monday, look back to Saturday (2 days) so Sunday is included; otherwise look back to yesterday (1 day)
+    const defaultOffsetDays = todayUtc.getUTCDay() === 1 ? 2 : 1;
+    startUtcMs = todayUtcMs - (defaultOffsetDays * 86400000);
+  }
+
+  // If lastRunDate is today or future, only today is checked
+  if (startUtcMs >= todayUtcMs) {
+    return [todayItem];
+  }
+
+  // Cap lookback at maxLookbackDays
+  const minAllowedUtcMs = todayUtcMs - (maxLookbackDays * 86400000);
+  if (startUtcMs < minAllowedUtcMs) {
+    startUtcMs = minAllowedUtcMs;
+  }
+
+  const range = [];
+  let currentMs = startUtcMs + 86400000;
+  while (currentMs <= todayUtcMs) {
+    const curDate = new Date(currentMs);
+    const cYear = curDate.getUTCFullYear();
+    const cMonth = curDate.getUTCMonth() + 1;
+    const cDay = curDate.getUTCDate();
+    const cDateStr = `${cYear}-${String(cMonth).padStart(2, '0')}-${String(cDay).padStart(2, '0')}`;
+    const cDispStr = `${String(cDay).padStart(2, '0')}/${String(cMonth).padStart(2, '0')}/${cYear}`;
+    const cDayOfWeek = curDate.getUTCDay();
+    const isToday = (currentMs === todayUtcMs);
+
+    range.push({
+      year: cYear,
+      month: cMonth,
+      day: cDay,
+      dateString: cDateStr,
+      displayString: cDispStr,
+      dayOfWeek: cDayOfWeek,
+      dayName: DAY_NAMES[cDayOfWeek],
+      isToday,
+      isMissedCarryOver: !isToday,
+      isSunday: cDayOfWeek === 0
+    });
+
+    currentMs += 86400000;
+  }
+
+  return range.length > 0 ? range : [todayItem];
+}
+
+/**
  * Analyzes a raw list of student records from Google Sheets / CSV and categorizes them.
  */
 function processStudentRecords(rawStudents, customTodayOrOptions = null, extraOptions = {}) {
@@ -336,15 +429,21 @@ function processStudentRecords(rawStudents, customTodayOrOptions = null, extraOp
   );
   const today = hasCustomToday ? customTodayOrOptions : getCurrentDateInTimezone();
   const options = hasCustomToday ? (extraOptions || {}) : (customTodayOrOptions || {});
-  const includeSundayCatchUp = Boolean(options.includeSundayCatchUp);
+
+  const lastRunDate = options.lastRunDate !== undefined ? options.lastRunDate : ledger.getLastRunDate();
+  const dateRange = getMissedDateRange(lastRunDate, today, options);
+  const missedDaysList = dateRange.filter(d => d.isMissedCarryOver);
+  const isMonday = (new Date(Date.UTC(today.year, today.month - 1, today.day)).getUTCDay() === 1);
   const dayContext = getWeekdayAndPreviousDay(today);
-  const shouldIncludeMissedSunday = includeSundayCatchUp && dayContext.isMonday;
 
   const results = {
     todayInfo: {
       ...today,
-      isMonday: dayContext.isMonday,
-      sundayCatchUpEnabled: includeSundayCatchUp,
+      isMonday,
+      lastRunDate,
+      missedDaysCount: missedDaysList.length,
+      missedDates: missedDaysList.map(d => d.dateString),
+      sundayCatchUpEnabled: options.carryOverMissedBirthdays !== false && options.includeSundayCatchUp !== false,
       previousDateString: dayContext.previousDay.dateString
     },
     stats: {
@@ -352,6 +451,7 @@ function processStudentRecords(rawStudents, customTodayOrOptions = null, extraOp
       pendingTodayCount: 0,
       sentTodayCount: 0,
       upcomingCount: 0,
+      missedCarryOverCount: 0,
       sundayCatchUpCount: 0
     },
     today: [],
@@ -375,80 +475,115 @@ function processStudentRecords(rawStudents, customTodayOrOptions = null, extraOp
       return;
     }
 
-    const isExactToday = dobInfo.day === today.day && dobInfo.month === today.month;
-    const isMissedSunday = !isExactToday &&
-      shouldIncludeMissedSunday &&
-      dobInfo.day === dayContext.previousDay.day &&
-      dobInfo.month === dayContext.previousDay.month;
+    // Check if the student's birthday falls on any date in the active check window (today or missed days)
+    const matchedDate = dateRange.find(d => d.day === dobInfo.day && d.month === dobInfo.month);
 
-    const matchYear = isMissedSunday ? dayContext.previousDay.year : today.year;
-    const age = calculateTurningAge(dobInfo.year, matchYear);
-    const daysUntil = getDaysUntilBirthday(dobInfo.day, dobInfo.month, today.day, today.month, today.year);
+    if (matchedDate) {
+      const isExactToday = matchedDate.isToday;
+      const isMissedCarryOver = !isExactToday;
+      const matchYear = matchedDate.year;
+      const age = calculateTurningAge(dobInfo.year, matchYear);
+      const daysUntil = getDaysUntilBirthday(dobInfo.day, dobInfo.month, today.day, today.month, today.year);
 
-    const studentRecord = {
-      id: raw.id || `row_${index + 1}`,
-      name,
-      branch: branch || 'College',
-      branchId: raw.branchId || null,
-      branchCustomTemplate: raw.branchCustomTemplate || null,
-      dobFormatted: dobInfo.formatted,
-      dobRaw: rawDob,
-      birthYear: dobInfo.year,
-      age,
-      phone: phoneInfo.sanitized,
-      phoneRaw: phoneInfo.raw,
-      phoneDisplay: phoneInfo.formattedDisplay,
-      isPhoneValid: phoneInfo.isValid,
-      daysUntil,
-      ledgerYear: matchYear,
-      isSundayCatchUp: isMissedSunday,
-      missedDayLabel: isMissedSunday ? 'Sunday' : null,
-      birthdayDateDisplay: isMissedSunday ? dayContext.previousDay.displayString : null
-    };
+      const studentRecord = {
+        id: raw.id || `row_${index + 1}`,
+        name,
+        branch: branch || 'College',
+        branchId: raw.branchId || null,
+        branchCustomTemplate: raw.branchCustomTemplate || null,
+        dobFormatted: dobInfo.formatted,
+        dobRaw: rawDob,
+        birthYear: dobInfo.year,
+        age,
+        phone: phoneInfo.sanitized,
+        phoneRaw: phoneInfo.raw,
+        phoneDisplay: phoneInfo.formattedDisplay,
+        isPhoneValid: phoneInfo.isValid,
+        daysUntil,
+        ledgerYear: matchYear,
+        isMissedCarryOver,
+        isSundayCatchUp: isMissedCarryOver && matchedDate.dayOfWeek === 0,
+        missedDate: isMissedCarryOver ? matchedDate.dateString : null,
+        missedDateDisplay: isMissedCarryOver ? matchedDate.displayString : null,
+        missedDayLabel: isMissedCarryOver ? matchedDate.dayName : null,
+        birthdayDateDisplay: isMissedCarryOver ? matchedDate.displayString : null
+      };
 
-    if (isExactToday) {
-      const alreadySent = phoneInfo.sanitized
-        ? ledger.hasBeenSentThisYear(phoneInfo.sanitized, today.year)
-        : false;
-      studentRecord.status = alreadySent ? 'SENT_TODAY' : 'PENDING_TODAY';
-
-      if (alreadySent) {
-        results.stats.sentTodayCount++;
-      } else {
-        results.stats.pendingTodayCount++;
-      }
-
-      results.today.push(studentRecord);
-    } else if (isMissedSunday) {
       const sentRecord = phoneInfo.sanitized
         ? ledger.getSentRecord(phoneInfo.sanitized, matchYear)
         : null;
       const alreadySent = Boolean(sentRecord && sentRecord.status === 'SENT');
 
-      // Skip Sunday birthdays that were already delivered on Sunday; show unsent ones or ones delivered today (Monday)
-      if (alreadySent && sentRecord.dateSent !== today.dateString) {
-        return;
-      }
+      if (isMissedCarryOver) {
+        // Skip missed birthdays that were already delivered on their original date before shutdown
+        if (alreadySent && sentRecord.dateSent !== today.dateString) {
+          return;
+        }
 
-      studentRecord.status = alreadySent ? 'SENT_TODAY' : 'PENDING_TODAY';
-      results.stats.sundayCatchUpCount++;
-      if (alreadySent) {
-        results.stats.sentTodayCount++;
+        studentRecord.status = alreadySent ? 'SENT_TODAY' : 'PENDING_TODAY';
+        results.stats.missedCarryOverCount++;
+        results.stats.sundayCatchUpCount++;
+
+        if (alreadySent) {
+          results.stats.sentTodayCount++;
+        } else {
+          results.stats.pendingTodayCount++;
+        }
+
+        results.today.push(studentRecord);
       } else {
-        results.stats.pendingTodayCount++;
+        // Exact today
+        studentRecord.status = alreadySent ? 'SENT_TODAY' : 'PENDING_TODAY';
+        if (alreadySent) {
+          results.stats.sentTodayCount++;
+        } else {
+          results.stats.pendingTodayCount++;
+        }
+        results.today.push(studentRecord);
       }
-
-      results.today.push(studentRecord);
-    } else if (daysUntil >= 1 && daysUntil <= 7) {
-      // Upcoming within 7 days
-      studentRecord.status = 'UPCOMING';
-      results.stats.upcomingCount++;
-      results.upcoming.push(studentRecord);
+    } else {
+      // Check upcoming within 7 days from today
+      const daysUntil = getDaysUntilBirthday(dobInfo.day, dobInfo.month, today.day, today.month, today.year);
+      if (daysUntil >= 1 && daysUntil <= 7) {
+        const studentRecord = {
+          id: raw.id || `row_${index + 1}`,
+          name,
+          branch: branch || 'College',
+          branchId: raw.branchId || null,
+          branchCustomTemplate: raw.branchCustomTemplate || null,
+          dobFormatted: dobInfo.formatted,
+          dobRaw: rawDob,
+          birthYear: dobInfo.year,
+          age: calculateTurningAge(dobInfo.year, today.year),
+          phone: phoneInfo.sanitized,
+          phoneRaw: phoneInfo.raw,
+          phoneDisplay: phoneInfo.formattedDisplay,
+          isPhoneValid: phoneInfo.isValid,
+          daysUntil,
+          ledgerYear: today.year,
+          isMissedCarryOver: false,
+          isSundayCatchUp: false,
+          missedDayLabel: null,
+          birthdayDateDisplay: null,
+          status: 'UPCOMING'
+        };
+        results.stats.upcomingCount++;
+        results.upcoming.push(studentRecord);
+      }
     }
   });
 
-  // Show today's (Monday) birthdays first, then Sunday carryovers
-  results.today.sort((a, b) => Number(Boolean(a.isSundayCatchUp)) - Number(Boolean(b.isSundayCatchUp)));
+  // Sort today's list: exact today first, then missed carryovers by date ascending
+  results.today.sort((a, b) => {
+    if (a.isMissedCarryOver !== b.isMissedCarryOver) {
+      return Number(Boolean(a.isMissedCarryOver)) - Number(Boolean(b.isMissedCarryOver));
+    }
+    if (a.missedDate && b.missedDate) {
+      return a.missedDate.localeCompare(b.missedDate);
+    }
+    return 0;
+  });
+
   // Sort upcoming by closest day
   results.upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
 
@@ -462,6 +597,7 @@ module.exports = {
   calculateTurningAge,
   getDaysUntilBirthday,
   getWeekdayAndPreviousDay,
+  getMissedDateRange,
   formatMessage,
   processStudentRecords
 };

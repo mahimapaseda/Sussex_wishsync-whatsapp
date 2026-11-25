@@ -59,7 +59,9 @@ app.get('/api/status', async (req, res) => {
       timezone: config.TIMEZONE,
       sheetName: config.SHEET_NAME,
       autoSendOnBoot: userSettings.autoSendOnBoot,
-      sundayCatchUpOnMonday: userSettings.sundayCatchUpOnMonday !== false
+      carryOverMissedBirthdays: userSettings.carryOverMissedBirthdays !== false,
+      sundayCatchUpOnMonday: userSettings.carryOverMissedBirthdays !== false,
+      lastRunDate: ledger.getLastRunDate()
     }
   });
 });
@@ -71,7 +73,9 @@ app.get('/api/birthdays', async (req, res) => {
     const userSettings = settings.loadSettings();
     const sheetData = await googleSheets.fetchStudentsFromSheet(forceRefresh);
     const processed = birthdayMatcher.processStudentRecords(sheetData.students, {
-      includeSundayCatchUp: userSettings.sundayCatchUpOnMonday !== false
+      carryOverMissedBirthdays: userSettings.carryOverMissedBirthdays !== false,
+      includeSundayCatchUp: userSettings.carryOverMissedBirthdays !== false,
+      lastRunDate: ledger.getLastRunDate()
     });
     const sentTodayLedger = ledger.getSentRecordsByDate(processed.todayInfo.dateString).map(r => ({
       phone: r.phone,
@@ -427,7 +431,9 @@ app.post('/api/send-batch', async (req, res) => {
     const userSettings = settings.loadSettings();
     const sheetData = await googleSheets.fetchStudentsFromSheet();
     const processed = birthdayMatcher.processStudentRecords(sheetData.students, {
-      includeSundayCatchUp: userSettings.sundayCatchUpOnMonday !== false
+      carryOverMissedBirthdays: userSettings.carryOverMissedBirthdays !== false,
+      includeSundayCatchUp: userSettings.carryOverMissedBirthdays !== false,
+      lastRunDate: ledger.getLastRunDate()
     });
 
     let targetStudents = forceResend
@@ -569,7 +575,9 @@ async function runHeadlessBootAutoDispatch() {
       try {
         const sheetData = await googleSheets.fetchStudentsFromSheet(true);
         const processed = birthdayMatcher.processStudentRecords(sheetData.students, {
-          includeSundayCatchUp: userSettings.sundayCatchUpOnMonday !== false
+          carryOverMissedBirthdays: userSettings.carryOverMissedBirthdays !== false,
+          includeSundayCatchUp: userSettings.carryOverMissedBirthdays !== false,
+          lastRunDate: ledger.getLastRunDate()
         });
         const pending = processed.today.filter(s => s.status === 'PENDING_TODAY');
 
@@ -583,6 +591,7 @@ async function runHeadlessBootAutoDispatch() {
           );
         } else {
           console.log('[Startup] No pending birthdays found today.');
+          ledger.setLastRunDate(processed.todayInfo.dateString);
         }
       } catch (err) {
         console.error('[Startup] Headless boot dispatch error:', err.message);
@@ -639,7 +648,9 @@ const server = app.listen(config.PORT, async () => {
           console.log('[Scheduler] Automatically checking birthdays for the new day...');
           const sheetData = await googleSheets.fetchStudentsFromSheet();
           const processed = birthdayMatcher.processStudentRecords(sheetData.students, {
-            includeSundayCatchUp: userSettings.sundayCatchUpOnMonday !== false
+            carryOverMissedBirthdays: userSettings.carryOverMissedBirthdays !== false,
+            includeSundayCatchUp: userSettings.carryOverMissedBirthdays !== false,
+            lastRunDate: ledger.getLastRunDate()
           });
           const pending = processed.today.filter(s => s.status === 'PENDING_TODAY');
           if (pending.length > 0) {
@@ -647,6 +658,8 @@ const server = app.listen(config.PORT, async () => {
             whatsappClient.dispatchBatch(pending, userSettings.template).catch(e => {
               console.error('[Scheduler] Auto-dispatch error:', e.message);
             });
+          } else {
+            ledger.setLastRunDate(currentDate);
           }
         }
       }
